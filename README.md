@@ -64,6 +64,7 @@ docker compose exec comptes python -m comptes.outils creer-admin --telephone "76
 # Équipe de la boutique (gestion des commandes) et soignants vérifiés (prix professionnel) :
 docker compose exec comptes python -m comptes.outils attribuer-role --telephone "76…" --role boutique:admin
 docker compose exec comptes python -m comptes.outils attribuer-role --telephone "66…" --role boutique:pro
+docker compose exec comptes python -m comptes.outils attribuer-role --telephone "65…" --role boutique:atelier
 ```
 
 Avant le premier devis, renseigner dans `.env` l'adresse de la boutique (`BOUTIQUE_COORDONNEES`)
@@ -76,6 +77,6 @@ chaque service.
 
 - [x] Socle, comptes, organisations, catalogue, interface de consultation, déploiement
 - [x] Panier, commande, suivi par lien, devis PDF, paiement à la livraison, gestion (semaine 2)
-- [ ] File d'atelier sur tablette et stock (semaine 3)
+- [x] File d'atelier sur tablette, capacité des postes, dates promises selon la charge, stock (semaine 3)
 - [ ] Livraisons, factures, notifications, revue de sécurité (semaine 4)
 - [ ] Paiement mobile (Orange Money, Moov Money) et pharmacien partenaire (janvier 2027)

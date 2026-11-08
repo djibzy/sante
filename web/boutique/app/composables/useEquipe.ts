@@ -1,11 +1,12 @@
-/** Accès aux écrans de l'équipe : rôle boutique:admin, vérifié aussi par l'API. */
-export function useEquipe() {
+/** Accès aux écrans de l'équipe ; l'API vérifie aussi chaque rôle. */
+export function useEquipe(roles: string[] = ['boutique:admin']) {
   const { attendre, aLeRole, utilisateur } = useSession()
   const verifie = ref(false)
-  const autorise = computed(() => aLeRole('boutique:admin'))
+  const autorise = computed(() => roles.some(role => aLeRole(role)))
+  const estGestionnaire = computed(() => aLeRole('boutique:admin'))
   onMounted(async () => {
     await attendre()
     verifie.value = true
   })
-  return { verifie, autorise, utilisateur }
+  return { verifie, autorise, estGestionnaire, utilisateur }
 }
