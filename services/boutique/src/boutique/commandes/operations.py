@@ -33,6 +33,7 @@ from boutique.models import (
     Produit,
     ZoneLivraison,
 )
+from boutique.notifications import boite
 from socle.audit import journaliser
 from socle.security import Principal
 from socle.telephones import NumeroInvalide, normaliser_telephone
@@ -145,6 +146,8 @@ async def appliquer_statut(
     elif statut == Statut.LIVREE:
         await factures.emettre(session, commande, acteur_id)
     evenement(commande, statut, acteur_id, note, visible_client)
+    if visible_client:
+        boite.apres_changement(session, commande, statut)
 
 
 async def apres_changement_ordre(
@@ -275,6 +278,8 @@ async def creer(
             raise
         return Nouvelle(deja, cle, creee=False)
     reference = commande.reference
+    base = parametres.url_publique.rstrip("/")
+    boite.apres_creation(session, commande, f"{base}/suivi/{reference}?cle={cle}" if base else None)
     journaliser(
         session,
         JournalAudit,

@@ -137,7 +137,7 @@ async def changer_statut(
         livreur = await session.get(Livreur, donnees.livreur_id)
         if livreur is None or not livreur.est_actif:
             raise HTTPException(_422, "Livreur inconnu")
-        commande.livreur_id = livreur.id
+        commande.livreur = livreur
     if donnees.date_promise is not None:
         commande.date_promise = donnees.date_promise
     await operations.appliquer_statut(
@@ -260,7 +260,9 @@ async def emettre_devis(
     commande.total = sous_total + frais - donnees.remise
     commande.devis_emis_le = datetime.now(UTC)
     commande.devis_valable_jusqu_au = aujourd_hui() + timedelta(days=validite)
-    operations.evenement(commande, Statut.DEVIS_ENVOYE, principal.id, donnees.note.strip())
+    await operations.appliquer_statut(
+        session, commande, Statut.DEVIS_ENVOYE, principal.id, donnees.note.strip()
+    )
     journaliser(
         session,
         JournalAudit,

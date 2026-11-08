@@ -1,3 +1,6 @@
+from typing import Literal
+
+from pydantic import SecretStr
 from pydantic_settings import SettingsConfigDict
 
 from socle.settings import ParametresService
@@ -25,3 +28,14 @@ class ParametresBoutique(ParametresService):
 
     # Demandes non traitées (commandes à confirmer, devis demandés) par numéro, sur 24 heures.
     demandes_max_par_telephone: int = 5
+
+    # Adresse publique de la boutique, pour les liens de suivi envoyés par SMS.
+    url_publique: str = ""
+
+    # SMS : « journal » écrit les messages dans les journaux sans rien envoyer (essais) ;
+    # « orange » passe par l'API SMS d'Orange (compte Orange Developer requis).
+    sms_fournisseur: Literal["journal", "orange"] = "journal"
+    sms_expediteur: str = ""  # numéro E.164 du compte SMS, ex. +22370000000
+    sms_nom_expediteur: str = ""  # nom affiché (« Bibou »), s'il est validé par l'opérateur
+    orange_client_id: str = ""
+    orange_client_secret: SecretStr = SecretStr("")

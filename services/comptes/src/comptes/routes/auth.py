@@ -27,6 +27,7 @@ from comptes.schemas import (
 )
 from socle.audit import journaliser
 from socle.db import session_db
+from socle.limites import LimiteDebit
 from socle.security import Principal, principal_requis
 from socle.telephones import NumeroInvalide, normaliser_telephone
 
@@ -97,7 +98,12 @@ async def _emettre_jetons(
     return jetons, jeton
 
 
-@routeur.post("/inscription", status_code=status.HTTP_201_CREATED, summary="Créer un compte")
+@routeur.post(
+    "/inscription",
+    status_code=status.HTTP_201_CREATED,
+    summary="Créer un compte",
+    dependencies=[Depends(LimiteDebit("inscription", nombre=30, secondes=600))],
+)
 async def inscription(
     donnees: Inscription,
     request: Request,
@@ -152,7 +158,12 @@ async def inscription(
     return jetons
 
 
-@routeur.post("/connexion", summary="Se connecter avec son numéro et son mot de passe")
+@routeur.post(
+    "/connexion",
+    summary="Se connecter avec son numéro et son mot de passe",
+    # En plus du verrouillage du compte après 5 échecs : freine les essais en masse.
+    dependencies=[Depends(LimiteDebit("connexion", nombre=60, secondes=60))],
+)
 async def connexion(
     donnees: Connexion,
     request: Request,

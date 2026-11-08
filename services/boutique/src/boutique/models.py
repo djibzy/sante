@@ -392,5 +392,31 @@ class Facture(IdMixin, Base):
         return f"F{self.annee}-{self.numero:05d}"
 
 
+class Notification(IdMixin, Base):
+    """SMS à envoyer au client (boîte d'envoi) ; jamais de donnée de santé dans le texte."""
+
+    __tablename__ = "notifications"
+    __table_args__ = (
+        CheckConstraint("etat IN ('a_envoyer', 'envoyee', 'echec')", name="etat_valide"),
+        CheckConstraint("canal IN ('sms')", name="canal_valide"),
+    )
+
+    commande_id: Mapped[UUID | None] = mapped_column(ForeignKey("commandes.id"), index=True)
+    canal: Mapped[str] = mapped_column(String(10), nullable=False)
+    destinataire: Mapped[str] = mapped_column(String(20), nullable=False)  # E.164
+    message: Mapped[str] = mapped_column(Text, nullable=False)
+    etat: Mapped[str] = mapped_column(String(10), index=True, nullable=False)
+    tentatives: Mapped[int] = mapped_column(nullable=False, default=0, server_default="0")
+    derniere_erreur: Mapped[str | None] = mapped_column(String(500))
+    identifiant_fournisseur: Mapped[str | None] = mapped_column(String(200))
+    prochain_essai: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, default=_maintenant
+    )
+    cree_le: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, default=_maintenant
+    )
+    envoyee_le: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+
+
 class JournalAudit(JournalAuditMixin, Base):
     __tablename__ = "journal_audit"

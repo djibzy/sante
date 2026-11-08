@@ -48,8 +48,29 @@ services:
       # Imprimés sur les devis et les factures.
       BOUTIQUE_COORDONNEES: ${BOUTIQUE_COORDONNEES:-Bamako, Mali}
       BOUTIQUE_MENTIONS_LEGALES: ${BOUTIQUE_MENTIONS_LEGALES:-}
+      BOUTIQUE_URL_PUBLIQUE: https://boutique.${DOMAINE}
     depends_on:
       postgres: { condition: service_healthy }
+
+  # Envoi des SMS aux clients (boîte d'envoi en base). Sans fournisseur configuré, les SMS sont
+  # seulement écrits dans les journaux.
+  boutique-envoi:
+    build:
+      context: ..
+      dockerfile: infra/python.Dockerfile
+      args: { SERVICE: boutique }
+    restart: unless-stopped
+    command: ["python", "-m", "boutique.envoi"]
+    environment:
+      BOUTIQUE_ENVIRONNEMENT: production
+      BOUTIQUE_DATABASE_URL: postgresql+asyncpg://boutique:${BOUTIQUE_DB_MOT_DE_PASSE}@postgres:5432/boutique
+      BOUTIQUE_SMS_FOURNISSEUR: ${BOUTIQUE_SMS_FOURNISSEUR:-journal}
+      BOUTIQUE_SMS_EXPEDITEUR: ${BOUTIQUE_SMS_EXPEDITEUR:-}
+      BOUTIQUE_SMS_NOM_EXPEDITEUR: ${BOUTIQUE_SMS_NOM_EXPEDITEUR:-}
+      BOUTIQUE_ORANGE_CLIENT_ID: ${BOUTIQUE_ORANGE_CLIENT_ID:-}
+      BOUTIQUE_ORANGE_CLIENT_SECRET: ${BOUTIQUE_ORANGE_CLIENT_SECRET:-}
+    depends_on:
+      boutique: { condition: service_started }
 
   web-boutique:
     build:

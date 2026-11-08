@@ -29,9 +29,14 @@ from boutique.config import ROLE_PRO, ParametresBoutique
 from boutique.models import Commande, JournalAudit, ZoneLivraison
 from socle.audit import journaliser
 from socle.db import session_db
+from socle.limites import LimiteDebit
 from socle.security import Principal, principal_optionnel, principal_requis
 
 routeur = APIRouter(prefix="/api/v1", tags=["commandes"])
+# Par adresse IP. Les opérateurs mobiles partagent une même adresse entre de nombreux abonnés :
+# des seuils larges, la vraie limite étant celle des demandes en attente par téléphone.
+LIMITE_DEMANDES = Depends(LimiteDebit("demandes", nombre=60, secondes=600))
+LIMITE_LECTURES = Depends(LimiteDebit("lectures", nombre=300, secondes=60))
 CLE = Query(None, max_length=64, description="Clé du lien de suivi")
 
 
@@ -54,7 +59,11 @@ async def zones(session: AsyncSession = Depends(session_db)) -> list[ZonePubliqu
     return [ZonePublique.model_validate(z) for z in (await session.execute(requete)).scalars()]
 
 
-@routeur.post("/panier/chiffrage", summary="Prix, frais et date estimée d'un panier")
+@routeur.post(
+    "/panier/chiffrage",
+    summary="Prix, frais et date estimée d'un panier",
+    dependencies=[LIMITE_LECTURES],
+)
 async def chiffrer(
     demande: DemandeChiffrage,
     principal: Principal | None = Depends(principal_optionnel),
@@ -101,6 +110,7 @@ async def chiffrer(
     "/commandes",
     status_code=status.HTTP_201_CREATED,
     summary="Passer commande, paiement à la livraison",
+    dependencies=[LIMITE_DEMANDES],
 )
 async def commander(
     donnees: CreationCommande,
@@ -127,7 +137,10 @@ async def commander(
 
 
 @routeur.post(
-    "/devis", status_code=status.HTTP_201_CREATED, summary="Demander un devis (structures)"
+    "/devis",
+    status_code=status.HTTP_201_CREATED,
+    summary="Demander un devis (structures)",
+    dependencies=[LIMITE_DEMANDES],
 )
 async def demander_devis(
     donnees: CreationDevis,
@@ -155,7 +168,11 @@ async def demander_devis(
     return CommandeCreee(commande=vue_client(nouvelle.commande), cle_suivi=nouvelle.cle)
 
 
-@routeur.get("/suivi/{reference}", summary="Suivre une commande avec son lien")
+@routeur.get(
+    "/suivi/{reference}",
+    summary="Suivre une commande avec son lien",
+    dependencies=[LIMITE_LECTURES],
+)
 async def suivre(
     reference: str, cle: str | None = CLE, session: AsyncSession = Depends(session_db)
 ) -> CommandeClient:
