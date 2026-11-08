@@ -1,13 +1,12 @@
 <script setup lang="ts">
+// Logo de la marque mère, suivi du nom du produit. Les produits qui ont leur propre logo
+// (Bibou pour la boutique) l'affichent directement.
 defineProps<{ nom: string; sousTitre?: string }>()
 </script>
 
 <template>
   <span class="logo">
-    <svg viewBox="0 0 32 32" width="32" height="32" aria-hidden="true">
-      <rect width="32" height="32" rx="9" fill="var(--primaire)" />
-      <path d="M13 8h6v5h5v6h-5v5h-6v-5H8v-6h5z" fill="#fff" />
-    </svg>
+    <img src="/marque/yasal-sante-icone.png" alt="" width="34" height="34">
     <span>
       <strong>{{ nom }}</strong>
       <small v-if="sousTitre">{{ sousTitre }}</small>

@@ -1,0 +1,15 @@
+{
+  "name": "Bibou par Yasal Santé",
+  "short_name": "Bibou",
+  "description": "Tenues brodées, imprimés, kits et matériel pour les soignants au Mali.",
+  "lang": "fr",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#1000d0",
+  "icons": [
+    { "src": "/icone-192.png", "sizes": "192x192", "type": "image/png" },
+    { "src": "/icone-512.png", "sizes": "512x512", "type": "image/png" },
+    { "src": "/icone-512-masquable.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ]
+}

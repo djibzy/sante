@@ -1,14 +1,15 @@
-# Santé Mali : écosystème de santé (Mali, puis AES)
+# Yasal Santé : écosystème de santé (Mali, puis AES)
 
 Information, formation et équipement de santé, en produits séparés reliés par un socle commun.
-Ce dépôt contient, pour commencer, le socle, le service de comptes et la boutique.
+Ce dépôt contient, pour commencer, le socle, le service de comptes et **Bibou**, la boutique
+(tenues brodées, imprimés, kits et matériel). Marque et logos : [docs/marque.md](docs/marque.md).
 
 | Dossier | Contenu | Port local |
 | --- | --- | --- |
 | `socle/` | Code partagé : base de données, identifiants, jetons, journaux, audit | |
 | `services/comptes/` | Compte unique : inscription et connexion par téléphone, organisations | 8001 |
 | `services/boutique/` | Catalogue : rayons, produits, variantes, recherche, administration | 8002 |
-| `web/boutique/` | Interface de la boutique (Nuxt), avec la charte commune de `web/charte/` | 3000 |
+| `web/boutique/` | Interface de Bibou (Nuxt), avec la charte commune de `web/charte/` | 3000 |
 | `infra/` | Mise en production : Docker Compose, Caddy, PostgreSQL | |
 
 Documents de référence : [dossier de projet](https://claude.ai/artifact/1RG4A9vTti9ycmD12kiJ98),

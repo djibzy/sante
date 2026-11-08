@@ -12,7 +12,10 @@ campagnes, puis orientation médicale) sur un socle commun. Références :
 - `services/comptes/` : compte unique, connexion par téléphone, organisations (port 8001)
 - `services/boutique/` : catalogue, puis commandes et atelier (port 8002)
 - `web/` : interfaces Nuxt ; `web/charte/` est la couche commune, `web/boutique/` l'application
-- `infra/` : Docker Compose, Caddy ; `docs/` : décisions d'architecture
+- `infra/` : Docker Compose, Caddy ; `docs/` : décisions d'architecture, marque (`docs/marque.md`)
+
+La boutique s'appelle **Bibou**, « par Yasal Santé » (marque mère). Couleurs de Bibou dans
+`web/boutique/app/assets/css/bibou.css`, celles de Yasal Santé dans la charte commune.
 
 ## Commandes
 

@@ -17,6 +17,7 @@ ajoutant une nouvelle ligne qui la remplace, avec sa raison.
 | D10 | Articles réglementés vendus par un pharmacien partenaire | Décret n° 04-557 |
 | D11 | Stockage de fichiers compatible S3 | Changer de fournisseur sans réécrire |
 | D12 | Un seul dépôt, l'orientation dans un dépôt à part | Socle versionné une fois ; accès restreint aux données de santé |
+| D13 | La boutique s'appelle Bibou, « par Yasal Santé » ; logo principal bleu | Lisible au soleil (10,9:1), distinct de la marque mère ; voir [marque.md](marque.md) |
 
 ## Choix de mise en œuvre (novembre 2026)
 

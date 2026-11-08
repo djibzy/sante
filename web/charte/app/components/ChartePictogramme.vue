@@ -3,13 +3,13 @@
 const props = defineProps<{ type: string; taille?: number }>()
 
 const teintes: Record<string, [string, string]> = {
-  'tenues-brodees': ['#e3f1ea', '#0f6b4a'],
-  'textiles-imprimes': ['#fbeee2', '#b25a14'],
-  kits: ['#e8eefb', '#2c56a8'],
-  'produits-medicaux': ['#fdecea', '#b42318'],
-  accessoires: ['#f1ecf8', '#6b4aa0'],
+  'tenues-brodees': ['#ecebfd', '#1000d0'],
+  'textiles-imprimes': ['#fff1dc', '#b86800'],
+  kits: ['#e4f4ec', '#177a4a'],
+  'produits-medicaux': ['#fde8eb', '#b0182e'],
+  accessoires: ['#efeefa', '#4b4790'],
 }
-const couleurs = computed(() => teintes[props.type] ?? ['#eeeae2', '#5a6a62'])
+const couleurs = computed(() => teintes[props.type] ?? ['#f1f1f6', '#5b5a78'])
 </script>
 
 <template>
