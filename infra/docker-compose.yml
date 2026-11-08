@@ -84,6 +84,24 @@ services:
       NUXT_PUBLIC_WHATSAPP: ${WHATSAPP:-}
     depends_on: [boutique]
 
+  # Sauvegarde de chaque base, chaque nuit, gardée 14 jours dans le volume « sauvegardes ».
+  # À recopier régulièrement hors du serveur (voir docs/securite.md).
+  sauvegarde:
+    image: postgres:16
+    restart: unless-stopped
+    environment:
+      PGHOST: postgres
+      PGUSER: postgres
+      PGPASSWORD: ${POSTGRES_PASSWORD:?}
+      BASES: comptes boutique
+      JOURS_CONSERVES: 14
+    volumes:
+      - ./sauvegarde.sh:/sauvegarde.sh:ro
+      - sauvegardes:/sauvegardes
+    entrypoint: ["sh", "/sauvegarde.sh"]
+    depends_on:
+      postgres: { condition: service_healthy }
+
   caddy:
     image: caddy:2
     restart: unless-stopped
@@ -98,6 +116,7 @@ services:
     depends_on: [comptes, boutique, web-boutique]
 
 volumes:
+  sauvegardes:
   donnees-postgres:
   caddy-donnees:
   caddy-config:

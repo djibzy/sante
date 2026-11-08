@@ -64,3 +64,20 @@ jobs:
       - run: docker build -f infra/python.Dockerfile --build-arg SERVICE=comptes -t sante-comptes .
       - run: docker build -f infra/python.Dockerfile --build-arg SERVICE=boutique -t sante-boutique .
       - run: docker build -f infra/web.Dockerfile -t sante-web-boutique web
+
+  audit:
+    name: Audit des dépendances (vulnérabilités connues)
+    runs-on: ubuntu-24.04
+    # Informatif : une alerte ne bloque pas la mise en production, mais doit être lue.
+    continue-on-error: true
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v6
+      - name: Python
+        run: uv export --frozen --no-dev --no-emit-workspace --format requirements-txt > exigences.txt && uvx pip-audit -r exigences.txt
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Interface
+        working-directory: web/boutique
+        run: npm audit --omit=dev --audit-level=high

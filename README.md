@@ -15,7 +15,7 @@ Ce dépôt contient, pour commencer, le socle, le service de comptes et **Bibou*
 Documents de référence : [dossier de projet](https://claude.ai/artifact/1RG4A9vTti9ycmD12kiJ98),
 [plan d'action et financier](https://claude.ai/artifact/PLemzatgVRdtA53zMcZqDS),
 [dossier d'architecture](https://claude.ai/artifact/3uiNEZJkPX172JFeHChgWb),
-[décisions](docs/decisions.md).
+[décisions](docs/decisions.md), [sécurité](docs/securite.md).
 
 ## Lancer en local
 
@@ -71,12 +71,14 @@ Avant le premier devis, renseigner dans `.env` l'adresse de la boutique (`BOUTIQ
 et les mentions légales (`BOUTIQUE_MENTIONS_LEGALES` : RCCM, NIF, régime fiscal).
 
 Caddy obtient les certificats HTTPS tout seul. Les migrations s'appliquent au démarrage de
-chaque service.
+chaque service. Le service `boutique-envoi` expédie les SMS (fournisseur `journal` par défaut :
+rien n'est envoyé tant que le compte Orange n'est pas configuré) ; le service `sauvegarde`
+sauvegarde les bases chaque nuit.
 
 ## État d'avancement
 
 - [x] Socle, comptes, organisations, catalogue, interface de consultation, déploiement
 - [x] Panier, commande, suivi par lien, devis PDF, paiement à la livraison, gestion (semaine 2)
 - [x] File d'atelier sur tablette, capacité des postes, dates promises selon la charge, stock (semaine 3)
-- [ ] Livraisons, factures, notifications, revue de sécurité (semaine 4)
+- [x] Livreurs et feuille de route, factures sans trou, SMS aux clients, revue de sécurité (semaine 4)
 - [ ] Paiement mobile (Orange Money, Moov Money) et pharmacien partenaire (janvier 2027)

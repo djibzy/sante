@@ -234,7 +234,11 @@ async def _accepter(
     return vue_client(await acces.charger(session, commande.reference))
 
 
-@routeur.post("/suivi/{reference}/annulation", summary="Annuler sa commande ou son devis")
+@routeur.post(
+    "/suivi/{reference}/annulation",
+    summary="Annuler sa commande ou son devis",
+    dependencies=[LIMITE_LECTURES],
+)
 async def annuler(
     reference: str,
     request: Request,
@@ -245,7 +249,11 @@ async def annuler(
     return await _annuler(session, commande, None, _ip(request))
 
 
-@routeur.post("/suivi/{reference}/acceptation", summary="Accepter le devis reçu")
+@routeur.post(
+    "/suivi/{reference}/acceptation",
+    summary="Accepter le devis reçu",
+    dependencies=[LIMITE_LECTURES],
+)
 async def accepter(
     reference: str,
     request: Request,
@@ -256,7 +264,11 @@ async def accepter(
     return await _accepter(session, commande, None, _ip(request))
 
 
-@routeur.get("/suivi/{reference}/devis.pdf", summary="Télécharger le devis en PDF")
+@routeur.get(
+    "/suivi/{reference}/devis.pdf",
+    summary="Télécharger le devis en PDF",
+    dependencies=[LIMITE_LECTURES],
+)
 async def telecharger_devis(
     reference: str,
     request: Request,
@@ -319,7 +331,11 @@ async def accepter_le_mien(
     return await _accepter(session, commande, principal, _ip(request))
 
 
-@routeur.get("/suivi/{reference}/facture.pdf", summary="Télécharger la facture en PDF")
+@routeur.get(
+    "/suivi/{reference}/facture.pdf",
+    summary="Télécharger la facture en PDF",
+    dependencies=[LIMITE_LECTURES],
+)
 async def telecharger_facture(
     reference: str,
     request: Request,
