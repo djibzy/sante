@@ -143,7 +143,7 @@ async def test_gestion_des_livreurs(client: AsyncClient) -> None:
     )
     assert (modifie.json()["est_actif"], modifie.json()["telephone"]) == (False, "+22365998877")
     assert [
-        l["nom"] for l in (await client.get("/api/v1/admin/livreurs", headers=ADMIN)).json()
+        x["nom"] for x in (await client.get("/api/v1/admin/livreurs", headers=ADMIN)).json()
     ] == ["Moussa Konaté"]
     refus = await client.post(
         "/api/v1/admin/livreurs", json={"nom": "X", "telephone": "76 55 44 33"}, headers=ADMIN
