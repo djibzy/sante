@@ -18,10 +18,10 @@ from comptes.schemas import (
     MonOrganisation,
     OrganisationPublique,
 )
-from comptes.telephones import NumeroInvalide, normaliser_telephone
 from socle.audit import journaliser
 from socle.db import session_db
 from socle.security import ROLE_ADMIN, Principal, principal_requis
+from socle.telephones import NumeroInvalide, normaliser_telephone
 
 routeur = APIRouter(prefix="/api/v1/organisations", tags=["organisations"])
 _INTROUVABLE = "Organisation introuvable"

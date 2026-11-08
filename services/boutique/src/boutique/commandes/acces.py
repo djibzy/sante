@@ -1,0 +1,89 @@
+"""Retrouver une commande : par sa référence, avec la clé de son lien de suivi."""
+
+import hashlib
+import hmac
+import re
+import secrets
+
+from fastapi import HTTPException, status
+from sqlalchemy import Select, func, select
+from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import selectinload
+
+from boutique.models import Commande, LigneCommande, ZoneLivraison
+
+_REFERENCE = re.compile(r"(?:BB-?)?(\d{1,9})", re.IGNORECASE)
+INTROUVABLE = "Commande introuvable"
+
+
+def numero(reference: str) -> int:
+    """« BB-1001 », « bb1001 » ou « 1001 » donnent 1001."""
+    correspondance = _REFERENCE.fullmatch(reference.strip())
+    if correspondance is None:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, INTROUVABLE)
+    return int(correspondance.group(1))
+
+
+def nouvelle_cle() -> str:
+    return secrets.token_urlsafe(18)
+
+
+def empreinte(cle: str) -> str:
+    return hashlib.sha256(cle.encode()).hexdigest()
+
+
+def cle_valide(commande: Commande, cle: str | None) -> bool:
+    return bool(cle) and hmac.compare_digest(commande.empreinte_cle_suivi, empreinte(cle or ""))
+
+
+# Tout ce qu'affichent le suivi et la gestion, chargé explicitement (relations en lazy="raise").
+_COMPLETE = (
+    selectinload(Commande.lignes),
+    selectinload(Commande.evenements),
+    selectinload(Commande.paiements),
+    selectinload(Commande.zone),
+)
+
+
+async def charger(session: AsyncSession, reference: str) -> Commande:
+    requete = (
+        select(Commande)
+        .options(*_COMPLETE)
+        .where(Commande.numero == numero(reference))
+        .execution_options(populate_existing=True)
+    )
+    commande = (await session.execute(requete)).scalar_one_or_none()
+    if commande is None:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, INTROUVABLE)
+    return commande
+
+
+async def charger_par_cle(session: AsyncSession, cle: str) -> Commande | None:
+    requete = (
+        select(Commande)
+        .options(*_COMPLETE)
+        .where(Commande.empreinte_cle_suivi == empreinte(cle))
+        .execution_options(populate_existing=True)
+    )
+    return (await session.execute(requete)).scalar_one_or_none()
+
+
+async def charger_pour_client(session: AsyncSession, reference: str, cle: str | None) -> Commande:
+    """Même réponse pour une référence inconnue et une mauvaise clé : rien ne fuit."""
+    commande = await charger(session, reference)
+    if not cle_valide(commande, cle):
+        raise HTTPException(status.HTTP_404_NOT_FOUND, INTROUVABLE)
+    return commande
+
+
+def requete_resumes() -> Select[Commande, str | None, int]:
+    """Commandes avec le nom de leur zone et leur nombre d'articles, sans charger les lignes."""
+    articles = (
+        select(func.coalesce(func.sum(LigneCommande.quantite), 0))
+        .where(LigneCommande.commande_id == Commande.id)
+        .correlate(Commande)
+        .scalar_subquery()
+    )
+    return select(Commande, ZoneLivraison.nom, articles).outerjoin(
+        ZoneLivraison, Commande.zone_id == ZoneLivraison.id
+    )

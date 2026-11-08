@@ -11,13 +11,26 @@ from boutique.models import Base
 config = context.config
 target_metadata = Base.metadata
 
+# Index créés à la main dans une migration (expressions que les modèles ne décrivent pas) :
+# l'autogénération ne doit pas proposer de les supprimer.
+INDEX_HORS_MODELES = {"ix_produits_nom_trgm"}
+
+
+def _inclure(objet: object, nom: str | None, type_: str, reflete: bool, compare: object) -> bool:
+    return not (type_ == "index" and reflete and nom in INDEX_HORS_MODELES)
+
 
 def _url() -> str:
     return config.get_main_option("sqlalchemy.url") or ParametresBoutique().database_url
 
 
 def _executer(connection: Connection) -> None:
-    context.configure(connection=connection, target_metadata=target_metadata, compare_type=True)
+    context.configure(
+        connection=connection,
+        target_metadata=target_metadata,
+        compare_type=True,
+        include_object=_inclure,
+    )
     with context.begin_transaction():
         context.run_migrations()
 

@@ -25,10 +25,10 @@ from comptes.schemas import (
     Jetons,
     UtilisateurPublic,
 )
-from comptes.telephones import NumeroInvalide, normaliser_telephone
 from socle.audit import journaliser
 from socle.db import session_db
 from socle.security import Principal, principal_requis
+from socle.telephones import NumeroInvalide, normaliser_telephone
 
 routeur = APIRouter(prefix="/api/v1/auth", tags=["connexion"])
 

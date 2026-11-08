@@ -45,6 +45,9 @@ services:
       BOUTIQUE_DATABASE_URL: postgresql+asyncpg://boutique:${BOUTIQUE_DB_MOT_DE_PASSE}@postgres:5432/boutique
       BOUTIQUE_JWT_CLE_PUBLIQUE: ${BOUTIQUE_JWT_CLE_PUBLIQUE:?}
       BOUTIQUE_CORS_ORIGINES: '["https://boutique.${DOMAINE}"]'
+      # Imprimés sur les devis et les factures.
+      BOUTIQUE_COORDONNEES: ${BOUTIQUE_COORDONNEES:-Bamako, Mali}
+      BOUTIQUE_MENTIONS_LEGALES: ${BOUTIQUE_MENTIONS_LEGALES:-}
     depends_on:
       postgres: { condition: service_healthy }
 

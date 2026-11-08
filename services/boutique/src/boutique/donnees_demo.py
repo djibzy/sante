@@ -13,7 +13,7 @@ from typing import Any
 from sqlalchemy import select
 
 from boutique.config import ParametresBoutique
-from boutique.models import CATEGORIE_PHARMACEUTIQUE, Produit, Rayon, Variante
+from boutique.models import CATEGORIE_PHARMACEUTIQUE, Produit, Rayon, Variante, ZoneLivraison
 from socle.db import creer_moteur, fabrique_sessions
 
 TAILLES = ("S", "M", "L", "XL")
@@ -255,8 +255,26 @@ PRODUITS: list[dict[str, Any]] = [
 ]
 
 
+# Frais de livraison hypothétiques, à remplacer par les tarifs réels du livreur.
+ZONES: list[dict[str, Any]] = [
+    *(
+        {
+            "slug": f"bamako-commune-{n}",
+            "nom": f"Bamako, commune {r}",
+            "frais": 1000,
+            "delai_jours": 1,
+            "position": n,
+        }
+        for n, r in enumerate(("I", "II", "III", "IV", "V", "VI"), start=1)
+    ),
+    {"slug": "kati", "nom": "Kati", "frais": 2000, "delai_jours": 2, "position": 7},
+    {"slug": "kalaban-coro", "nom": "Kalaban Coro", "frais": 1500, "delai_jours": 2, "position": 8},
+]
+
+
 async def charger(database_url: str | None = None) -> tuple[int, int]:
-    """Ajoute les rayons et produits manquants ; renvoie le nombre de chacun créé."""
+    """Ajoute les rayons, produits et zones manquants ; renvoie le nombre de rayons et de
+    produits créés."""
     moteur = creer_moteur(database_url or ParametresBoutique().database_url, pool=False)
     rayons_crees = produits_crees = 0
     async with fabrique_sessions(moteur)() as session:
@@ -300,6 +318,9 @@ async def charger(database_url: str | None = None) -> tuple[int, int]:
             ]
             session.add(produit)
             produits_crees += 1
+
+        zones = set((await session.execute(select(ZoneLivraison.slug))).scalars())
+        session.add_all(ZoneLivraison(**z) for z in ZONES if z["slug"] not in zones)
         await session.commit()
     await moteur.dispose()
     return rayons_crees, produits_crees

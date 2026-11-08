@@ -79,7 +79,10 @@ async def app() -> AsyncIterator[FastAPI]:
     application = creer_app(parametres)
     yield application
     await application.state.moteur.dispose()
-    await _executer("TRUNCATE rayons, produits, journal_audit RESTART IDENTITY CASCADE")
+    await _executer(
+        "TRUNCATE rayons, produits, zones_livraison, commandes, journal_audit "
+        "RESTART IDENTITY CASCADE"
+    )
 
 
 @pytest.fixture

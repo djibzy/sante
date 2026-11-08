@@ -16,3 +16,13 @@ def normaliser_telephone(brut: str, region: str = "ML") -> str:
     if not phonenumbers.is_valid_number(numero):
         raise NumeroInvalide("Numéro de téléphone invalide")
     return phonenumbers.format_number(numero, phonenumbers.PhoneNumberFormat.E164)
+
+
+def afficher_telephone(e164: str) -> str:
+    """« +22376123456 » devient « +223 76 12 34 56 », pour les documents et les écrans."""
+    try:
+        return phonenumbers.format_number(
+            phonenumbers.parse(e164), phonenumbers.PhoneNumberFormat.INTERNATIONAL
+        )
+    except phonenumbers.NumberParseException:
+        return e164

@@ -16,9 +16,9 @@ from sqlalchemy import select
 from comptes.cles import pem_prive, pem_public
 from comptes.config import ParametresComptes
 from comptes.models import Utilisateur
-from comptes.telephones import normaliser_telephone
 from socle.db import creer_moteur, fabrique_sessions
 from socle.security import ROLE_ADMIN
+from socle.telephones import normaliser_telephone
 
 
 def generer_cles() -> None:
