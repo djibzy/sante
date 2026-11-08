@@ -17,10 +17,15 @@ interface ReponseJetons {
   utilisateur: Utilisateur
 }
 
+// Un seul rafraîchissement à la fois : le jeton de rafraîchissement est à usage unique, deux
+// envois simultanés feraient croire à un vol et couperaient toutes les sessions.
+let rafraichissementEnCours: Promise<void> | null = null
+
 export function useSession() {
   const config = useRuntimeConfig()
   const jeton = useState<string | null>('jeton', () => null)
   const utilisateur = useState<Utilisateur | null>('utilisateur', () => null)
+  const prete = useState('session-prete', () => false)
 
   const appeler = <T>(chemin: string, body?: Record<string, unknown>) =>
     $fetch<T>(chemin, {
@@ -34,6 +39,7 @@ export function useSession() {
   function ouvrir(reponse: ReponseJetons) {
     jeton.value = reponse.jeton_acces
     utilisateur.value = reponse.utilisateur
+    prete.value = true
   }
 
   function fermer() {
@@ -51,12 +57,20 @@ export function useSession() {
     ouvrir(await appeler<ReponseJetons>('/api/v1/auth/inscription', donnees))
   }
 
-  async function rafraichir() {
-    try {
-      ouvrir(await appeler<ReponseJetons>('/api/v1/auth/rafraichir'))
-    } catch {
-      fermer()
-    }
+  function rafraichir(): Promise<void> {
+    rafraichissementEnCours ??= appeler<ReponseJetons>('/api/v1/auth/rafraichir')
+      .then(ouvrir)
+      .catch(fermer)
+      .finally(() => {
+        prete.value = true
+        rafraichissementEnCours = null
+      })
+    return rafraichissementEnCours
+  }
+
+  /** Attend que la session ait été reprise au chargement de la page (ou constatée absente). */
+  async function attendre() {
+    if (!prete.value) await rafraichir()
   }
 
   async function deconnexion() {
@@ -67,7 +81,13 @@ export function useSession() {
     }
   }
 
-  return { jeton, utilisateur, connexion, inscription, rafraichir, deconnexion }
+  // Même règle que l'API : l'administrateur général a tous les rôles.
+  const aLeRole = (role: string) => {
+    const roles = utilisateur.value?.roles ?? []
+    return roles.includes(role) || roles.includes('admin')
+  }
+
+  return { jeton, utilisateur, prete, connexion, inscription, rafraichir, attendre, deconnexion, aLeRole }
 }
 
 /** Message lisible à partir d'une erreur renvoyée par une API. */
@@ -76,4 +96,11 @@ export function messageErreur(erreur: unknown): string {
   if (typeof detail === 'string') return detail
   if (Array.isArray(detail)) return 'Vérifiez les champs du formulaire.'
   return 'Le service ne répond pas. Vérifiez votre connexion et réessayez.'
+}
+
+/** Chemin de retour après connexion : seulement un chemin interne au site. */
+export function cheminDeRetour(valeur: unknown): string {
+  return typeof valeur === 'string' && valeur.startsWith('/') && !valeur.startsWith('//')
+    ? valeur
+    : '/'
 }

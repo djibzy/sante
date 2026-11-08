@@ -13,11 +13,33 @@ if (!produit.value) {
 const varianteId = ref(produit.value.variantes[0]?.id ?? null)
 const variante = computed(() => produit.value?.variantes.find(v => v.id === varianteId.value))
 const prix = computed(() => variante.value?.prix ?? produit.value?.prix_public ?? null)
+const quantite = ref(1)
+const personnalisation = ref('')
+const ajoute = ref(false)
+const { ajouter } = usePanier()
+
+function ajouterAuPanier() {
+  const p = produit.value!
+  ajouter({
+    produit_id: p.id,
+    variante_id: variante.value?.id ?? null,
+    quantite: Math.max(1, Math.min(500, Math.round(quantite.value) || 1)),
+    personnalisation: p.personnalisable ? personnalisation.value.trim() || null : null,
+    slug: p.slug,
+    nom: p.nom,
+    variante: variante.value?.libelle ?? null,
+    rayon_slug: p.rayon_slug,
+    prix_indicatif: prix.value,
+  })
+  ajoute.value = true
+}
+watch([varianteId, quantite, personnalisation], () => { ajoute.value = false })
 
 const lienWhatsapp = computed(() => {
   const p = produit.value!
   const choix = variante.value ? ` (${variante.value.libelle})` : ''
-  const texte = `Bonjour, je souhaite commander : ${p.nom}${choix}. Référence : ${variante.value?.sku ?? p.slug}.`
+  const objet = p.vendable_en_ligne ? "j'ai une question sur" : 'je souhaite obtenir'
+  const texte = `Bonjour, ${objet} : ${p.nom}${choix}. Référence : ${variante.value?.sku ?? p.slug}.`
   return `https://wa.me/${config.public.whatsapp}?text=${encodeURIComponent(texte)}`
 })
 
@@ -61,10 +83,28 @@ useSeoMeta({
             </label>
           </fieldset>
 
-          <div v-if="produit.personnalisable" class="alerte alerte-info">
-            Broderie ou impression à votre nom, à votre fonction ou au logo de votre structure. Vous
-            validez un aperçu avant la fabrication. Délai indicatif : {{ produit.delai_jours }} jours.
+          <div v-if="produit.personnalisable" class="champ">
+            <label for="personnalisation">Texte à broder ou à imprimer (facultatif)</label>
+            <input id="personnalisation" v-model="personnalisation" maxlength="200" placeholder="Aminata Traoré, sage-femme">
+            <span class="aide">
+              Nom, fonction ou nom de votre structure. Nous vous montrons un aperçu avant la
+              fabrication. Délai indicatif : {{ produit.delai_jours }} jours.
+            </span>
           </div>
+
+          <div class="achat">
+            <div class="champ quantite">
+              <label for="quantite">Quantité</label>
+              <input id="quantite" v-model.number="quantite" type="number" inputmode="numeric" min="1" max="500">
+            </div>
+            <button type="button" class="bouton" @click="ajouterAuPanier">Ajouter au panier</button>
+          </div>
+          <p v-if="ajoute" class="alerte alerte-succes" role="status">
+            Ajouté au panier. <NuxtLink to="/panier">Voir le panier</NuxtLink>
+          </p>
+          <p class="aide">
+            Paiement à la livraison, en espèces ou par transfert Orange Money ou Moov Money.
+          </p>
         </template>
 
         <div v-else class="alerte alerte-info">
@@ -72,10 +112,12 @@ useSeoMeta({
           partenaire. Demandez-le par WhatsApp, nous vous mettons en relation.
         </div>
 
-        <a :href="lienWhatsapp" target="_blank" rel="noopener" class="bouton bouton-large">
-          Commander sur WhatsApp
+        <a
+          :href="lienWhatsapp" target="_blank" rel="noopener"
+          :class="produit.vendable_en_ligne ? 'bouton bouton-secondaire bouton-large' : 'bouton bouton-large'"
+        >
+          {{ produit.vendable_en_ligne ? 'Poser une question sur WhatsApp' : 'Demander sur WhatsApp' }}
         </a>
-        <p class="aide">La commande en ligne avec paiement mobile arrive bientôt.</p>
 
         <div v-if="produit.description" class="description">
           <h2>Description</h2>
@@ -106,4 +148,8 @@ useSeoMeta({
 }
 .variantes label.actif { border-color: var(--primaire); background: var(--primaire-clair); font-weight: 700; }
 .description { margin-top: 24px; }
+.achat { display: flex; align-items: flex-end; gap: 12px; margin-bottom: 12px; }
+.achat .champ { margin: 0; }
+.quantite input { width: 92px; }
+.achat .bouton { flex: 1; }
 </style>

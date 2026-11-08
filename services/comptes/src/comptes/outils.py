@@ -2,6 +2,8 @@
 
 uv run python -m comptes.outils generer-cles
 uv run python -m comptes.outils creer-admin --telephone "76 12 34 56" --nom "Prénom Nom"
+uv run python -m comptes.outils attribuer-role --telephone "76 12 34 56" --role boutique:admin
+uv run python -m comptes.outils retirer-role --telephone "76 12 34 56" --role boutique:pro
 """
 
 import argparse
@@ -15,7 +17,8 @@ from sqlalchemy import select
 
 from comptes.cles import pem_prive, pem_public
 from comptes.config import ParametresComptes
-from comptes.models import Utilisateur
+from comptes.models import JournalAudit, Utilisateur
+from socle.audit import journaliser
 from socle.db import creer_moteur, fabrique_sessions
 from socle.security import ROLE_ADMIN
 from socle.telephones import normaliser_telephone
@@ -55,6 +58,41 @@ async def creer_admin(telephone_brut: str, nom: str) -> None:
     print(f"Administrateur prêt : {telephone}")
 
 
+# Rôles attribuables en ligne de commande ; un rôle mal orthographié serait sans effet.
+ROLES_CONNUS = frozenset({ROLE_ADMIN, "boutique:admin", "boutique:pro"})
+
+
+async def changer_role(
+    telephone_brut: str, role: str, *, retirer: bool = False, database_url: str | None = None
+) -> list[str]:
+    """Donne ou retire un rôle à un compte existant ; renvoie ses rôles après modification."""
+    if role not in ROLES_CONNUS:
+        raise ValueError(f"Rôle inconnu : {role} (connus : {', '.join(sorted(ROLES_CONNUS))})")
+    p = ParametresComptes()
+    telephone = normaliser_telephone(telephone_brut, p.region_telephone)
+    moteur = creer_moteur(database_url or p.database_url, pool=False)
+    try:
+        async with fabrique_sessions(moteur)() as session:
+            requete = select(Utilisateur).where(Utilisateur.telephone == telephone)
+            utilisateur = (await session.execute(requete)).scalar_one_or_none()
+            if utilisateur is None:
+                raise LookupError(f"Aucun compte pour {telephone}")
+            roles = [r for r in utilisateur.roles if r != role]
+            utilisateur.roles = roles if retirer else [*roles, role]
+            journaliser(
+                session,
+                JournalAudit,
+                action="utilisateur.role_retire" if retirer else "utilisateur.role_attribue",
+                objet_type="utilisateur",
+                objet_id=utilisateur.id,
+                details={"role": role, "par": "ligne de commande"},
+            )
+            await session.commit()
+            return list(utilisateur.roles)
+    finally:
+        await moteur.dispose()
+
+
 def main(argv: list[str] | None = None) -> None:
     analyseur = argparse.ArgumentParser(prog="comptes.outils")
     commandes = analyseur.add_subparsers(dest="commande", required=True)
@@ -62,11 +100,22 @@ def main(argv: list[str] | None = None) -> None:
     admin = commandes.add_parser("creer-admin", help="Créer ou promouvoir un administrateur")
     admin.add_argument("--telephone", required=True)
     admin.add_argument("--nom", required=True)
+    for nom, aide in (
+        ("attribuer-role", "Donner un rôle (boutique:admin, boutique:pro…)"),
+        ("retirer-role", "Retirer un rôle"),
+    ):
+        sous = commandes.add_parser(nom, help=aide)
+        sous.add_argument("--telephone", required=True)
+        sous.add_argument("--role", required=True, choices=sorted(ROLES_CONNUS))
     arguments = analyseur.parse_args(argv)
     if arguments.commande == "generer-cles":
         generer_cles()
-    else:
+    elif arguments.commande == "creer-admin":
         asyncio.run(creer_admin(arguments.telephone, arguments.nom))
+    else:
+        retirer = arguments.commande == "retirer-role"
+        roles = asyncio.run(changer_role(arguments.telephone, arguments.role, retirer=retirer))
+        print(f"Rôles de {arguments.telephone} : {', '.join(roles) or 'aucun'}")
 
 
 if __name__ == "__main__":

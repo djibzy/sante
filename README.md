@@ -8,7 +8,7 @@ Ce dépôt contient, pour commencer, le socle, le service de comptes et **Bibou*
 | --- | --- | --- |
 | `socle/` | Code partagé : base de données, identifiants, jetons, journaux, audit | |
 | `services/comptes/` | Compte unique : inscription et connexion par téléphone, organisations | 8001 |
-| `services/boutique/` | Catalogue : rayons, produits, variantes, recherche, administration | 8002 |
+| `services/boutique/` | Catalogue, panier, commandes, devis PDF, paiements, zones de livraison | 8002 |
 | `web/boutique/` | Interface de Bibou (Nuxt), avec la charte commune de `web/charte/` | 3000 |
 | `infra/` | Mise en production : Docker Compose, Caddy, PostgreSQL | |
 
@@ -61,7 +61,13 @@ cd infra
 cp .env.example .env      # remplir : domaine, mots de passe, clés, numéro WhatsApp
 docker compose up -d --build
 docker compose exec comptes python -m comptes.outils creer-admin --telephone "76…" --nom "…"
+# Équipe de la boutique (gestion des commandes) et soignants vérifiés (prix professionnel) :
+docker compose exec comptes python -m comptes.outils attribuer-role --telephone "76…" --role boutique:admin
+docker compose exec comptes python -m comptes.outils attribuer-role --telephone "66…" --role boutique:pro
 ```
+
+Avant le premier devis, renseigner dans `.env` l'adresse de la boutique (`BOUTIQUE_COORDONNEES`)
+et les mentions légales (`BOUTIQUE_MENTIONS_LEGALES` : RCCM, NIF, régime fiscal).
 
 Caddy obtient les certificats HTTPS tout seul. Les migrations s'appliquent au démarrage de
 chaque service.
@@ -69,7 +75,7 @@ chaque service.
 ## État d'avancement
 
 - [x] Socle, comptes, organisations, catalogue, interface de consultation, déploiement
-- [ ] Panier, commande, devis PDF et paiement à la livraison (semaine 2)
+- [x] Panier, commande, suivi par lien, devis PDF, paiement à la livraison, gestion (semaine 2)
 - [ ] File d'atelier sur tablette et stock (semaine 3)
 - [ ] Livraisons, factures, notifications, revue de sécurité (semaine 4)
 - [ ] Paiement mobile (Orange Money, Moov Money) et pharmacien partenaire (janvier 2027)

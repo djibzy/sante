@@ -1,4 +1,5 @@
 <script setup lang="ts">
+const route = useRoute()
 useSeoMeta({ title: 'Créer un compte' })
 const { inscription } = useSession()
 const formulaire = reactive({
@@ -16,7 +17,7 @@ async function valider() {
   envoi.value = true
   try {
     await inscription({ ...formulaire })
-    await navigateTo('/')
+    await navigateTo(cheminDeRetour(route.query.retour))
   } catch (e) {
     erreur.value = messageErreur(e)
   } finally {

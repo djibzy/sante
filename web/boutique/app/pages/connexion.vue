@@ -1,4 +1,5 @@
 <script setup lang="ts">
+const route = useRoute()
 useSeoMeta({ title: 'Se connecter' })
 const { connexion } = useSession()
 const telephone = ref('')
@@ -11,7 +12,7 @@ async function valider() {
   envoi.value = true
   try {
     await connexion(telephone.value, motDePasse.value)
-    await navigateTo('/')
+    await navigateTo(cheminDeRetour(route.query.retour))
   } catch (e) {
     erreur.value = messageErreur(e)
   } finally {
@@ -37,7 +38,7 @@ async function valider() {
         </div>
         <button type="submit" class="bouton bouton-large" :disabled="envoi">Se connecter</button>
       </form>
-      <p class="bas">Pas encore de compte ? <NuxtLink to="/inscription">Créer un compte</NuxtLink></p>
+      <p class="bas">Pas encore de compte ? <NuxtLink :to="{ path: '/inscription', query: route.query }">Créer un compte</NuxtLink></p>
     </div>
   </section>
 </template>
