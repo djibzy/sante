@@ -9,7 +9,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import contains_eager, selectinload
 
 from boutique.config import ROLE_ADMIN_BOUTIQUE
-from boutique.models import CATEGORIE_LIBRE, JournalAudit, Produit, Rayon, Variante
+from boutique.models import CATEGORIE_LIBRE, JournalAudit, PosteAtelier, Produit, Rayon, Variante
 from boutique.schemas import (
     CreationProduit,
     CreationRayon,
@@ -58,6 +58,13 @@ async def _charger_produit(session: AsyncSession, produit_id: UUID) -> Produit:
     if produit is None:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "Produit introuvable")
     return produit
+
+
+async def _verifier_poste(session: AsyncSession, code: str | None) -> None:
+    if code is not None and not await session.scalar(
+        select(PosteAtelier.id).where(PosteAtelier.code == code)
+    ):
+        raise HTTPException(status.HTTP_422_UNPROCESSABLE_CONTENT, "Poste d'atelier inconnu")
 
 
 async def _valider(session: AsyncSession, message: str) -> None:
@@ -128,6 +135,7 @@ async def creer_produit(
         raise HTTPException(status.HTTP_422_UNPROCESSABLE_CONTENT, "Rayon inconnu")
     if donnees.categorie_reglementaire == CATEGORIE_LIBRE and donnees.prix_public is None:
         raise HTTPException(status.HTTP_422_UNPROCESSABLE_CONTENT, _PRIX_REQUIS)
+    await _verifier_poste(session, donnees.poste_atelier)
 
     produit = Produit(**donnees.model_dump(exclude={"rayon_slug", "variantes"}), rayon_id=rayon.id)
     produit.variantes = [Variante(**v.model_dump()) for v in donnees.variantes]
@@ -154,6 +162,8 @@ async def modifier_produit(
 ) -> ProduitDetail:
     produit = await _charger_produit(session, produit_id)
     changements = donnees.model_dump(exclude_unset=True)
+    if "poste_atelier" in changements:
+        await _verifier_poste(session, changements["poste_atelier"])
     for champ, valeur in changements.items():
         setattr(produit, champ, valeur)
     if produit.categorie_reglementaire == CATEGORIE_LIBRE and produit.prix_public is None:

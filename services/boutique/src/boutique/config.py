@@ -3,6 +3,8 @@ from pydantic_settings import SettingsConfigDict
 from socle.settings import ParametresService
 
 ROLE_ADMIN_BOUTIQUE = "boutique:admin"
+# Atelier : voit la file de fabrication (sans les téléphones des clients), rien d'autre.
+ROLE_ATELIER = "boutique:atelier"
 # Soignant ou structure dont le statut a été vérifié : il paie le prix professionnel.
 ROLE_PRO = "boutique:pro"
 

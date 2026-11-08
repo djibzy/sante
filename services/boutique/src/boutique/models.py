@@ -25,6 +25,7 @@ from sqlalchemy import (
 )
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
 
+from boutique.atelier.etats import EtatOrdre, MotifStock
 from boutique.commandes.cycle import ModeLivraison, Moyen, Statut, valeurs_sql
 from socle.audit import JournalAuditMixin
 from socle.db import CONVENTION_NOMMAGE, HorodatageMixin, IdMixin
@@ -35,6 +36,18 @@ CATEGORIE_PHARMACEUTIQUE = "pharmaceutique"
 
 class Base(DeclarativeBase):
     metadata = MetaData(naming_convention=CONVENTION_NOMMAGE)
+
+
+class PosteAtelier(IdMixin, HorodatageMixin, Base):
+    """Poste de l'atelier et sa capacité, qui sert à calculer les dates promises."""
+
+    __tablename__ = "postes_atelier"
+    __table_args__ = (CheckConstraint("capacite_jour > 0", name="capacite_positive"),)
+
+    code: Mapped[str] = mapped_column(String(20), unique=True, nullable=False)
+    nom: Mapped[str] = mapped_column(String(80), nullable=False)
+    capacite_jour: Mapped[int] = mapped_column(nullable=False)  # pièces par jour ouvré
+    est_actif: Mapped[bool] = mapped_column(nullable=False, default=True, server_default=true())
 
 
 class Rayon(IdMixin, HorodatageMixin, Base):
@@ -74,6 +87,10 @@ class Produit(IdMixin, HorodatageMixin, Base):
     prix_pro: Mapped[int | None] = mapped_column()  # prix professionnel, si différent
     delai_jours: Mapped[int] = mapped_column(nullable=False, default=7, server_default="7")
     est_actif: Mapped[bool] = mapped_column(nullable=False, default=True, server_default=true())
+    # Poste de l'atelier qui fabrique l'article (broderie, impression, assemblage) ; vide pour
+    # un article vendu tel quel, suivi en stock.
+    poste_atelier: Mapped[str | None] = mapped_column(ForeignKey("postes_atelier.code"))
+    seuil_alerte: Mapped[int] = mapped_column(nullable=False, default=0, server_default="0")
 
     rayon: Mapped[Rayon] = relationship(lazy="raise")
     variantes: Mapped[list["Variante"]] = relationship(
@@ -102,7 +119,6 @@ class Variante(IdMixin, Base):
     taille: Mapped[str | None] = mapped_column(String(20))
     couleur: Mapped[str | None] = mapped_column(String(40))
     prix: Mapped[int | None] = mapped_column()  # remplace le prix public du produit si renseigné
-    stock: Mapped[int] = mapped_column(nullable=False, default=0, server_default="0")
     position: Mapped[int] = mapped_column(nullable=False, default=0, server_default="0")
     est_active: Mapped[bool] = mapped_column(nullable=False, default=True, server_default=true())
 
@@ -274,6 +290,55 @@ class Paiement(IdMixin, Base):
     reference: Mapped[str | None] = mapped_column(String(80))  # n° de transaction, de chèque…
     encaisse_par: Mapped[UUID | None] = mapped_column(Uuid)
     encaisse_le: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, default=_maintenant
+    )
+
+
+class OrdreFabrication(IdMixin, HorodatageMixin, Base):
+    """Une ligne de commande à fabriquer, créée quand la commande est confirmée."""
+
+    __tablename__ = "ordres_fabrication"
+    __table_args__ = (
+        CheckConstraint(f"etat IN ({valeurs_sql(EtatOrdre)})", name="etat_valide"),
+        CheckConstraint("quantite > 0", name="quantite_positive"),
+    )
+
+    commande_id: Mapped[UUID] = mapped_column(
+        ForeignKey("commandes.id", ondelete="CASCADE"), index=True, nullable=False
+    )
+    ligne_id: Mapped[UUID] = mapped_column(
+        ForeignKey("lignes_commande.id", ondelete="CASCADE"), unique=True, nullable=False
+    )
+    poste: Mapped[str] = mapped_column(ForeignKey("postes_atelier.code"), nullable=False)
+    libelle: Mapped[str] = mapped_column(String(250), nullable=False)
+    personnalisation: Mapped[str | None] = mapped_column(String(200))
+    quantite: Mapped[int] = mapped_column(nullable=False)
+    etat: Mapped[str] = mapped_column(String(20), index=True, nullable=False)
+    date_promise: Mapped[date | None] = mapped_column(Date)
+    note: Mapped[str] = mapped_column(Text, nullable=False, default="", server_default="")
+    commence_le: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    termine_le: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+
+    commande: Mapped[Commande] = relationship(lazy="raise")
+
+
+class MouvementStock(IdMixin, Base):
+    """Journal du stock : le niveau d'un article est la somme de ses mouvements."""
+
+    __tablename__ = "mouvements_stock"
+    __table_args__ = (
+        CheckConstraint(f"motif IN ({valeurs_sql(MotifStock)})", name="motif_valide"),
+        CheckConstraint("quantite <> 0", name="quantite_non_nulle"),
+    )
+
+    produit_id: Mapped[UUID] = mapped_column(ForeignKey("produits.id"), index=True, nullable=False)
+    variante_id: Mapped[UUID | None] = mapped_column(ForeignKey("variantes.id"), index=True)
+    quantite: Mapped[int] = mapped_column(nullable=False)  # positive en entrée, négative en sortie
+    motif: Mapped[str] = mapped_column(String(20), nullable=False)
+    commande_id: Mapped[UUID | None] = mapped_column(ForeignKey("commandes.id"), index=True)
+    note: Mapped[str] = mapped_column(String(300), nullable=False, default="", server_default="")
+    acteur_id: Mapped[UUID | None] = mapped_column(Uuid)
+    cree_le: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), nullable=False, default=_maintenant
     )
 

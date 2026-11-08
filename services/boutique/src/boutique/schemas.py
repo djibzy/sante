@@ -78,7 +78,6 @@ class CreationVariante(BaseModel):
     taille: str | None = Field(default=None, max_length=20)
     couleur: str | None = Field(default=None, max_length=40)
     prix: int | None = Field(default=None, ge=0)
-    stock: int = Field(default=0, ge=0)
     position: int = 0
 
 
@@ -93,6 +92,8 @@ class CreationProduit(BaseModel):
     prix_public: int | None = Field(default=None, ge=0)
     prix_pro: int | None = Field(default=None, ge=0)
     delai_jours: int = Field(default=7, ge=0, le=120)
+    poste_atelier: str | None = Field(default=None, description="broderie, impression…")
+    seuil_alerte: int = Field(default=0, ge=0)
     variantes: list[CreationVariante] = []
 
 
@@ -104,4 +105,6 @@ class ModificationProduit(BaseModel):
     prix_public: int | None = Field(default=None, ge=0)
     prix_pro: int | None = Field(default=None, ge=0)
     delai_jours: int | None = Field(default=None, ge=0, le=120)
+    poste_atelier: str | None = None
+    seuil_alerte: int | None = Field(default=None, ge=0)
     est_actif: bool | None = None

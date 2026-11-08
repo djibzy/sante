@@ -10,20 +10,29 @@ from sqlalchemy import func, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from boutique.atelier import delais, fabrication, stock
+from boutique.atelier.etats import EtatOrdre
 from boutique.commandes import acces
 from boutique.commandes.cycle import EN_ATTENTE_DE_L_EQUIPE, ModeLivraison, ModePaiement, Statut
 from boutique.commandes.schemas import Coordonnees, LigneDemandee, Livraison
 from boutique.commandes.tarifs import (
     Demande,
     LigneTarifee,
-    aujourd_hui,
     charger_produits,
-    date_estimee,
     frais_de_livraison,
+    jours_de_transport,
     tarifer,
 )
 from boutique.config import ROLE_PRO, ParametresBoutique
-from boutique.models import Commande, EvenementCommande, JournalAudit, LigneCommande, ZoneLivraison
+from boutique.models import (
+    Commande,
+    EvenementCommande,
+    JournalAudit,
+    LigneCommande,
+    OrdreFabrication,
+    Produit,
+    ZoneLivraison,
+)
 from socle.audit import journaliser
 from socle.security import Principal
 from socle.telephones import NumeroInvalide, normaliser_telephone
@@ -86,14 +95,88 @@ def evenement(
     )
 
 
-async def estimer_date(session: AsyncSession, commande: Commande) -> date:
-    """Date promise : délai de fabrication le plus long des articles, plus la livraison."""
-    produits = await charger_produits(
+async def produits_de(session: AsyncSession, commande: Commande) -> dict[UUID, Produit]:
+    return await charger_produits(
         session, (ligne.produit_id for ligne in commande.lignes if ligne.produit_id)
     )
-    fabrication = max((p.delai_jours for p in produits.values()), default=0)
+
+
+async def estimer_date(
+    session: AsyncSession, commande: Commande, produits: dict[UUID, Produit] | None = None
+) -> date:
+    """Date promise selon la charge de l'atelier, le stock et le délai de livraison."""
+    produits = produits if produits is not None else await produits_de(session, commande)
+    articles = [
+        delais.Article(
+            produit.id,
+            ligne.variante_id,
+            produit.poste_atelier,
+            produit.delai_jours,
+            ligne.quantite,
+        )
+        for ligne in commande.lignes
+        if ligne.produit_id and (produit := produits.get(ligne.produit_id)) is not None
+    ]
     transport = commande.zone.delai_jours if commande.zone is not None else 0
-    return aujourd_hui() + timedelta(days=fabrication + transport)
+    return await delais.estimer(session, articles, transport)
+
+
+async def appliquer_statut(
+    session: AsyncSession,
+    commande: Commande,
+    statut: Statut,
+    acteur_id: UUID | None,
+    note: str = "",
+    visible_client: bool = True,
+) -> None:
+    """Change le statut et ses effets : ordres de fabrication à la confirmation, stock prélevé
+    quand la commande est prête, ordres annulés et stock rendu à l'annulation."""
+    produits = await produits_de(session, commande)
+    if statut == Statut.CONFIRMEE:
+        if commande.date_promise is None:
+            commande.date_promise = await estimer_date(session, commande, produits)
+        await fabrication.creer_ordres(session, commande, produits)
+    elif statut == Statut.PRETE:
+        await stock.prelever(session, commande, produits, acteur_id)
+    elif statut == Statut.ANNULEE:
+        await fabrication.annuler_ordres(session, commande.id)
+        await stock.restituer(session, commande, acteur_id)
+    evenement(commande, statut, acteur_id, note, visible_client)
+
+
+async def apres_changement_ordre(
+    session: AsyncSession, ordre: OrdreFabrication, acteur_id: UUID | None
+) -> None:
+    """La commande suit son atelier : en préparation dès la première pièce commencée, prête
+    quand tout est fabriqué (sauf s'il reste des articles en stock à préparer)."""
+    commande = await acces.charger_par_id(session, ordre.commande_id)
+    statut = Statut(commande.statut)
+    if ordre.etat == EtatOrdre.EN_COURS and statut == Statut.CONFIRMEE:
+        await appliquer_statut(
+            session, commande, Statut.EN_PREPARATION, acteur_id, "Fabrication commencée"
+        )
+        statut = Statut.EN_PREPARATION
+    etats = await fabrication.etats_des_ordres(session, commande.id)
+    if statut not in (Statut.CONFIRMEE, Statut.EN_PREPARATION) or not etats:
+        return
+    if all(etat == EtatOrdre.TERMINE for etat in etats):
+        produits = await produits_de(session, commande)
+        reste_en_stock = any(
+            stock.est_en_stock(produits.get(ligne.produit_id)) if ligne.produit_id else False
+            for ligne in commande.lignes
+        )
+        if reste_en_stock:
+            evenement(
+                commande,
+                statut,
+                acteur_id,
+                "Fabrication terminée : articles en stock à préparer",
+                visible_client=False,
+            )
+        else:
+            await appliquer_statut(
+                session, commande, Statut.PRETE, acteur_id, "Fabrication terminée"
+            )
 
 
 async def creer(
@@ -154,7 +237,11 @@ async def creer(
         frais_livraison=frais,
         remise=0,
         total=sous_total + frais,
-        date_promise=date_estimee(tarifees, livraison.mode, zone)
+        date_promise=await delais.estimer(
+            session,
+            [delais.article(ligne) for ligne in tarifees],
+            jours_de_transport(livraison.mode, zone),
+        )
         if statut == Statut.EN_ATTENTE
         else None,
         empreinte_cle_suivi=acces.empreinte(cle),

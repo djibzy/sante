@@ -255,6 +255,16 @@ PRODUITS: list[dict[str, Any]] = [
 ]
 
 
+# Poste de l'atelier qui fabrique chaque rayon ; les produits médicaux et la plupart des
+# accessoires sont revendus tels quels, suivis en stock.
+POSTES = {"tenues-brodees": "broderie", "textiles-imprimes": "impression", "kits": "assemblage"}
+POSTES_PRODUITS = {"badge-porte-nom": "impression"}
+
+
+def poste(donnees: dict[str, Any]) -> str | None:
+    return POSTES_PRODUITS.get(donnees["slug"], POSTES.get(donnees["rayon"]))
+
+
 # Frais de livraison hypothétiques, à remplacer par les tarifs réels du livreur.
 ZONES: list[dict[str, Any]] = [
     *(
@@ -305,6 +315,7 @@ async def charger(database_url: str | None = None) -> tuple[int, int]:
                 prix_public=d["prix_public"],
                 prix_pro=d["prix_pro"],
                 delai_jours=d["delai"],
+                poste_atelier=poste(d),
             )
             produit.variantes = [
                 Variante(
@@ -318,6 +329,13 @@ async def charger(database_url: str | None = None) -> tuple[int, int]:
             ]
             session.add(produit)
             produits_crees += 1
+
+        # Produits de démonstration créés avant l'atelier : on leur attribue leur poste.
+        sans_poste = await session.scalars(select(Produit).where(Produit.poste_atelier.is_(None)))
+        par_slug_produit = {d["slug"]: d for d in PRODUITS}
+        for produit in sans_poste:
+            if produit.slug in par_slug_produit:
+                produit.poste_atelier = poste(par_slug_produit[produit.slug])
 
         zones = set((await session.execute(select(ZoneLivraison.slug))).scalars())
         session.add_all(ZoneLivraison(**z) for z in ZONES if z["slug"] not in zones)

@@ -8,6 +8,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query, Request, Response,
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from boutique.atelier import delais
 from boutique.commandes import acces, operations
 from boutique.commandes.cycle import ANNULABLES_PAR_CLIENT, Statut
 from boutique.commandes.pdf import reponse_devis
@@ -22,7 +23,7 @@ from boutique.commandes.schemas import (
     LigneChiffree,
     ZonePublique,
 )
-from boutique.commandes.tarifs import date_estimee, frais_de_livraison, tarifer
+from boutique.commandes.tarifs import frais_de_livraison, jours_de_transport, tarifer
 from boutique.commandes.vues import devis_expire, vue_client, vue_resume
 from boutique.config import ROLE_PRO, ParametresBoutique
 from boutique.models import Commande, JournalAudit, ZoneLivraison
@@ -87,7 +88,11 @@ async def chiffrer(
         sous_total=sous_total,
         frais_livraison=frais,
         total=sous_total + frais,
-        date_estimee=date_estimee(lignes, demande.livraison.mode, zone),
+        date_estimee=await delais.estimer(
+            session,
+            [delais.article(ligne) for ligne in lignes if ligne.commandable],
+            jours_de_transport(demande.livraison.mode, zone),
+        ),
         commandable=all(ligne.commandable for ligne in lignes),
     )
 
@@ -166,7 +171,9 @@ async def _annuler(
             "Cette commande est déjà confirmée : appelez-nous pour l'annuler.",
         )
     acteur_id = acteur.id if acteur else None
-    operations.evenement(commande, Statut.ANNULEE, acteur_id, "Annulée par le client")
+    await operations.appliquer_statut(
+        session, commande, Statut.ANNULEE, acteur_id, "Annulée par le client"
+    )
     journaliser(
         session,
         JournalAudit,
@@ -193,7 +200,9 @@ async def _accepter(
         )
     acteur_id = acteur.id if acteur else None
     commande.date_promise = await operations.estimer_date(session, commande)
-    operations.evenement(commande, Statut.CONFIRMEE, acteur_id, "Devis accepté par le client")
+    await operations.appliquer_statut(
+        session, commande, Statut.CONFIRMEE, acteur_id, "Devis accepté par le client"
+    )
     journaliser(
         session,
         JournalAudit,

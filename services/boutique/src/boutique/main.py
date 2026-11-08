@@ -3,7 +3,7 @@
 from fastapi import FastAPI
 
 from boutique.config import ParametresBoutique
-from boutique.routes import admin, catalogue, commandes, gestion
+from boutique.routes import admin, atelier, catalogue, commandes, gestion, stock
 from socle.application import creer_application
 
 
@@ -13,5 +13,12 @@ def creer_app(parametres: ParametresBoutique | None = None) -> FastAPI:
         service="boutique",
         titre="Boutique : catalogue et commandes",
         parametres=p,
-        routeurs=[catalogue.routeur, commandes.routeur, admin.routeur, gestion.routeur],
+        routeurs=[
+            catalogue.routeur,
+            commandes.routeur,
+            admin.routeur,
+            gestion.routeur,
+            atelier.routeur,
+            stock.routeur,
+        ],
     )

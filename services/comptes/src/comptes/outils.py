@@ -59,7 +59,7 @@ async def creer_admin(telephone_brut: str, nom: str) -> None:
 
 
 # Rôles attribuables en ligne de commande ; un rôle mal orthographié serait sans effet.
-ROLES_CONNUS = frozenset({ROLE_ADMIN, "boutique:admin", "boutique:pro"})
+ROLES_CONNUS = frozenset({ROLE_ADMIN, "boutique:admin", "boutique:atelier", "boutique:pro"})
 
 
 async def changer_role(

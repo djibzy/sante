@@ -6,7 +6,7 @@ n'est jamais repris, sauf ceux qu'un membre de l'équipe fixe dans un devis.
 
 from collections.abc import Iterable, Sequence
 from dataclasses import dataclass
-from datetime import UTC, date, datetime, timedelta
+from datetime import UTC, date, datetime
 from uuid import UUID
 
 from sqlalchemy import select
@@ -41,6 +41,7 @@ class LigneTarifee:
     prix_unitaire: int | None
     personnalisation: str | None
     delai_jours: int
+    poste: str | None = None  # poste de l'atelier qui fabrique l'article
     motif: str | None = None  # renseigné quand la ligne ne peut pas être commandée
 
     @property
@@ -113,6 +114,7 @@ def tarifer_ligne(demande: Demande, produit: Produit | None, professionnel: bool
         prix_unitaire=prix_catalogue(produit, variante, professionnel),
         personnalisation=personnalisation if produit.personnalisable else None,
         delai_jours=produit.delai_jours,
+        poste=produit.poste_atelier,
         motif=motif,
     )
 
@@ -128,10 +130,5 @@ def frais_de_livraison(mode: ModeLivraison, zone: ZoneLivraison | None) -> int:
     return zone.frais if mode == ModeLivraison.LIVRAISON and zone is not None else 0
 
 
-def date_estimee(
-    lignes: Sequence[LigneTarifee], mode: ModeLivraison, zone: ZoneLivraison | None
-) -> date:
-    """Le plus long délai de fabrication du panier, plus le délai de livraison de la zone."""
-    fabrication = max((ligne.delai_jours for ligne in lignes), default=0)
-    transport = zone.delai_jours if mode == ModeLivraison.LIVRAISON and zone is not None else 0
-    return aujourd_hui() + timedelta(days=fabrication + transport)
+def jours_de_transport(mode: ModeLivraison, zone: ZoneLivraison | None) -> int:
+    return zone.delai_jours if mode == ModeLivraison.LIVRAISON and zone is not None else 0

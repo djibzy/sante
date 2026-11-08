@@ -4,6 +4,7 @@ import hashlib
 import hmac
 import re
 import secrets
+from uuid import UUID
 
 from fastapi import HTTPException, status
 from sqlalchemy import Select, func, select
@@ -56,6 +57,16 @@ async def charger(session: AsyncSession, reference: str) -> Commande:
     if commande is None:
         raise HTTPException(status.HTTP_404_NOT_FOUND, INTROUVABLE)
     return commande
+
+
+async def charger_par_id(session: AsyncSession, commande_id: UUID) -> Commande:
+    requete = (
+        select(Commande)
+        .options(*_COMPLETE)
+        .where(Commande.id == commande_id)
+        .execution_options(populate_existing=True)
+    )
+    return (await session.execute(requete)).scalar_one()
 
 
 async def charger_par_cle(session: AsyncSession, cle: str) -> Commande | None:

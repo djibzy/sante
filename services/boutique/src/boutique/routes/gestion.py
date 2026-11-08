@@ -123,10 +123,8 @@ async def changer_statut(
         raise HTTPException(_409, "Cette commande est à retirer à la boutique")
     if donnees.date_promise is not None:
         commande.date_promise = donnees.date_promise
-    elif arrivee == Statut.CONFIRMEE and commande.date_promise is None:
-        commande.date_promise = await operations.estimer_date(session, commande)
-    operations.evenement(
-        commande, arrivee, principal.id, donnees.note.strip(), donnees.visible_client
+    await operations.appliquer_statut(
+        session, commande, arrivee, principal.id, donnees.note.strip(), donnees.visible_client
     )
     journaliser(
         session,

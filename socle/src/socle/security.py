@@ -105,3 +105,14 @@ def exiger_role(role: str) -> Callable[[Principal], Principal]:
         return principal
 
     return _verifier
+
+
+def exiger_un_role(*roles: str) -> Callable[[Principal], Principal]:
+    """Comme exiger_role, pour un écran ouvert à plusieurs rôles (atelier et gestion)."""
+
+    def _verifier(principal: Principal = Depends(principal_requis)) -> Principal:
+        if not any(principal.a_role(role) for role in roles):
+            raise HTTPException(status.HTTP_403_FORBIDDEN, "Accès réservé")
+        return principal
+
+    return _verifier
