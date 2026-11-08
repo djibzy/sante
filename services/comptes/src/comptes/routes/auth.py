@@ -85,10 +85,13 @@ async def _emettre_jetons(
         path=CHEMIN_COOKIE,
     )
     signataire: Signataire = request.app.state.signataire
+    # Un navigateur garde le jeton de rafraîchissement dans le seul cookie httpOnly, hors de
+    # portée du JavaScript de la page ; les applications mobiles le reçoivent dans la réponse.
+    pour_navigateur = request.headers.get("x-client") == "web"
     jetons = Jetons(
         jeton_acces=signataire.emettre(utilisateur),
         expire_dans=signataire.duree_secondes,
-        jeton_rafraichissement=brut,
+        jeton_rafraichissement=None if pour_navigateur else brut,
         utilisateur=UtilisateurPublic.model_validate(utilisateur),
     )
     return jetons, jeton

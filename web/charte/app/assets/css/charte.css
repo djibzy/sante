@@ -1,0 +1,74 @@
+/* Charte commune. Sobre et légère : polices du système, aucune ressource externe. */
+:root {
+  --primaire: #0f6b4a;
+  --primaire-fonce: #0a4f36;
+  --primaire-clair: #e3f1ea;
+  --accent: #c8691c;
+  --accent-clair: #fbeee2;
+  --fond: #f7f5f0;
+  --surface: #ffffff;
+  --texte: #1c2723;
+  --texte-doux: #5a6a62;
+  --bordure: #e2ddd2;
+  --danger: #b42318;
+  --danger-clair: #fdecea;
+  --rayon: 12px;
+  --ombre: 0 1px 2px rgba(28, 39, 35, 0.06), 0 4px 16px rgba(28, 39, 35, 0.06);
+  --police: system-ui, -apple-system, 'Segoe UI', Roboto, 'Noto Sans', Ubuntu, sans-serif;
+}
+
+*, *::before, *::after { box-sizing: border-box; }
+html { -webkit-text-size-adjust: 100%; }
+body {
+  margin: 0;
+  font-family: var(--police);
+  font-size: 16px;
+  line-height: 1.55;
+  color: var(--texte);
+  background: var(--fond);
+}
+img, svg { display: block; max-width: 100%; }
+a { color: var(--primaire); }
+h1, h2, h3 { line-height: 1.2; margin: 0 0 0.5em; }
+h1 { font-size: clamp(1.7rem, 4vw, 2.5rem); letter-spacing: -0.01em; }
+h2 { font-size: 1.35rem; margin-top: 2rem; }
+p { margin: 0 0 1em; }
+
+.conteneur { width: 100%; max-width: 1120px; margin: 0 auto; padding: 0 16px; }
+
+.bouton {
+  display: inline-flex; align-items: center; justify-content: center; gap: 0.5em;
+  min-height: 44px; padding: 0 1.2em; border: 0; border-radius: 999px;
+  background: var(--primaire); color: #fff; font: inherit; font-weight: 600;
+  text-decoration: none; cursor: pointer;
+}
+.bouton:hover { background: var(--primaire-fonce); }
+.bouton:disabled { opacity: 0.6; cursor: wait; }
+.bouton-secondaire { background: transparent; color: var(--primaire); border: 1.5px solid var(--primaire); }
+.bouton-secondaire:hover { background: var(--primaire-clair); }
+.bouton-large { width: 100%; }
+
+.champ { display: grid; gap: 0.35em; margin-bottom: 1rem; }
+.champ label { font-weight: 600; font-size: 0.95rem; }
+.champ input, .champ select {
+  min-height: 46px; padding: 0 0.9em; border: 1.5px solid var(--bordure); border-radius: 10px;
+  background: var(--surface); font: inherit; color: inherit;
+}
+.champ input:focus, .champ select:focus { outline: 3px solid var(--primaire-clair); border-color: var(--primaire); }
+.aide { color: var(--texte-doux); font-size: 0.88rem; }
+
+.carte { background: var(--surface); border: 1px solid var(--bordure); border-radius: var(--rayon); box-shadow: var(--ombre); }
+
+.pastille {
+  display: inline-block; padding: 0.15em 0.65em; border-radius: 999px;
+  background: var(--primaire-clair); color: var(--primaire-fonce); font-size: 0.8rem; font-weight: 600;
+}
+.pastille-accent { background: var(--accent-clair); color: #8a4310; }
+
+.alerte { padding: 0.8em 1em; border-radius: 10px; margin-bottom: 1rem; }
+.alerte-erreur { background: var(--danger-clair); color: var(--danger); }
+.alerte-info { background: var(--accent-clair); color: #6f3a10; }
+
+.visuellement-cache {
+  position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap;
+}

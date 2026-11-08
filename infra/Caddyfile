@@ -1,0 +1,31 @@
+# Point d'entrée HTTPS unique : certificats automatiques, en-têtes de sécurité, un sous-domaine
+# par produit.
+{
+	email {$EMAIL_ADMIN}
+}
+
+(securite) {
+	header {
+		Strict-Transport-Security "max-age=31536000; includeSubDomains"
+		X-Content-Type-Options nosniff
+		Referrer-Policy strict-origin-when-cross-origin
+		Permissions-Policy "camera=(), microphone=(), geolocation=()"
+		-Server
+	}
+	encode zstd gzip
+}
+
+comptes.{$DOMAINE} {
+	import securite
+	reverse_proxy comptes:8000
+}
+
+boutique.{$DOMAINE} {
+	import securite
+	handle /api/* {
+		reverse_proxy boutique:8000
+	}
+	handle {
+		reverse_proxy web-boutique:3000
+	}
+}

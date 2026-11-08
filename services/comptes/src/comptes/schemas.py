@@ -56,7 +56,10 @@ class Jetons(BaseModel):
     jeton_acces: str
     type_jeton: str = "bearer"
     expire_dans: int = Field(description="Durée de validité du jeton d'accès, en secondes")
-    jeton_rafraichissement: str
+    jeton_rafraichissement: str | None = Field(
+        default=None,
+        description="Absent pour les navigateurs : il est alors dans un cookie httpOnly",
+    )
     utilisateur: UtilisateurPublic
 
 

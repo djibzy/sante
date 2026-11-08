@@ -1,0 +1,79 @@
+# Production sur un seul serveur : PostgreSQL, services, interface, Caddy (HTTPS automatique).
+#   cd infra && cp .env.example .env   # puis remplir
+#   docker compose up -d --build
+name: sante
+
+services:
+  postgres:
+    image: postgres:16
+    restart: unless-stopped
+    environment:
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?à définir dans .env}
+      COMPTES_DB_MOT_DE_PASSE: ${COMPTES_DB_MOT_DE_PASSE:?}
+      BOUTIQUE_DB_MOT_DE_PASSE: ${BOUTIQUE_DB_MOT_DE_PASSE:?}
+    volumes:
+      - donnees-postgres:/var/lib/postgresql/data
+      - ./postgres-init.sh:/docker-entrypoint-initdb.d/init.sh:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 5s
+      retries: 20
+
+  comptes:
+    build:
+      context: ..
+      dockerfile: infra/python.Dockerfile
+      args: { SERVICE: comptes }
+    restart: unless-stopped
+    environment:
+      COMPTES_ENVIRONNEMENT: production
+      COMPTES_DATABASE_URL: postgresql+asyncpg://comptes:${COMPTES_DB_MOT_DE_PASSE}@postgres:5432/comptes
+      COMPTES_JWT_CLE_PRIVEE: ${COMPTES_JWT_CLE_PRIVEE:?générer avec comptes.outils generer-cles}
+      COMPTES_COOKIE_DOMAINE: .${DOMAINE}
+      COMPTES_CORS_ORIGINES: '["https://boutique.${DOMAINE}"]'
+    depends_on:
+      postgres: { condition: service_healthy }
+
+  boutique:
+    build:
+      context: ..
+      dockerfile: infra/python.Dockerfile
+      args: { SERVICE: boutique }
+    restart: unless-stopped
+    environment:
+      BOUTIQUE_ENVIRONNEMENT: production
+      BOUTIQUE_DATABASE_URL: postgresql+asyncpg://boutique:${BOUTIQUE_DB_MOT_DE_PASSE}@postgres:5432/boutique
+      BOUTIQUE_JWT_CLE_PUBLIQUE: ${BOUTIQUE_JWT_CLE_PUBLIQUE:?}
+      BOUTIQUE_CORS_ORIGINES: '["https://boutique.${DOMAINE}"]'
+    depends_on:
+      postgres: { condition: service_healthy }
+
+  web-boutique:
+    build:
+      context: ../web
+      dockerfile: ../infra/web.Dockerfile
+    restart: unless-stopped
+    environment:
+      NUXT_API_BOUTIQUE_INTERNE: http://boutique:8000
+      NUXT_PUBLIC_API_BOUTIQUE: https://boutique.${DOMAINE}
+      NUXT_PUBLIC_API_COMPTES: https://comptes.${DOMAINE}
+      NUXT_PUBLIC_WHATSAPP: ${WHATSAPP:-}
+    depends_on: [boutique]
+
+  caddy:
+    image: caddy:2
+    restart: unless-stopped
+    ports: ["80:80", "443:443"]
+    environment:
+      DOMAINE: ${DOMAINE:?}
+      EMAIL_ADMIN: ${EMAIL_ADMIN:?}
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy-donnees:/data
+      - caddy-config:/config
+    depends_on: [comptes, boutique, web-boutique]
+
+volumes:
+  donnees-postgres:
+  caddy-donnees:
+  caddy-config:

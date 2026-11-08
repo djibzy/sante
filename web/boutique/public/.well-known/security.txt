@@ -1,0 +1,4 @@
+# Signaler une faille de sécurité. À compléter avant la mise en ligne (adresse réelle).
+Contact: mailto:securite@exemple.ml
+Expires: 2027-12-31T23:59:59Z
+Preferred-Languages: fr, en

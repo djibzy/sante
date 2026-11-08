@@ -164,3 +164,19 @@ async def test_sante(client: AsyncClient) -> None:
     reponse = await client.get("/sante")
     assert reponse.json() == {"statut": "ok", "service": "comptes"}
     assert reponse.headers["x-content-type-options"] == "nosniff"
+
+
+async def test_un_navigateur_ne_recoit_le_jeton_de_rafraichissement_que_par_cookie(
+    client: AsyncClient,
+) -> None:
+    await inscrire(client)
+    reponse = await client.post(
+        "/api/v1/auth/connexion",
+        json={"telephone": "76123456", "mot_de_passe": MOT_DE_PASSE},
+        headers={"X-Client": "web"},
+    )
+    assert reponse.status_code == 200
+    assert reponse.json()["jeton_rafraichissement"] is None
+    cookie = reponse.headers["set-cookie"]
+    assert "HttpOnly" in cookie
+    assert "Path=/api/v1/auth" in cookie
