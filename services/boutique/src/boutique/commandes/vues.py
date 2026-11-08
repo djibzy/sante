@@ -53,6 +53,9 @@ def vue_client(commande: Commande) -> CommandeClient:
         reste_a_payer=commande.reste_a_payer,
         devis_valable_jusqu_au=commande.devis_valable_jusqu_au,
         devis_disponible=commande.devis_emis_le is not None,
+        facture=commande.facture.reference if commande.facture else None,
+        livreur_nom=commande.livreur.nom if commande.livreur else None,
+        livreur_telephone=commande.livreur.telephone if commande.livreur else None,
         peut_annuler=statut in ANNULABLES_PAR_CLIENT,
         peut_accepter=statut == Statut.DEVIS_ENVOYE and not devis_expire(commande),
         historique=[

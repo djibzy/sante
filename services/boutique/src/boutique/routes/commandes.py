@@ -11,7 +11,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from boutique.atelier import delais
 from boutique.commandes import acces, operations
 from boutique.commandes.cycle import ANNULABLES_PAR_CLIENT, Statut
-from boutique.commandes.pdf import reponse_devis
+from boutique.commandes.pdf import reponse_devis, reponse_facture
 from boutique.commandes.schemas import (
     Chiffrage,
     CommandeClient,
@@ -300,6 +300,27 @@ async def accepter_le_mien(
 ) -> CommandeClient:
     commande = await _mienne(session, reference, principal)
     return await _accepter(session, commande, principal, _ip(request))
+
+
+@routeur.get("/suivi/{reference}/facture.pdf", summary="Télécharger la facture en PDF")
+async def telecharger_facture(
+    reference: str,
+    request: Request,
+    cle: str | None = CLE,
+    session: AsyncSession = Depends(session_db),
+) -> Response:
+    commande = await acces.charger_pour_client(session, reference, cle)
+    return reponse_facture(commande, _parametres(request))
+
+
+@routeur.get("/mes-commandes/{reference}/facture.pdf", summary="Télécharger une de mes factures")
+async def telecharger_ma_facture(
+    reference: str,
+    request: Request,
+    principal: Principal = Depends(principal_requis),
+    session: AsyncSession = Depends(session_db),
+) -> Response:
+    return reponse_facture(await _mienne(session, reference, principal), _parametres(request))
 
 
 @routeur.get("/mes-commandes/{reference}/devis.pdf", summary="Télécharger un de mes devis")

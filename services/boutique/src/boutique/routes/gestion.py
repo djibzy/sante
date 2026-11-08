@@ -9,15 +9,19 @@ from sqlalchemy import ColumnElement, func, or_, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from boutique.commandes import acces, operations
+from boutique.commandes import acces, factures, operations
 from boutique.commandes.cycle import ModeLivraison, Statut, passage_autorise
-from boutique.commandes.pdf import reponse_devis
+from boutique.commandes.pdf import reponse_devis, reponse_facture
 from boutique.commandes.schemas import (
+    ArretLivraison,
     ChangementStatut,
     CommandeGestion,
+    CreationLivreur,
     CreationZone,
     EmissionDevis,
     LigneDevis,
+    LivreurVue,
+    ModificationLivreur,
     ModificationZone,
     NouveauPaiement,
     PageCommandes,
@@ -36,7 +40,15 @@ from boutique.commandes.tarifs import (
 )
 from boutique.commandes.vues import vue_gestion, vue_resume
 from boutique.config import ROLE_ADMIN_BOUTIQUE, ParametresBoutique
-from boutique.models import Commande, JournalAudit, LigneCommande, Paiement, Produit, ZoneLivraison
+from boutique.models import (
+    Commande,
+    JournalAudit,
+    LigneCommande,
+    Livreur,
+    Paiement,
+    Produit,
+    ZoneLivraison,
+)
 from socle.audit import journaliser
 from socle.db import session_db
 from socle.security import Principal, exiger_role
@@ -121,6 +133,11 @@ async def changer_statut(
         raise HTTPException(_409, f"Passage impossible de « {depart.value} » à « {arrivee.value} »")
     if arrivee == Statut.EN_LIVRAISON and commande.mode_livraison != ModeLivraison.LIVRAISON:
         raise HTTPException(_409, "Cette commande est à retirer à la boutique")
+    if donnees.livreur_id is not None:
+        livreur = await session.get(Livreur, donnees.livreur_id)
+        if livreur is None or not livreur.est_actif:
+            raise HTTPException(_422, "Livreur inconnu")
+        commande.livreur_id = livreur.id
     if donnees.date_promise is not None:
         commande.date_promise = donnees.date_promise
     await operations.appliquer_statut(
@@ -326,3 +343,133 @@ async def modifier_zone(
     await session.commit()
     await session.refresh(zone)
     return ZoneGestion.model_validate(zone)
+
+
+@routeur.post("/commandes/{reference}/facture", summary="Émettre la facture sans attendre")
+async def emettre_facture(
+    reference: str,
+    principal: Principal = Depends(equipe),
+    session: AsyncSession = Depends(session_db),
+) -> CommandeGestion:
+    commande = await acces.charger(session, reference)
+    if Statut(commande.statut) in SANS_ENCAISSEMENT:
+        raise HTTPException(_409, "Seule une commande confirmée peut être facturée")
+    facture = await factures.emettre(session, commande, principal.id)
+    journaliser(
+        session,
+        JournalAudit,
+        action="facture.emise",
+        acteur_id=principal.id,
+        objet_type="commande",
+        objet_id=commande.reference,
+        details={"facture": facture.reference, "montant": facture.montant},
+    )
+    await session.commit()
+    return vue_gestion(await acces.charger(session, reference))
+
+
+@routeur.get("/commandes/{reference}/facture.pdf", summary="Facture en PDF")
+async def facture_en_pdf(
+    reference: str,
+    request: Request,
+    _: Principal = Depends(equipe),
+    session: AsyncSession = Depends(session_db),
+) -> Response:
+    return reponse_facture(await acces.charger(session, reference), _parametres(request))
+
+
+@routeur.get("/livraisons", summary="Feuille de route : à livrer et en cours de livraison")
+async def livraisons(
+    _: Principal = Depends(equipe), session: AsyncSession = Depends(session_db)
+) -> list[ArretLivraison]:
+    requete = (
+        acces.requete_resumes()
+        .where(
+            Commande.mode_livraison == ModeLivraison.LIVRAISON,
+            Commande.statut.in_([Statut.PRETE, Statut.EN_LIVRAISON]),
+        )
+        .order_by(ZoneLivraison.position, Commande.date_promise, Commande.numero)
+    )
+    lignes = list(await session.execute(requete))
+    livreurs = {
+        livreur.id: livreur.nom
+        for livreur in await session.scalars(
+            select(Livreur).where(
+                Livreur.id.in_({c.livreur_id for c, _, _ in lignes if c.livreur_id})
+            )
+        )
+    }
+    return [
+        ArretLivraison(
+            reference=c.reference,
+            statut=Statut(c.statut),
+            client=c.etablissement or c.nom_client,
+            telephone=c.telephone,
+            zone_nom=zone,
+            adresse=c.adresse,
+            reste_a_payer=c.reste_a_payer,
+            nombre_articles=nombre,
+            date_promise=c.date_promise,
+            livreur_id=c.livreur_id,
+            livreur_nom=livreurs.get(c.livreur_id) if c.livreur_id else None,
+        )
+        for c, zone, nombre in lignes
+    ]
+
+
+@routeur.get("/livreurs", summary="Livreurs")
+async def lister_livreurs(
+    _: Principal = Depends(equipe), session: AsyncSession = Depends(session_db)
+) -> list[LivreurVue]:
+    livreurs = await session.scalars(select(Livreur).order_by(Livreur.nom))
+    return [LivreurVue.model_validate(livreur) for livreur in livreurs]
+
+
+@routeur.post("/livreurs", status_code=status.HTTP_201_CREATED, summary="Ajouter un livreur")
+async def creer_livreur(
+    donnees: CreationLivreur,
+    principal: Principal = Depends(equipe),
+    session: AsyncSession = Depends(session_db),
+) -> LivreurVue:
+    livreur = Livreur(nom=donnees.nom.strip(), telephone=operations.telephone(donnees.telephone))
+    session.add(livreur)
+    await session.flush()
+    journaliser(
+        session,
+        JournalAudit,
+        action="livreur.cree",
+        acteur_id=principal.id,
+        objet_type="livreur",
+        objet_id=livreur.id,
+    )
+    await session.commit()
+    return LivreurVue.model_validate(livreur)
+
+
+@routeur.patch("/livreurs/{livreur_id}", summary="Modifier ou désactiver un livreur")
+async def modifier_livreur(
+    livreur_id: UUID,
+    donnees: ModificationLivreur,
+    principal: Principal = Depends(equipe),
+    session: AsyncSession = Depends(session_db),
+) -> LivreurVue:
+    livreur = await session.get(Livreur, livreur_id)
+    if livreur is None:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "Livreur introuvable")
+    changements = donnees.model_dump(exclude_unset=True)
+    if "telephone" in changements:
+        changements["telephone"] = operations.telephone(changements["telephone"])
+    for champ, valeur in changements.items():
+        setattr(livreur, champ, valeur)
+    journaliser(
+        session,
+        JournalAudit,
+        action="livreur.modifie",
+        acteur_id=principal.id,
+        objet_type="livreur",
+        objet_id=livreur.id,
+        details={"champs": sorted(changements)},
+    )
+    await session.commit()
+    await session.refresh(livreur)
+    return LivreurVue.model_validate(livreur)

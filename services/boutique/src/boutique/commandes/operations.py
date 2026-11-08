@@ -12,7 +12,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from boutique.atelier import delais, fabrication, stock
 from boutique.atelier.etats import EtatOrdre
-from boutique.commandes import acces
+from boutique.commandes import acces, factures
 from boutique.commandes.cycle import EN_ATTENTE_DE_L_EQUIPE, ModeLivraison, ModePaiement, Statut
 from boutique.commandes.schemas import Coordonnees, LigneDemandee, Livraison
 from boutique.commandes.tarifs import (
@@ -130,7 +130,8 @@ async def appliquer_statut(
     visible_client: bool = True,
 ) -> None:
     """Change le statut et ses effets : ordres de fabrication à la confirmation, stock prélevé
-    quand la commande est prête, ordres annulés et stock rendu à l'annulation."""
+    quand la commande est prête, facture à la livraison, ordres annulés et stock rendu à
+    l'annulation."""
     produits = await produits_de(session, commande)
     if statut == Statut.CONFIRMEE:
         if commande.date_promise is None:
@@ -141,6 +142,8 @@ async def appliquer_statut(
     elif statut == Statut.ANNULEE:
         await fabrication.annuler_ordres(session, commande.id)
         await stock.restituer(session, commande, acteur_id)
+    elif statut == Statut.LIVREE:
+        await factures.emettre(session, commande, acteur_id)
     evenement(commande, statut, acteur_id, note, visible_client)
 
 

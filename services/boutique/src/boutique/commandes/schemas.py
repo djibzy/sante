@@ -159,6 +159,9 @@ class CommandeClient(BaseModel):
     date_promise: date | None
     devis_valable_jusqu_au: date | None
     devis_disponible: bool
+    facture: str | None
+    livreur_nom: str | None
+    livreur_telephone: str | None
     peut_annuler: bool
     peut_accepter: bool
     historique: list[EvenementVue]
@@ -227,6 +230,43 @@ class ChangementStatut(BaseModel):
     note: str = Field("", max_length=500)
     visible_client: bool = True
     date_promise: date | None = None
+    livreur_id: UUID | None = Field(None, description="Livreur, au départ en livraison")
+
+
+class LivreurVue(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: UUID
+    nom: str
+    telephone: str
+    est_actif: bool
+
+
+class CreationLivreur(BaseModel):
+    nom: str = Field(min_length=2, max_length=120)
+    telephone: str = Field(min_length=6, max_length=30)
+
+
+class ModificationLivreur(BaseModel):
+    nom: str | None = Field(None, min_length=2, max_length=120)
+    telephone: str | None = Field(None, min_length=6, max_length=30)
+    est_actif: bool | None = None
+
+
+class ArretLivraison(BaseModel):
+    """Une commande sur la feuille de route : où aller, qui appeler, combien encaisser."""
+
+    reference: str
+    statut: Statut
+    client: str
+    telephone: str
+    zone_nom: str | None
+    adresse: str
+    reste_a_payer: int
+    nombre_articles: int
+    date_promise: date | None
+    livreur_id: UUID | None
+    livreur_nom: str | None
 
 
 class NouveauPaiement(BaseModel):

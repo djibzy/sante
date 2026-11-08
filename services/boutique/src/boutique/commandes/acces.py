@@ -43,6 +43,8 @@ _COMPLETE = (
     selectinload(Commande.evenements),
     selectinload(Commande.paiements),
     selectinload(Commande.zone),
+    selectinload(Commande.livreur),
+    selectinload(Commande.facture),
 )
 
 

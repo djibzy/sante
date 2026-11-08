@@ -20,6 +20,7 @@ from sqlalchemy import (
     MetaData,
     String,
     Text,
+    UniqueConstraint,
     Uuid,
     true,
 )
@@ -157,6 +158,16 @@ def _maintenant() -> datetime:
     return datetime.now(UTC)
 
 
+class Livreur(IdMixin, HorodatageMixin, Base):
+    """Livreur de la boutique (salarié ou coursier à moto)."""
+
+    __tablename__ = "livreurs"
+
+    nom: Mapped[str] = mapped_column(String(120), nullable=False)
+    telephone: Mapped[str] = mapped_column(String(20), nullable=False)  # E.164
+    est_actif: Mapped[bool] = mapped_column(nullable=False, default=True, server_default=true())
+
+
 class Commande(IdMixin, HorodatageMixin, Base):
     """Commande d'un client, ou devis demandé par une structure qui devient commande s'il est
     accepté. Le numéro (référence BB-1001) est attribué par la base."""
@@ -201,8 +212,11 @@ class Commande(IdMixin, HorodatageMixin, Base):
     devis_valable_jusqu_au: Mapped[date | None] = mapped_column(Date)
     # Empreinte SHA-256 de la clé du lien de suivi ; la clé elle-même n'est jamais stockée.
     empreinte_cle_suivi: Mapped[str] = mapped_column(String(64), unique=True, nullable=False)
+    livreur_id: Mapped[UUID | None] = mapped_column(ForeignKey("livreurs.id"), index=True)
 
     zone: Mapped[ZoneLivraison | None] = relationship(lazy="raise")
+    livreur: Mapped["Livreur | None"] = relationship(lazy="raise")
+    facture: Mapped["Facture | None"] = relationship(lazy="raise", back_populates="commande")
     lignes: Mapped[list["LigneCommande"]] = relationship(
         back_populates="commande",
         cascade="all, delete-orphan",
@@ -341,6 +355,41 @@ class MouvementStock(IdMixin, Base):
     cree_le: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), nullable=False, default=_maintenant
     )
+
+
+class CompteurFactures(Base):
+    """Dernier numéro de facture attribué, par année : verrouillé à chaque facture, il donne
+    une numérotation continue, sans trou ni doublon."""
+
+    __tablename__ = "compteurs_factures"
+
+    annee: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=False)
+    dernier: Mapped[int] = mapped_column(nullable=False, default=0)
+
+
+class Facture(IdMixin, Base):
+    """Facture d'une commande, émise à la livraison (ou plus tôt, à la demande d'une structure).
+    Les lignes et les montants sont ceux de la commande, figés depuis sa confirmation."""
+
+    __tablename__ = "factures"
+    __table_args__ = (UniqueConstraint("annee", "numero"),)
+
+    commande_id: Mapped[UUID] = mapped_column(
+        ForeignKey("commandes.id"), unique=True, nullable=False
+    )
+    annee: Mapped[int] = mapped_column(nullable=False)
+    numero: Mapped[int] = mapped_column(nullable=False)
+    montant: Mapped[int] = mapped_column(nullable=False)
+    emise_le: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, default=_maintenant
+    )
+    emise_par: Mapped[UUID | None] = mapped_column(Uuid)
+
+    commande: Mapped[Commande] = relationship(back_populates="facture", lazy="raise")
+
+    @property
+    def reference(self) -> str:
+        return f"F{self.annee}-{self.numero:05d}"
 
 
 class JournalAudit(JournalAuditMixin, Base):
