@@ -136,6 +136,12 @@ async def test_numerotation_continue_meme_en_parallele(client: AsyncClient) -> N
 
 async def test_gestion_des_livreurs(client: AsyncClient) -> None:
     moussa = await livreur(client)
+    doublon = await client.post(
+        "/api/v1/admin/livreurs",
+        json={"nom": "Moussa K.", "telephone": "+22376554433"},
+        headers=ADMIN,
+    )
+    assert doublon.status_code == 409
     modifie = await client.patch(
         f"/api/v1/admin/livreurs/{moussa['id']}",
         json={"est_actif": False, "telephone": "65 99 88 77"},

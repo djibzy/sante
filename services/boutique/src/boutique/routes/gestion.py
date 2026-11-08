@@ -433,7 +433,12 @@ async def creer_livreur(
     principal: Principal = Depends(equipe),
     session: AsyncSession = Depends(session_db),
 ) -> LivreurVue:
-    livreur = Livreur(nom=donnees.nom.strip(), telephone=operations.telephone(donnees.telephone))
+    telephone = operations.telephone(donnees.telephone)
+    if await session.scalar(
+        select(Livreur.id).where(Livreur.telephone == telephone, Livreur.est_actif)
+    ):
+        raise HTTPException(_409, "Un livreur actif a déjà ce numéro")
+    livreur = Livreur(nom=donnees.nom.strip(), telephone=telephone)
     session.add(livreur)
     await session.flush()
     journaliser(

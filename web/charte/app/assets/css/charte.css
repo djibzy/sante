@@ -93,3 +93,10 @@ p { margin: 0 0 1em; }
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { transition: none !important; animation: none !important; }
 }
+
+/* Impression (feuille de route, devis affiché) : sans en-tête, pied ni navigation. */
+@media print {
+  .entete, .pied, .navigation-equipe { display: none !important; }
+  body { background: #fff; }
+  .carte { box-shadow: none; }
+}

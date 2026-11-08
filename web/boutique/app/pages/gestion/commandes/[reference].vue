@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type { CommandeGestion, Paiement, Statut } from '~/types/commandes'
+import type { CommandeGestion, Livreur, Paiement, Statut } from '~/types/commandes'
 import { classeStatut } from '~/types/commandes'
 
 const route = useRoute()
@@ -32,7 +32,12 @@ function libelleAction(statut: Statut): string {
 
 const passages = computed(() => (commande.value?.passages_possibles ?? []).filter(s =>
   s !== 'devis_envoye' && !(s === 'en_livraison' && commande.value?.mode_livraison === 'retrait')))
-const etape = reactive({ note: '', visible_client: true, date_promise: '' })
+const etape = reactive({ note: '', visible_client: true, date_promise: '', livreur_id: '' })
+const livreurs = ref<Livreur[]>([])
+const peutFacturer = computed(() => {
+  const c = commande.value
+  return !!c && !c.facture && !['devis_demande', 'devis_envoye', 'devis_refuse', 'annulee'].includes(c.statut)
+})
 
 const encaissement = reactive({ montant: 0, moyen: 'especes' as Paiement['moyen'], reference: '' })
 const peutEncaisser = computed(() => {
@@ -80,8 +85,13 @@ async function executer(chemin: string, methode: 'POST' | 'PUT', corps: Record<s
 }
 
 async function avancer(statut: Statut) {
+  if (statut === 'en_livraison' && !etape.livreur_id) {
+    erreur.value = 'Choisissez le livreur.'
+    return
+  }
   const ok = await executer('/statut', 'POST', {
     statut, note: etape.note, visible_client: etape.visible_client, date_promise: etape.date_promise || null,
+    livreur_id: statut === 'en_livraison' ? etape.livreur_id : null,
   })
   if (ok) etape.note = ''
 }
@@ -113,9 +123,14 @@ const lienWhatsapp = computed(() => {
   return `https://wa.me/${c.telephone.replace('+', '')}?text=${encodeURIComponent(texte)}`
 })
 
+async function facturer() {
+  await executer('/facture', 'POST', {})
+}
+
 watch(verifie, async () => {
   if (!autorise.value) return
   try {
+    livreurs.value = (await appeler<Livreur[]>('/api/v1/admin/livreurs')).filter(l => l.est_actif)
     preparer(await appeler<CommandeGestion>(base))
   } catch (e) {
     erreur.value = messageErreur(e)
@@ -192,6 +207,14 @@ watch(verifie, async () => {
                 <input id="note-etape" v-model="etape.note" maxlength="500" placeholder="Livreur : Ibrahim, 14 h">
               </div>
               <label class="case"><input v-model="etape.visible_client" type="checkbox"> Visible par le client</label>
+              <div v-if="passages.includes('en_livraison')" class="champ">
+                <label for="livreur">Livreur</label>
+                <select id="livreur" v-model="etape.livreur_id">
+                  <option value="" disabled>Choisir…</option>
+                  <option v-for="l in livreurs" :key="l.id" :value="l.id">{{ l.nom }}</option>
+                </select>
+                <span v-if="!livreurs.length" class="aide">Ajoutez d'abord un livreur dans Livraisons.</span>
+              </div>
               <div v-if="passages.includes('confirmee')" class="champ">
                 <label for="date-promise">Date promise</label>
                 <input id="date-promise" v-model="etape.date_promise" type="date">
@@ -214,6 +237,11 @@ watch(verifie, async () => {
                   <small>{{ formaterDateHeure(p.encaisse_le) }}</small>
                 </li>
               </ul>
+              <p v-if="commande.facture" class="facture">
+                Facture {{ commande.facture }}
+                <button type="button" class="bouton bouton-discret" @click="telecharger(`${base}/facture.pdf`, `facture-${commande.facture}.pdf`)">Télécharger</button>
+              </p>
+              <button v-else-if="peutFacturer" type="button" class="bouton bouton-secondaire" :disabled="envoi" @click="facturer">Émettre la facture</button>
               <form v-if="peutEncaisser" class="encaissement" @submit.prevent="encaisser">
                 <div class="champ"><label for="montant">Montant (FCFA)</label><input id="montant" v-model.number="encaissement.montant" type="number" min="1" :max="commande.reste_a_payer" inputmode="numeric" required></div>
                 <div class="champ">
@@ -272,4 +300,5 @@ watch(verifie, async () => {
 .paiements { margin: 0; padding-left: 1.1em; }
 .paiements small { display: block; color: var(--texte-doux); }
 .encaissement .champ { margin-bottom: 0.6rem; }
+.facture { display: flex; align-items: center; justify-content: space-between; gap: 8px; font-weight: 650; }
 </style>

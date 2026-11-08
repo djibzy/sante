@@ -51,9 +51,9 @@ async function agir(nom: 'annulation' | 'acceptation') {
   }
 }
 
-async function telechargerDevis() {
-  if (cle) window.location.href = url(`/api/v1/suivi/${reference}/devis.pdf?cle=${encodeURIComponent(cle)}`)
-  else await telecharger(`/api/v1/mes-commandes/${reference}/devis.pdf`, `devis-${reference}.pdf`)
+async function telechargerDocument(nature: 'devis' | 'facture') {
+  if (cle) window.location.href = url(`/api/v1/suivi/${reference}/${nature}.pdf?cle=${encodeURIComponent(cle)}`)
+  else await telecharger(`/api/v1/mes-commandes/${reference}/${nature}.pdf`, `${nature}-${reference}.pdf`)
 }
 
 async function copier() {
@@ -109,11 +109,18 @@ onMounted(charger)
           <template v-if="commande.devis_disponible">
             <h2>Devis</h2>
             <p v-if="commande.devis_valable_jusqu_au" class="aide">Valable jusqu'au {{ formaterDate(commande.devis_valable_jusqu_au) }}</p>
-            <button type="button" class="bouton bouton-secondaire bouton-large" @click="telechargerDevis">Télécharger le devis (PDF)</button>
+            <button type="button" class="bouton bouton-secondaire bouton-large" @click="telechargerDocument('devis')">Télécharger le devis (PDF)</button>
             <button v-if="commande.peut_accepter" type="button" class="bouton bouton-large" :disabled="action !== null" @click="agir('acceptation')">
               Accepter le devis
             </button>
           </template>
+          <p v-if="commande.statut === 'en_livraison' && commande.livreur_nom" class="livreur">
+            Votre livreur : <strong>{{ commande.livreur_nom }}</strong>
+            <a v-if="commande.livreur_telephone" :href="`tel:${commande.livreur_telephone}`">{{ formaterTelephone(commande.livreur_telephone) }}</a>
+          </p>
+          <button v-if="commande.facture" type="button" class="bouton bouton-secondaire bouton-large" @click="telechargerDocument('facture')">
+            Télécharger la facture {{ commande.facture }}
+          </button>
           <h2>Étapes</h2>
           <HistoriqueCommande :evenements="commande.historique" />
           <template v-if="commande.peut_annuler">
@@ -144,6 +151,7 @@ onMounted(charger)
 .entete-suivi { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; margin-bottom: 8px; }
 .entete-suivi h1 { margin: 0; }
 .promesse { font-weight: 650; }
+.livreur { padding: 10px 12px; border-radius: 10px; background: var(--primaire-clair); display: grid; gap: 2px; }
 .colonnes { display: grid; gap: 20px; }
 @media (min-width: 900px) { .colonnes { grid-template-columns: minmax(0, 1fr) 360px; align-items: start; } }
 </style>

@@ -75,6 +75,9 @@ export interface Commande {
   date_promise: string | null
   devis_valable_jusqu_au: string | null
   devis_disponible: boolean
+  facture: string | null
+  livreur_nom: string | null
+  livreur_telephone: string | null
   peut_annuler: boolean
   peut_accepter: boolean
   historique: Evenement[]
@@ -134,4 +137,25 @@ export function classeStatut(statut: Statut): string {
   if (statut === 'livree') return 'pastille pastille-succes'
   if (statut === 'annulee' || statut === 'devis_refuse') return 'pastille pastille-danger'
   return 'pastille'
+}
+
+export interface Livreur {
+  id: string
+  nom: string
+  telephone: string
+  est_actif: boolean
+}
+
+export interface ArretLivraison {
+  reference: string
+  statut: Statut
+  client: string
+  telephone: string
+  zone_nom: string | null
+  adresse: string
+  reste_a_payer: number
+  nombre_articles: number
+  date_promise: string | null
+  livreur_id: string | null
+  livreur_nom: string | null
 }
