@@ -24,6 +24,7 @@ from boutique.schemas import (
     PageProduits,
     ProduitDetail,
     RayonPublic,
+    Univers,
 )
 from boutique.vues import rang_taille, vers_detail, vers_resume
 from socle.db import session_db
@@ -77,10 +78,12 @@ async def metiers(session: AsyncSession = Depends(session_db)) -> list[MetierPub
     ]
 
 
-def _filtres_de_base(rayon: str | None, q: str | None) -> list[Any]:
+def _filtres_de_base(rayon: str | None, q: str | None, univers: str | None = None) -> list[Any]:
     filtres: list[Any] = [Produit.est_actif, Rayon.est_actif]
     if rayon:
         filtres.append(Rayon.slug == rayon)
+    if univers:
+        filtres.append(Rayon.univers == univers)
     if q and q.strip():
         motif = func.immutable_unaccent(motif_recherche(q.strip().lower()))
         filtres.append(
@@ -142,6 +145,7 @@ async def _facettes(session: AsyncSession, filtres: list[Any]) -> Facettes:
 @routeur.get("/produits", summary="Produits, par rayon, par recherche et par filtres")
 async def produits(
     rayon: str | None = Query(default=None, max_length=80),
+    univers: Univers | None = None,
     q: str | None = Query(default=None, max_length=100, description="Texte recherché"),
     metier: Metier | None = None,
     genre: Genre | None = None,
@@ -155,7 +159,7 @@ async def produits(
     par_page: int = Query(default=24, ge=1, le=60),
     session: AsyncSession = Depends(session_db),
 ) -> PageProduits:
-    base = _filtres_de_base(rayon, q)
+    base = _filtres_de_base(rayon, q, univers)
     filtres = list(base)
     if metier:
         filtres.append(Produit.metiers.contains([metier]))

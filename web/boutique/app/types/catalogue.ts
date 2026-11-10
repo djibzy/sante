@@ -1,9 +1,38 @@
+export type Univers = 'tenues' | 'equipement' | 'campagnes'
+
 export interface Rayon {
   id: string
   slug: string
   nom: string
   description: string
+  univers: Univers
   nombre_produits: number
+}
+
+export interface Metier {
+  slug: string
+  nom: string
+  nombre_produits: number
+}
+
+export interface Couleur {
+  nom: string
+  hex: string | null
+}
+
+export interface Facette {
+  valeur: string
+  libelle: string
+  nombre: number
+  hex?: string | null
+}
+
+export interface Facettes {
+  metiers: Facette[]
+  genres: Facette[]
+  couleurs: Facette[]
+  tailles: Facette[]
+  collections: Facette[]
 }
 
 export interface Image {
@@ -23,7 +52,16 @@ export interface ProduitResume {
   personnalisable: boolean
   prix_public: number | null
   prix_pro: number | null
+  prix_avant_promo: number | null
   image: Image | null
+  genre: 'femme' | 'homme' | 'mixte' | null
+  metiers: string[]
+  collection: string | null
+  est_nouveau: boolean
+  couleurs: Couleur[]
+  tailles: string[]
+  delai_jours: number
+  fabrique_sur_commande: boolean
 }
 
 export interface Variante {
@@ -32,12 +70,15 @@ export interface Variante {
   libelle: string
   taille: string | null
   couleur: string | null
+  couleur_hex: string | null
   prix: number | null
 }
 
 export interface ProduitDetail extends ProduitResume {
   description: string
-  delai_jours: number
+  manches: 'courtes' | 'longues' | null
+  matiere: string
+  entretien: string
   variantes: Variante[]
   images: Image[]
 }
@@ -47,4 +88,5 @@ export interface PageProduits {
   total: number
   page: number
   par_page: number
+  facettes: Facettes
 }

@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type { ProduitDetail } from '~/types/catalogue'
+import type { Metier, PageProduits, ProduitDetail } from '~/types/catalogue'
 
 const route = useRoute()
 const config = useRuntimeConfig()
@@ -9,17 +9,38 @@ const { data: produit } = await useBoutiqueFetch<ProduitDetail>(
 if (!produit.value) {
   throw createError({ statusCode: 404, statusMessage: 'Produit introuvable', fatal: true })
 }
+const { data: metiers } = await useBoutiqueFetch<Metier[]>('/api/v1/metiers')
+const { data: voisins } = await useBoutiqueFetch<PageProduits>('/api/v1/produits', {
+  query: { rayon: produit.value.rayon_slug, par_page: 5 },
+})
+const suggestions = computed(() => (voisins.value?.elements ?? []).filter(p => p.slug !== produit.value?.slug).slice(0, 4))
 
-const varianteId = ref(produit.value.variantes[0]?.id ?? null)
-const variante = computed(() => produit.value?.variantes.find(v => v.id === varianteId.value))
+// Choix en deux temps, comme en boutique : la couleur, puis la taille.
+const couleur = ref<string | null>(produit.value.couleurs[0]?.nom ?? null)
+const taille = ref<string | null>(null)
+const variante = computed(() => produit.value?.variantes.find(v =>
+  (v.couleur ?? null) === (produit.value!.couleurs.length ? couleur.value : null)
+  && (v.taille ?? null) === (produit.value!.tailles.length ? taille.value : null)))
+const teinte = computed(() => produit.value?.couleurs.find(c => c.nom === couleur.value)?.hex ?? null)
+const tailleDisponible = (t: string) => produit.value!.variantes.some(v => v.taille === t && (!couleur.value || v.couleur === couleur.value))
 const prix = computed(() => variante.value?.prix ?? produit.value?.prix_public ?? null)
+const remise = computed(() => {
+  const avant = produit.value?.prix_avant_promo
+  return avant && prix.value ? Math.round((1 - prix.value / avant) * 100) : null
+})
+const metiersDuProduit = computed(() => (metiers.value ?? []).filter(m => produit.value?.metiers.includes(m.slug)))
 const quantite = ref(1)
 const personnalisation = ref('')
 const ajoute = ref(false)
+const erreur = ref('')
 const { ajouter } = usePanier()
 
 function ajouterAuPanier() {
   const p = produit.value!
+  if (p.variantes.length && !variante.value) {
+    erreur.value = p.tailles.length ? 'Choisissez votre taille.' : 'Choisissez une couleur.'
+    return
+  }
   ajouter({
     produit_id: p.id,
     variante_id: variante.value?.id ?? null,
@@ -33,7 +54,13 @@ function ajouterAuPanier() {
   })
   ajoute.value = true
 }
-watch([varianteId, quantite, personnalisation], () => { ajoute.value = false })
+watch([couleur, taille, quantite, personnalisation], () => {
+  ajoute.value = false
+  erreur.value = ''
+})
+watch(couleur, () => {
+  if (taille.value && !tailleDisponible(taille.value)) taille.value = null
+})
 
 const lienWhatsapp = computed(() => {
   const p = produit.value!
@@ -41,6 +68,11 @@ const lienWhatsapp = computed(() => {
   const objet = p.vendable_en_ligne ? "j'ai une question sur" : 'je souhaite obtenir'
   const texte = `Bonjour, ${objet} : ${p.nom}${choix}. Référence : ${variante.value?.sku ?? p.slug}.`
   return `https://wa.me/${config.public.whatsapp}?text=${encodeURIComponent(texte)}`
+})
+const delai = computed(() => {
+  const p = produit.value!
+  if (p.fabrique_sur_commande) return `${p.personnalisable ? 'Brodé' : 'Fabriqué'} pour vous à Bamako : comptez ${p.delai_jours} jours. La date exacte vous est donnée à la commande.`
+  return `En stock, ou sous ${p.delai_jours} jours. La date exacte vous est donnée dans le panier.`
 })
 
 useSeoMeta({
@@ -54,42 +86,62 @@ useSeoMeta({
 <template>
   <section v-if="produit" class="conteneur fiche">
     <nav class="fil" aria-label="Fil d'Ariane">
-      <NuxtLink to="/">Accueil</NuxtLink> ›
+      <NuxtLink to="/">Accueil</NuxtLink> /
       <NuxtLink :to="`/rayons/${produit.rayon_slug}`">{{ produit.rayon_nom }}</NuxtLink>
     </nav>
 
     <div class="colonnes">
-      <div class="carte visuel">
+      <div class="visuel">
         <img v-if="produit.images[0]" :src="produit.images[0].url" :alt="produit.images[0].texte_alternatif">
-        <ChartePictogramme v-else :type="produit.rayon_slug" :taille="140" />
+        <ChartePictogramme v-else :type="produit.rayon_slug" :taille="150" :teinte="teinte" />
+        <span class="badges">
+          <span v-if="produit.est_nouveau" class="badge">Nouveau</span>
+          <span v-if="remise" class="badge badge-promo">−{{ remise }} %</span>
+        </span>
       </div>
 
       <div class="infos">
-        <span v-if="produit.personnalisable" class="pastille">Personnalisable</span>
+        <p v-if="produit.collection" class="collection">Collection {{ produit.collection }}</p>
         <h1>{{ produit.nom }}</h1>
         <p class="resume">{{ produit.resume }}</p>
 
         <template v-if="produit.vendable_en_ligne">
-          <p class="prix"><ChartePrix :montant="prix" /></p>
+          <p class="prix">
+            <ChartePrix :montant="prix" />
+            <s v-if="produit.prix_avant_promo" class="barre">{{ formaterFcfa(produit.prix_avant_promo) }}</s>
+          </p>
           <p v-if="produit.prix_pro" class="aide">
-            Prix professionnel : {{ formaterFcfa(produit.prix_pro) }} pour les structures et les soignants.
+            Prix professionnel : {{ formaterFcfa(produit.prix_pro) }}, pour les soignants et les structures vérifiés.
           </p>
 
-          <fieldset v-if="produit.variantes.length" class="variantes">
-            <legend>Choisir</legend>
-            <label v-for="v in produit.variantes" :key="v.id" :class="{ actif: v.id === varianteId }">
-              <input v-model="varianteId" type="radio" name="variante" :value="v.id" class="visuellement-cache">
-              {{ v.taille ?? v.libelle }}
-            </label>
+          <fieldset v-if="produit.couleurs.length > 1 || (produit.couleurs.length && produit.tailles.length === 0)" class="choix">
+            <legend>Couleur : <strong>{{ couleur }}</strong></legend>
+            <div class="couleurs">
+              <label v-for="c in produit.couleurs" :key="c.nom" class="couleur" :class="{ actif: couleur === c.nom }" :title="c.nom">
+                <input v-model="couleur" type="radio" name="couleur" :value="c.nom" class="visuellement-cache">
+                <span class="teinte" :style="{ background: c.hex ?? '#ccc' }" />
+                <span class="visuellement-cache">{{ c.nom }}</span>
+              </label>
+            </div>
+          </fieldset>
+
+          <fieldset v-if="produit.tailles.length" class="choix">
+            <legend>
+              {{ produit.rayon_slug === 'chaussures' ? 'Pointure' : 'Taille' }}
+              <NuxtLink to="/guide-des-tailles" class="guide">Guide des tailles</NuxtLink>
+            </legend>
+            <div class="tailles">
+              <label v-for="t in produit.tailles" :key="t" class="taille" :class="{ actif: taille === t, indisponible: !tailleDisponible(t) }">
+                <input v-model="taille" type="radio" name="taille" :value="t" :disabled="!tailleDisponible(t)" class="visuellement-cache">
+                {{ t }}
+              </label>
+            </div>
           </fieldset>
 
           <div v-if="produit.personnalisable" class="champ">
-            <label for="personnalisation">Texte à broder ou à imprimer (facultatif)</label>
-            <input id="personnalisation" v-model="personnalisation" maxlength="200" placeholder="Aminata Traoré, sage-femme">
-            <span class="aide">
-              Nom, fonction ou nom de votre structure. Nous vous montrons un aperçu avant la
-              fabrication. Délai indicatif : {{ produit.delai_jours }} jours.
-            </span>
+            <label for="personnalisation">Texte à broder (facultatif)</label>
+            <input id="personnalisation" v-model="personnalisation" maxlength="60" placeholder="Aminata Traoré, sage-femme">
+            <span class="aide">Nom et fonction. Nous vérifions l'orthographe avec vous avant de broder. <NuxtLink to="/broderie">En savoir plus</NuxtLink></span>
           </div>
 
           <div class="achat">
@@ -99,12 +151,15 @@ useSeoMeta({
             </div>
             <button type="button" class="bouton" @click="ajouterAuPanier">Ajouter au panier</button>
           </div>
+          <p v-if="erreur" class="alerte alerte-erreur" role="alert">{{ erreur }}</p>
           <p v-if="ajoute" class="alerte alerte-succes" role="status">
             Ajouté au panier. <NuxtLink to="/panier">Voir le panier</NuxtLink>
           </p>
-          <p class="aide">
-            Paiement à la livraison, en espèces ou par transfert Orange Money ou Moov Money.
-          </p>
+          <ul class="garanties">
+            <li>{{ delai }}</li>
+            <li>Paiement à la livraison, en espèces ou par transfert Orange Money ou Moov Money.</li>
+            <li>Pour une équipe : <NuxtLink to="/services#structures">demandez un devis</NuxtLink> au prix professionnel.</li>
+          </ul>
         </template>
 
         <div v-else class="alerte alerte-info">
@@ -112,44 +167,78 @@ useSeoMeta({
           partenaire. Demandez-le par WhatsApp, nous vous mettons en relation.
         </div>
 
-        <a
-          :href="lienWhatsapp" target="_blank" rel="noopener"
-          :class="produit.vendable_en_ligne ? 'bouton bouton-secondaire bouton-large' : 'bouton bouton-large'"
-        >
-          {{ produit.vendable_en_ligne ? 'Poser une question sur WhatsApp' : 'Demander sur WhatsApp' }}
+        <a :href="lienWhatsapp" target="_blank" rel="noopener" :class="produit.vendable_en_ligne ? 'bouton bouton-discret' : 'bouton bouton-large'">
+          {{ produit.vendable_en_ligne ? 'Une question ? Écrivez-nous sur WhatsApp' : 'Demander sur WhatsApp' }}
         </a>
 
-        <div v-if="produit.description" class="description">
-          <h2>Description</h2>
-          <p>{{ produit.description }}</p>
+        <div class="details">
+          <details v-if="produit.description" open>
+            <summary>Description</summary>
+            <p>{{ produit.description }}</p>
+          </details>
+          <details v-if="produit.matiere || produit.entretien">
+            <summary>Matière et entretien</summary>
+            <p v-if="produit.matiere">{{ produit.matiere }}</p>
+            <p v-if="produit.entretien">{{ produit.entretien }}</p>
+          </details>
+          <details v-if="metiersDuProduit.length">
+            <summary>Pour quels métiers</summary>
+            <p class="metiers">
+              <NuxtLink v-for="m in metiersDuProduit" :key="m.slug" :to="`/metiers/${m.slug}`" class="pastille">{{ m.nom }}</NuxtLink>
+            </p>
+          </details>
         </div>
       </div>
     </div>
+
+    <section v-if="suggestions.length" class="suggestions">
+      <h2>Dans le même rayon</h2>
+      <GrilleProduits :produits="suggestions" />
+    </section>
   </section>
 </template>
 
 <style scoped>
 .fiche { padding-top: 20px; }
 .fil { margin-bottom: 16px; color: var(--texte-doux); font-size: 0.92rem; }
-.fil a { text-decoration: none; }
-.colonnes { display: grid; gap: 24px; grid-template-columns: 1fr; }
-@media (min-width: 820px) { .colonnes { grid-template-columns: 1fr 1fr; align-items: start; } }
-.visuel { display: grid; place-items: center; aspect-ratio: 4 / 3; overflow: hidden; }
-@media (min-width: 820px) { .visuel { aspect-ratio: 1; } }
+.fil a { color: inherit; }
+.colonnes { display: grid; gap: 28px; grid-template-columns: 1fr; }
+@media (min-width: 860px) { .colonnes { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); align-items: start; } }
+.visuel { position: relative; display: grid; place-items: center; aspect-ratio: 4 / 5; border-radius: var(--rayon); background: var(--fond-doux); overflow: hidden; }
+@media (min-width: 860px) { .visuel { position: sticky; top: 140px; } }
 .visuel img { width: 100%; height: 100%; object-fit: cover; }
-.infos h1 { margin-top: 8px; }
+.badges { position: absolute; top: 14px; left: 14px; display: flex; gap: 6px; }
+.badge { padding: 4px 10px; border-radius: 999px; background: var(--primaire); color: #fff; font-size: 0.82rem; font-weight: 750; }
+.badge-promo { background: var(--accent); color: var(--texte); }
+.collection { margin: 0; color: var(--primaire); font-weight: 700; font-size: 0.92rem; }
+.infos h1 { margin: 4px 0 8px; }
 .resume { color: var(--texte-doux); font-size: 1.05rem; }
-.prix { font-size: 1.6rem; margin: 0 0 4px; }
-.variantes { border: 0; padding: 0; margin: 20px 0; display: flex; flex-wrap: wrap; gap: 8px; }
-.variantes legend { font-weight: 600; margin-bottom: 8px; }
-.variantes label {
-  min-width: 52px; min-height: 44px; padding: 0 14px; display: inline-grid; place-items: center;
+.prix { font-size: 1.6rem; margin: 0 0 4px; display: flex; align-items: baseline; gap: 12px; font-weight: 800; }
+.barre { color: var(--texte-doux); font-size: 1.05rem; font-weight: 400; }
+.choix { border: 0; padding: 0; margin: 18px 0; }
+.choix legend { font-weight: 650; margin-bottom: 8px; display: flex; gap: 12px; align-items: baseline; }
+.guide { font-weight: 500; font-size: 0.9rem; }
+.couleurs, .tailles { display: flex; flex-wrap: wrap; gap: 8px; }
+.couleur { width: 40px; height: 40px; border-radius: 50%; display: grid; place-items: center; cursor: pointer; box-shadow: inset 0 0 0 1.5px var(--bordure); }
+.couleur.actif { box-shadow: inset 0 0 0 2.5px var(--primaire); }
+.teinte { width: 28px; height: 28px; border-radius: 50%; box-shadow: inset 0 0 0 1px rgba(23, 21, 58, 0.25); }
+.taille {
+  min-width: 52px; min-height: 44px; padding: 0 12px; display: inline-grid; place-items: center; font-weight: 650;
   border: 1.5px solid var(--bordure); border-radius: 10px; background: var(--surface); cursor: pointer;
 }
-.variantes label.actif { border-color: var(--primaire); background: var(--primaire-clair); font-weight: 700; }
-.description { margin-top: 24px; }
-.achat { display: flex; align-items: flex-end; gap: 12px; margin-bottom: 12px; }
+.taille.actif { border-color: var(--primaire); background: var(--primaire-clair); color: var(--primaire-fonce); }
+.taille.indisponible { opacity: 0.4; text-decoration: line-through; cursor: not-allowed; }
+.couleur:focus-within, .taille:focus-within { outline: 3px solid var(--accent); outline-offset: 2px; }
+.achat { display: flex; align-items: flex-end; gap: 12px; margin: 16px 0 12px; }
 .achat .champ { margin: 0; }
 .quantite input { width: 92px; }
 .achat .bouton { flex: 1; }
+.garanties { margin: 12px 0; padding-left: 1.1em; display: grid; gap: 6px; color: var(--texte-doux); font-size: 0.95rem; }
+.details { margin-top: 18px; border-top: 1px solid var(--bordure); }
+.details details { border-bottom: 1px solid var(--bordure); padding: 4px 0; }
+.details summary { padding: 12px 0; font-weight: 750; cursor: pointer; }
+.details p { margin: 0 0 12px; }
+.metiers { display: flex; flex-wrap: wrap; gap: 6px; }
+.metiers a { text-decoration: none; }
+.suggestions { margin-top: 40px; }
 </style>

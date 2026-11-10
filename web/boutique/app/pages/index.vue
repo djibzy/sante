@@ -1,11 +1,18 @@
 <script setup lang="ts">
-import type { PageProduits, Rayon } from '~/types/catalogue'
+import type { Metier, PageProduits, Rayon } from '~/types/catalogue'
 
-useSeoMeta({ title: 'Tenues, imprimés et kits pour la santé' })
+useSeoMeta({ title: 'Tenues médicales brodées à votre nom', description: 'Blouses, tuniques, pantalons et accessoires pour tous les métiers de la santé, fabriqués et brodés à Bamako. Paiement à la livraison.' })
 const { data: rayons } = await useBoutiqueFetch<Rayon[]>('/api/v1/rayons')
-const { data: produits } = await useBoutiqueFetch<PageProduits>('/api/v1/produits', {
-  query: { par_page: 8 },
-})
+const { data: metiers } = await useBoutiqueFetch<Metier[]>('/api/v1/metiers')
+const { data: nouveautes } = await useBoutiqueFetch<PageProduits>('/api/v1/produits', { query: { nouveau: true, tri: 'nouveautes', par_page: 4 } })
+const { data: essentiels } = await useBoutiqueFetch<PageProduits>('/api/v1/produits', { query: { collection: 'Essentielle', par_page: 4 } })
+const tenues = computed(() => (rayons.value ?? []).filter(r => r.univers === 'tenues'))
+const AUTRES = [
+  { titre: 'Kits de soins', texte: 'Hygiène, premiers secours, relais communautaires.', lien: '/rayons/kits', picto: 'kits' },
+  { titre: 'Matériel médical', texte: 'Thermomètres, tensiomètres, et le pharmacien partenaire.', lien: '/rayons/materiel-medical', picto: 'materiel-medical' },
+  { titre: 'Campagnes de sensibilisation', texte: 'T-shirts, affiches et boîtes à images avec notre studio.', lien: '/rayons/campagnes', picto: 'campagnes' },
+  { titre: 'Devis pour les structures', texte: 'Quantités, logo brodé, prix professionnel, devis PDF.', lien: '/services#structures', picto: 'blouses-medicales' },
+]
 </script>
 
 <template>
@@ -13,12 +20,12 @@ const { data: produits } = await useBoutiqueFetch<PageProduits>('/api/v1/produit
     <section class="bandeau">
       <div class="conteneur bandeau-contenu">
         <div>
-          <h1>Tenues brodées, imprimés et kits pour les soignants</h1>
-          <p>
-            Fabriqués à Bamako pour les soignants, les structures de santé et les campagnes de
-            sensibilisation. Paiement à la livraison.
-          </p>
-          <FormulaireRecherche />
+          <h1>La tenue médicale qui vous ressemble, brodée à votre nom</h1>
+          <p>Blouses, tuniques et pantalons pour tous les métiers de la santé, fabriqués et brodés à Bamako. Paiement à la livraison.</p>
+          <div class="appels">
+            <NuxtLink to="/rayons/blouses-medicales" class="bouton bouton-sourire">Voir les blouses</NuxtLink>
+            <a href="#metiers" class="bouton bouton-clair">Choisir par métier</a>
+          </div>
         </div>
         <img src="/marque/papillon-blanc.png" alt="" width="233" height="260" class="papillon">
       </div>
@@ -27,20 +34,63 @@ const { data: produits } = await useBoutiqueFetch<PageProduits>('/api/v1/produit
       <path d="M150 6 Q500 120 850 6 Q500 64 150 6 Z" fill="var(--accent)" />
     </svg>
 
-    <section class="conteneur">
-      <h2>Rayons</h2>
-      <div class="rayons">
-        <NuxtLink v-for="rayon in rayons" :key="rayon.id" :to="`/rayons/${rayon.slug}`" class="carte rayon">
-          <ChartePictogramme :type="rayon.slug" :taille="56" />
-          <span>
-            <strong>{{ rayon.nom }}</strong>
-            <small>{{ rayon.nombre_produits }} produits</small>
-          </span>
+    <section id="metiers" class="conteneur section">
+      <div class="titre-section"><h2>Par métier</h2></div>
+      <MetiersTuiles :metiers="metiers ?? []" />
+    </section>
+
+    <section class="conteneur section">
+      <div class="titre-section">
+        <h2>Nouveautés</h2>
+        <NuxtLink to="/nouveautes">Toutes les nouveautés</NuxtLink>
+      </div>
+      <GrilleProduits :produits="nouveautes?.elements ?? []" />
+    </section>
+
+    <section class="conteneur section">
+      <div class="titre-section"><h2>Par type de tenue</h2></div>
+      <div class="types">
+        <NuxtLink v-for="r in tenues" :key="r.slug" :to="`/rayons/${r.slug}`" class="type">
+          <ChartePictogramme :type="r.slug" :taille="64" />
+          <strong>{{ r.nom }}</strong>
         </NuxtLink>
       </div>
+    </section>
 
-      <h2>Nos produits</h2>
-      <GrilleProduits :produits="produits?.elements ?? []" />
+    <section class="conteneur section">
+      <div class="broderie">
+        <div class="poitrine" aria-hidden="true">
+          <span class="fil-nom">Dr Oumar Sangaré</span>
+          <span class="fil-fonction">Médecin généraliste</span>
+        </div>
+        <div>
+          <h2>Votre nom, votre fonction, le logo de votre structure</h2>
+          <p>Écrivez le texte à broder sur la fiche du produit : nous vérifions l'orthographe avec vous et vous montrons un aperçu avant de broder.</p>
+          <NuxtLink to="/broderie" class="bouton">Comment ça marche</NuxtLink>
+        </div>
+      </div>
+    </section>
+
+    <section class="conteneur section">
+      <div class="titre-section">
+        <h2>Les essentiels</h2>
+        <NuxtLink to="/collection/Essentielle">Toute la collection</NuxtLink>
+      </div>
+      <GrilleProduits :produits="essentiels?.elements ?? []" />
+    </section>
+
+    <section class="conteneur section">
+      <div class="titre-section">
+        <h2>Nos autres services</h2>
+        <NuxtLink to="/services">Tout voir</NuxtLink>
+      </div>
+      <div class="autres">
+        <NuxtLink v-for="a in AUTRES" :key="a.titre" :to="a.lien" class="carte autre">
+          <ChartePictogramme :type="a.picto" :taille="48" />
+          <strong>{{ a.titre }}</strong>
+          <span>{{ a.texte }}</span>
+        </NuxtLink>
+      </div>
     </section>
   </div>
 </template>
@@ -48,15 +98,30 @@ const { data: produits } = await useBoutiqueFetch<PageProduits>('/api/v1/produit
 <style scoped>
 .bandeau { background: var(--primaire); color: #fff; overflow: hidden; }
 .bandeau-contenu { display: grid; grid-template-columns: minmax(0, 1fr); align-items: center; gap: 24px; padding-top: 36px; padding-bottom: 28px; }
-@media (min-width: 820px) { .bandeau-contenu { grid-template-columns: minmax(0, 1fr) 260px; padding-top: 48px; } }
-.bandeau h1 { max-width: 16ch; }
+@media (min-width: 820px) { .bandeau-contenu { grid-template-columns: minmax(0, 1fr) 260px; padding-top: 52px; } }
+.bandeau h1 { max-width: 18ch; }
 .bandeau p { max-width: 560px; color: #d9d6ff; font-size: 1.05rem; }
+.appels { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 8px; }
+.bouton-clair { background: transparent; color: #fff; border: 1.5px solid rgba(255, 255, 255, 0.7); }
+.bouton-clair:hover { background: rgba(255, 255, 255, 0.12); }
 .papillon { display: none; width: 233px; height: auto; justify-self: end; }
 @media (min-width: 820px) { .papillon { display: block; } }
 .sourire { display: block; width: 100%; height: clamp(28px, 6vw, 64px); margin-top: -1px; }
-.rayons { display: grid; gap: 12px; grid-template-columns: repeat(auto-fill, minmax(min(100%, 200px), 1fr)); }
-.rayon { display: flex; align-items: center; gap: 12px; padding: 12px; color: inherit; text-decoration: none; }
-.rayon:hover { border-color: var(--primaire); }
-.rayon strong { display: block; line-height: 1.25; }
-.rayon small { color: var(--texte-doux); }
+.section { margin-top: 36px; }
+.titre-section { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; margin-bottom: 14px; }
+.titre-section h2 { margin: 0; }
+.titre-section a { font-weight: 650; }
+.types { display: grid; gap: 12px; grid-template-columns: repeat(auto-fill, minmax(min(100%, 130px), 1fr)); }
+.type { display: grid; justify-items: center; gap: 8px; padding: 16px 10px; text-align: center; color: inherit; text-decoration: none; border-radius: var(--rayon); }
+.type:hover { background: var(--fond-doux); }
+.broderie { display: grid; gap: 24px; padding: 24px; border-radius: var(--rayon); background: var(--primaire-clair); align-items: center; }
+@media (min-width: 820px) { .broderie { grid-template-columns: 280px minmax(0, 1fr); } }
+.broderie h2 { margin-top: 0; }
+.poitrine { aspect-ratio: 4 / 3; border-radius: var(--rayon); background: #fff; display: grid; place-content: center; gap: 4px; text-align: center; }
+.fil-nom { font-size: 1.35rem; font-weight: 800; color: var(--primaire); }
+.fil-fonction { font-weight: 650; color: var(--primaire); }
+.autres { display: grid; gap: 12px; grid-template-columns: repeat(auto-fill, minmax(min(100%, 230px), 1fr)); }
+.autre { display: grid; gap: 6px; padding: 18px; color: inherit; text-decoration: none; align-content: start; }
+.autre:hover { border-color: var(--primaire); }
+.autre span { color: var(--texte-doux); font-size: 0.92rem; }
 </style>

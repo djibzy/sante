@@ -1,58 +1,64 @@
 <script setup lang="ts">
+import type { Rayon } from '~/types/catalogue'
+
 const config = useRuntimeConfig()
-const { nombre } = usePanier()
+const { data: rayons } = await useBoutiqueFetch<Rayon[]>('/api/v1/rayons')
+const tenues = computed(() => (rayons.value ?? []).filter(r => r.univers === 'tenues'))
+const whatsapp = computed(() => config.public.whatsapp ? `https://wa.me/${config.public.whatsapp}` : null)
 </script>
 
 <template>
   <div class="page">
-    <header class="entete">
-      <div class="conteneur entete-contenu">
-        <NuxtLink to="/" class="lien-logo" aria-label="Bibou, accueil de la boutique">
-          <img src="/marque/bibou.png" alt="Bibou" width="115" height="44" class="logo">
-          <span class="endossement">par Yasal Santé</span>
-        </NuxtLink>
-        <nav aria-label="Mon espace" class="navigation">
-          <NuxtLink to="/mes-commandes" class="bouton bouton-discret lien-commandes"><span class="long">Mes commandes</span><span class="court">Commandes</span></NuxtLink>
-          <NuxtLink to="/panier" class="bouton lien-panier">
-            Panier
-            <span class="compteur" :class="{ vide: !nombre }">{{ nombre }}</span>
-            <span class="visuellement-cache">articles</span>
-          </NuxtLink>
-        </nav>
-      </div>
-    </header>
+    <EnTete />
     <main>
       <slot />
     </main>
+    <section class="reassurance" aria-label="Nos engagements">
+      <div class="conteneur reassurance-contenu">
+        <div><strong>Brodé à Bamako</strong><span>Dans notre atelier, à votre nom.</span></div>
+        <div><strong>Paiement à la livraison</strong><span>Espèces, Orange Money ou Moov Money.</span></div>
+        <div><strong>Suivi étape par étape</strong><span>Par SMS et sur votre lien de suivi.</span></div>
+        <div><strong>Prix professionnel</strong><span>Pour les soignants et les structures.</span></div>
+      </div>
+    </section>
     <ChartePied :nom="config.public.nomMarque">
+      <div class="colonnes-pied">
+        <nav aria-label="Tenues médicales">
+          <p class="titre-pied">Tenues médicales</p>
+          <NuxtLink v-for="r in tenues" :key="r.slug" :to="`/rayons/${r.slug}`">{{ r.nom }}</NuxtLink>
+        </nav>
+        <nav aria-label="Services">
+          <p class="titre-pied">Services</p>
+          <NuxtLink to="/guide-des-tailles">Guide des tailles</NuxtLink>
+          <NuxtLink to="/broderie">Broderie et personnalisation</NuxtLink>
+          <NuxtLink to="/services#structures">Devis pour les structures</NuxtLink>
+          <NuxtLink to="/services">Nos autres services</NuxtLink>
+          <NuxtLink to="/mes-commandes">Suivre ma commande</NuxtLink>
+        </nav>
+        <div>
+          <p class="titre-pied">Nous joindre</p>
+          <p>Bamako, Mali</p>
+          <a v-if="whatsapp" :href="whatsapp" target="_blank" rel="noopener">WhatsApp</a>
+          <NuxtLink to="/gestion">Espace de l'équipe</NuxtLink>
+        </div>
+      </div>
       <p>
         Les articles du domaine pharmaceutique ne sont ni vendus ni affichés avec un prix en ligne :
         notre pharmacien partenaire les délivre.
       </p>
-      <p><NuxtLink to="/gestion">Espace de l'équipe</NuxtLink></p>
     </ChartePied>
   </div>
 </template>
 
 <style scoped>
-.entete { background: var(--surface); border-bottom: 1px solid var(--bordure); position: sticky; top: 0; z-index: 10; }
-.entete-contenu { display: flex; align-items: center; justify-content: space-between; gap: 8px; min-height: 66px; }
-.lien-logo { display: flex; align-items: flex-end; gap: 10px; text-decoration: none; flex-shrink: 0; }
-.logo { height: 40px; width: auto; }
-.endossement { color: var(--texte-doux); font-size: 0.8rem; padding-bottom: 4px; white-space: nowrap; }
-.navigation { display: flex; align-items: center; gap: 4px; }
-.lien-panier { padding: 0 0.9em 0 1.1em; }
-.compteur {
-  min-width: 24px; height: 24px; padding: 0 6px; border-radius: 999px; display: inline-grid; place-items: center;
-  background: var(--accent); color: var(--texte); font-size: 0.82rem; font-weight: 800;
-}
-.compteur.vide { background: rgba(255, 255, 255, 0.25); color: #fff; }
-@media (max-width: 560px) { .endossement { display: none; } }
-.lien-commandes { white-space: nowrap; }
-.lien-commandes .court { display: none; }
-@media (max-width: 440px) {
-  .lien-commandes .long { display: none; }
-  .lien-commandes .court { display: inline; }
-  .lien-commandes { padding: 0 0.5em; }
-}
+.reassurance { margin-top: 3rem; background: var(--primaire); color: #fff; }
+.reassurance-contenu { display: grid; gap: 16px; padding-top: 22px; padding-bottom: 22px; grid-template-columns: repeat(auto-fit, minmax(min(100%, 220px), 1fr)); }
+.reassurance-contenu div { display: grid; gap: 2px; }
+.reassurance-contenu span { color: #d9d6ff; font-size: 0.92rem; }
+.colonnes-pied { display: grid; gap: 20px; grid-template-columns: repeat(auto-fit, minmax(min(100%, 180px), 1fr)); margin-bottom: 16px; }
+.colonnes-pied nav, .colonnes-pied div { display: grid; gap: 4px; align-content: start; }
+.colonnes-pied a { color: var(--texte); text-decoration: none; }
+.colonnes-pied a:hover { color: var(--primaire); text-decoration: underline; }
+.colonnes-pied p { margin: 0; }
+.titre-pied { font-weight: 800; color: var(--texte) !important; margin-bottom: 4px !important; }
 </style>

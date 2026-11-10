@@ -18,6 +18,7 @@ ajoutant une nouvelle ligne qui la remplace, avec sa raison.
 | D11 | Stockage de fichiers compatible S3 | Changer de fournisseur sans réécrire |
 | D12 | Un seul dépôt, l'orientation dans un dépôt à part | Socle versionné une fois ; accès restreint aux données de santé |
 | D13 | La boutique s'appelle Bibou, « par Yasal Santé » ; logo principal bleu | Lisible au soleil (10,9:1), distinct de la marque mère ; voir [marque.md](marque.md) |
+| D14 | Vitrine de boutique spécialisée en tenues médicales (menu par métier et par type, filtres couleur et taille, guide des tailles, broderie), puis nos autres services | Structure inspirée de belissa.fr ; textes, photos et noms de collections propres à Bibou |
 
 ## Choix de mise en œuvre (novembre 2026)
 

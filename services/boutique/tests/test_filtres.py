@@ -118,3 +118,9 @@ async def test_prix_barre_controle(client: AsyncClient) -> None:
         ["infirmier", "etudiant"],
         True,
     )
+
+
+async def test_par_famille_du_menu(client: AsyncClient) -> None:
+    equipement = await liste(client, univers="equipement")
+    assert {p["rayon_slug"] for p in equipement["elements"]} == {"kits", "materiel-medical"}
+    assert (await client.get("/api/v1/produits", params={"univers": "jardin"})).status_code == 422

@@ -12,6 +12,6 @@ defineProps<{ produits: ProduitResume[] }>()
 </template>
 
 <style scoped>
-.grille { display: grid; gap: 16px; grid-template-columns: repeat(auto-fill, minmax(min(100%, 230px), 1fr)); }
+.grille { display: grid; gap: 28px 18px; grid-template-columns: repeat(auto-fill, minmax(min(100%, 220px), 1fr)); }
 .vide { color: var(--texte-doux); padding: 2rem 0; }
 </style>

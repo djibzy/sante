@@ -78,6 +78,7 @@ sauvegarde les bases chaque nuit.
 ## État d'avancement
 
 - [x] Socle, comptes, organisations, catalogue, interface de consultation, déploiement
+- [x] Vitrine de tenues médicales : menu par métier et par type, filtres et facettes, pastilles de couleur, guide des tailles, broderie, nos autres services
 - [x] Panier, commande, suivi par lien, devis PDF, paiement à la livraison, gestion (semaine 2)
 - [x] File d'atelier sur tablette, capacité des postes, dates promises selon la charge, stock (semaine 3)
 - [x] Livreurs et feuille de route, factures sans trou, SMS aux clients, revue de sécurité (semaine 4)
