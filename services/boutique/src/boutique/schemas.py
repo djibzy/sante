@@ -1,7 +1,7 @@
 from typing import Literal
 from uuid import UUID
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
 
 CategorieReglementaire = Literal["libre", "pharmaceutique"]
 MOTIF_SLUG = r"^[a-z0-9]+(-[a-z0-9]+)*$"
@@ -108,3 +108,67 @@ class ModificationProduit(BaseModel):
     poste_atelier: str | None = None
     seuil_alerte: int | None = Field(default=None, ge=0)
     est_actif: bool | None = None
+
+
+class VarianteGestion(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: UUID
+    sku: str
+    libelle: str
+    taille: str | None
+    couleur: str | None
+    prix: int | None
+    position: int
+    est_active: bool
+
+
+class ProduitGestion(BaseModel):
+    """Vue complète pour l'équipe : produits et variantes inactifs compris, prix réels."""
+
+    id: UUID
+    slug: str
+    nom: str
+    resume: str
+    description: str
+    rayon_slug: str
+    rayon_nom: str
+    categorie_reglementaire: CategorieReglementaire
+    personnalisable: bool
+    prix_public: int | None
+    prix_pro: int | None
+    delai_jours: int
+    poste_atelier: str | None
+    seuil_alerte: int
+    est_actif: bool
+    variantes: list[VarianteGestion]
+    images: list[ImagePublique]
+
+
+class RayonGestion(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: UUID
+    slug: str
+    nom: str
+    description: str
+    position: int
+    est_actif: bool
+
+
+class ModificationVariante(BaseModel):
+    libelle: str | None = Field(default=None, min_length=1, max_length=120)
+    taille: str | None = Field(default=None, max_length=20)
+    couleur: str | None = Field(default=None, max_length=40)
+    prix: int | None = Field(default=None, ge=0)
+    position: int | None = None
+    est_active: bool | None = None
+
+
+class NouvelleImage(BaseModel):
+    url: str = Field(max_length=500, pattern=r"^(https://|/)[^\s<>\"']+$")
+    texte_alternatif: str = Field(min_length=3, max_length=200)
+
+
+class ImagesProduit(BaseModel):
+    images: list[NouvelleImage] = Field(max_length=8)
