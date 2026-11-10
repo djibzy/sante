@@ -8,6 +8,7 @@ les hypothèses du modèle financier (tenue 15 000, imprimé 3 500, kit 12 500 F
 """
 
 import asyncio
+import unicodedata
 from typing import Any
 
 from sqlalchemy import select
@@ -16,58 +17,109 @@ from boutique.config import ParametresBoutique
 from boutique.models import CATEGORIE_PHARMACEUTIQUE, Produit, Rayon, Variante, ZoneLivraison
 from socle.db import creer_moteur, fabrique_sessions
 
-TAILLES = ("S", "M", "L", "XL")
+TAILLES = ("XS", "S", "M", "L", "XL", "XXL")
+POINTURES = tuple(str(p) for p in range(36, 46))
+
+BLANC = ("Blanc", "#ffffff")
+BLEU_CIEL = ("Bleu ciel", "#9fc9ea")
+ROSE_POUDRE = ("Rose poudré", "#e8b4b8")
+BLEU_ROI = ("Bleu roi", "#1f4fa8")
+VERT_BLOC = ("Vert bloc", "#2e8b6e")
+BORDEAUX = ("Bordeaux", "#7a1f35")
+ARDOISE = ("Gris ardoise", "#5b6770")
+MARINE = ("Bleu marine", "#1c2a4a")
+TURQUOISE = ("Turquoise", "#1aa6a6")
+PRUNE = ("Prune", "#6b2d5c")
+VERT_EAU = ("Vert d'eau", "#9fd8c8")
+NOIR = ("Noir", "#1d1d1f")
+GRIS_CHINE = ("Gris chiné", "#9a9ea6")
+WAX_BLEU = ("Wax bleu", "#2b5fb3")
+WAX_ORANGE = ("Wax orange", "#e07b1f")
+
+POLYCOTON = "Polycoton 65 % polyester, 35 % coton, 210 g/m²"
+STRETCH = "Polyester, viscose et élasthanne, extensible dans les quatre sens"
+LAVAGE = "Lavage à 60 °C, séchage rapide, repassage doux"
 
 RAYONS: list[dict[str, Any]] = [
     {
-        "slug": "tenues-brodees",
-        "nom": "Tenues brodées",
+        "slug": "blouses-medicales",
+        "nom": "Blouses médicales",
+        "univers": "tenues",
         "position": 1,
-        "description": "Blouses, tuniques, pantalons et calots brodés au nom, à la fonction "
-        "et au logo de votre structure.",
+        "description": "Blouses femme, homme et mixtes, pour tous les métiers, brodées à "
+        "votre nom.",
     },
     {
-        "slug": "textiles-imprimes",
-        "nom": "Textiles et imprimés",
+        "slug": "tuniques",
+        "nom": "Tuniques médicales",
+        "univers": "tenues",
         "position": 2,
-        "description": "T-shirts, casquettes, affiches et boîtes à images pour vos campagnes.",
+        "description": "Tuniques col V et cintrées, en couleurs unies ou à empiècements wax.",
     },
     {
-        "slug": "kits",
-        "nom": "Kits assemblés",
+        "slug": "pantalons",
+        "nom": "Pantalons médicaux",
+        "univers": "tenues",
         "position": 3,
-        "description": "Kits d'hygiène, de premiers secours et du relais, composés article par "
-        "article.",
+        "description": "Pantalons unisexes, stretch ou cargo, assortis aux tuniques.",
     },
     {
-        "slug": "produits-medicaux",
-        "nom": "Produits médicaux",
+        "slug": "tenues-de-bloc",
+        "nom": "Tenues de bloc",
+        "univers": "tenues",
         "position": 4,
-        "description": "Consommables et petit matériel. Les articles réservés au pharmacien "
-        "sont délivrés par notre pharmacien partenaire.",
+        "description": "Tenues de bloc complètes et calots, brodés au logo de votre structure.",
+    },
+    {
+        "slug": "chaussures",
+        "nom": "Chaussures médicales",
+        "univers": "tenues",
+        "position": 5,
+        "description": "Sabots et baskets antidérapants, faciles à laver.",
+    },
+    {
+        "slug": "gilets-polos",
+        "nom": "Gilets et polos",
+        "univers": "tenues",
+        "position": 6,
+        "description": "Gilets zippés et polos brodés pour les gardes et l'accueil.",
     },
     {
         "slug": "accessoires",
-        "nom": "Ce qui va avec",
-        "position": 5,
-        "description": "Badges, porte-noms, trousses et chaussures de travail.",
+        "nom": "Accessoires du soignant",
+        "univers": "tenues",
+        "position": 7,
+        "description": "Badges gravés, trousses de poche, montres d'infirmière.",
+    },
+    {
+        "slug": "kits",
+        "nom": "Kits de soins",
+        "univers": "equipement",
+        "position": 8,
+        "description": "Kits d'hygiène, de premiers secours et du relais communautaire, "
+        "composés article par article.",
+    },
+    {
+        "slug": "materiel-medical",
+        "nom": "Matériel médical",
+        "univers": "equipement",
+        "position": 9,
+        "description": "Thermomètres et tensiomètres ; les articles du domaine "
+        "pharmaceutique passent par notre pharmacien partenaire.",
+    },
+    {
+        "slug": "campagnes",
+        "nom": "Campagnes de sensibilisation",
+        "univers": "campagnes",
+        "position": 10,
+        "description": "T-shirts, casquettes, affiches et boîtes à images pour vos "
+        "campagnes, conçus avec notre studio.",
     },
 ]
 
 
 def _produit(
-    slug: str,
-    nom: str,
-    rayon: str,
-    resume: str,
-    prix: int | None,
-    prix_pro: int | None = None,
-    *,
-    personnalisable: bool = False,
-    tailles: tuple[str, ...] = (),
-    couleur: str | None = None,
-    pharmaceutique: bool = False,
-    delai: int = 7,
+    slug: str, nom: str, rayon: str, resume: str, prix: int | None, pro: int | None, **autres: Any
 ) -> dict[str, Any]:
     return {
         "slug": slug,
@@ -75,194 +127,214 @@ def _produit(
         "rayon": rayon,
         "resume": resume,
         "prix_public": prix,
-        "prix_pro": prix_pro,
-        "personnalisable": personnalisable,
-        "tailles": tailles,
-        "couleur": couleur,
-        "pharmaceutique": pharmaceutique,
-        "delai": delai,
+        "prix_pro": pro,
+        "description": "",
+        "tailles": (),
+        "couleurs": (),
+        "delai": 7,
+        "personnalisable": False,
+        "pharmaceutique": False,
+        "metiers": [],
+        "genre": None,
+        "manches": None,
+        "collection": None,
+        "matiere": "",
+        "entretien": "",
+        "est_nouveau": False,
+        "prix_avant_promo": None,
+        **autres,
     }
 
 
+TOUS = ["infirmier", "sage-femme", "medecin", "aide-soignant"]
 PRODUITS: list[dict[str, Any]] = [
-    _produit(
-        "blouse-medicale-brodee",
-        "Blouse médicale brodée",
-        "tenues-brodees",
-        "Coton épais, nom et fonction brodés sur la poitrine.",
-        12500,
-        11000,
-        personnalisable=True,
-        tailles=TAILLES,
-        couleur="Blanc",
-        delai=10,
-    ),
-    _produit(
-        "tenue-de-bloc-brodee",
-        "Tenue de bloc brodée",
-        "tenues-brodees",
-        "Tunique et pantalon, logo de la structure brodé.",
-        15000,
-        13500,
-        personnalisable=True,
-        tailles=TAILLES,
-        couleur="Vert bloc",
-        delai=10,
-    ),
-    _produit(
-        "tunique-sage-femme",
-        "Tunique de sage-femme brodée",
-        "tenues-brodees",
-        "Tunique cintrée, broderie au choix.",
-        14000,
-        12500,
-        personnalisable=True,
-        tailles=TAILLES,
-        couleur="Rose",
-        delai=10,
-    ),
-    _produit(
-        "calot-brode",
-        "Calot brodé",
-        "tenues-brodees",
-        "Calot en coton, prénom ou logo brodé.",
-        3000,
-        2500,
-        personnalisable=True,
-    ),
-    _produit(
-        "tshirt-de-campagne",
-        "T-shirt de campagne imprimé",
-        "textiles-imprimes",
-        "Votre message et vos logos, en grande série.",
-        3500,
-        3000,
-        personnalisable=True,
-        tailles=TAILLES,
-        couleur="Blanc",
-        delai=14,
-    ),
-    _produit(
-        "casquette-imprimee",
-        "Casquette imprimée",
-        "textiles-imprimes",
-        "Casquette à visière, impression du message de campagne.",
-        2500,
-        2000,
-        personnalisable=True,
-        delai=14,
-    ),
-    _produit(
-        "affiche-a2",
-        "Affiche de sensibilisation A2",
-        "textiles-imprimes",
-        "Affiche conçue par le studio, validée par le comité médical.",
-        1500,
-        1200,
-    ),
-    _produit(
-        "boite-a-images",
-        "Boîte à images pour causeries",
-        "textiles-imprimes",
-        "L'outil des relais pour animer les causeries, en images et en bambara.",
-        12000,
-        10000,
-        delai=14,
-    ),
-    _produit(
-        "kit-hygiene",
-        "Kit hygiène et lavage des mains",
-        "kits",
-        "Savon, bouilloire, serviettes et fiche illustrée.",
-        7500,
-        6500,
-    ),
-    _produit(
-        "kit-du-relais",
-        "Kit du relais communautaire",
-        "kits",
-        "Sac, gilet, boîte à images, carnet et lampe solaire.",
-        18000,
-        16000,
-        delai=14,
-    ),
-    _produit(
-        "kit-premiers-secours",
-        "Kit de premiers secours sans médicament",
-        "kits",
-        "Pansements non stériles, bandes, ciseaux, couverture de survie.",
-        12500,
-        11000,
-    ),
-    _produit(
-        "thermometre-digital",
-        "Thermomètre digital",
-        "produits-medicaux",
-        "Lecture en 10 secondes, pile fournie.",
-        3000,
-        2500,
-    ),
-    _produit(
-        "tensiometre-electronique",
-        "Tensiomètre électronique",
-        "produits-medicaux",
-        "Mesure au bras, mémoire de 60 mesures.",
-        25000,
-        22000,
-    ),
-    _produit(
-        "gants-steriles",
-        "Gants stériles",
-        "produits-medicaux",
-        "Délivrés par notre pharmacien partenaire.",
-        None,
-        pharmaceutique=True,
-    ),
-    _produit(
-        "tests-de-grossesse",
-        "Tests de grossesse",
-        "produits-medicaux",
-        "Délivrés par notre pharmacien partenaire.",
-        None,
-        pharmaceutique=True,
-    ),
-    _produit(
-        "badge-porte-nom",
-        "Badge porte-nom gravé",
-        "accessoires",
-        "Nom et fonction gravés, attache aimantée.",
-        2000,
-        1500,
-        personnalisable=True,
-    ),
-    _produit(
-        "trousse-du-soignant",
-        "Trousse du soignant",
-        "accessoires",
-        "Trousse de poche pour stylos, ciseaux et lampe.",
-        4500,
-        4000,
-    ),
-    _produit(
-        "sabots-de-travail",
-        "Sabots de travail",
-        "accessoires",
-        "Sabots antidérapants, faciles à laver.",
-        9000,
-        8000,
-        tailles=("37", "38", "39", "40", "41", "42", "43", "44"),
-    ),
-]
+    # Blouses médicales
+    _produit("blouse-medicale-brodee", "Blouse médicale brodée", "blouses-medicales",
+             "Coton épais, nom et fonction brodés sur la poitrine.", 12_500, 11_000,
+             tailles=("S", "M", "L", "XL", "XXL"), couleurs=(BLANC,), delai=10,
+             personnalisable=True, metiers=["infirmier", "medecin", "laboratoire", "etudiant"],
+             genre="mixte", manches="courtes", collection="Essentielle", matiere=POLYCOTON,
+             entretien=LAVAGE, description="La blouse de tous les jours : trois poches, fente "
+             "dos, boutons pression. Votre nom et votre fonction brodés sur la poitrine."),
+    _produit("blouse-femme-cintree", "Blouse femme cintrée", "blouses-medicales",
+             "Coupe cintrée, col cranté, deux poches basses et une poche poitrine.", 14_000,
+             12_500, tailles=TAILLES, couleurs=(BLANC, BLEU_CIEL, ROSE_POUDRE), delai=10,
+             personnalisable=True, metiers=["infirmier", "sage-femme", "pharmacie",
+             "laboratoire"], genre="femme", manches="courtes", collection="Essentielle",
+             matiere=POLYCOTON, entretien=LAVAGE, est_nouveau=True),
+    _produit("blouse-homme-col-officier", "Blouse homme col officier", "blouses-medicales",
+             "Col officier, fermeture pression, longueur genou.", 15_000, 13_500,
+             tailles=("M", "L", "XL", "XXL", "XXXL"), couleurs=(BLANC,), delai=10,
+             personnalisable=True, metiers=["medecin", "pharmacie", "dentiste"], genre="homme",
+             manches="longues", collection="Essentielle", matiere=POLYCOTON, entretien=LAVAGE),
+    _produit("blouse-pharmacie-zippee", "Blouse de pharmacie zippée", "blouses-medicales",
+             "Fermeture éclair, poches stylos, tissu déperlant.", 13_000, 11_500,
+             tailles=TAILLES, couleurs=(BLANC, VERT_EAU), delai=10, personnalisable=True,
+             metiers=["pharmacie"], genre="mixte", manches="courtes", matiere=POLYCOTON,
+             entretien=LAVAGE, prix_avant_promo=15_000),
+    _produit("blouse-de-stage", "Blouse de stage étudiant", "blouses-medicales",
+             "Robuste et économique, pour les stages hospitaliers.", 9_000, 8_000,
+             tailles=("XS", "S", "M", "L", "XL"), couleurs=(BLANC,), delai=10,
+             personnalisable=True, metiers=["etudiant", "laboratoire"], genre="mixte",
+             manches="longues", collection="Essentielle", matiere=POLYCOTON, entretien=LAVAGE),
+    # Tuniques
+    _produit("tunique-sage-femme", "Tunique de sage-femme brodée", "tuniques",
+             "Tunique cintrée, broderie au choix.", 14_000, 12_500,
+             tailles=("S", "M", "L", "XL"), couleurs=(("Rose", "#e58fa5"),), delai=10,
+             personnalisable=True, metiers=["sage-femme"], genre="femme", manches="courtes",
+             matiere=POLYCOTON, entretien=LAVAGE),
+    _produit("tunique-col-v", "Tunique col V unisexe", "tuniques",
+             "La tunique de garde : col V, trois poches, couleurs par service.", 9_500, 8_500,
+             tailles=TAILLES, couleurs=(BLEU_ROI, VERT_BLOC, BORDEAUX, ARDOISE), delai=10,
+             personnalisable=True, metiers=[*TOUS, "dentiste"], genre="mixte",
+             manches="courtes", collection="Essentielle", matiere=POLYCOTON, entretien=LAVAGE),
+    _produit("tunique-stretch-femme", "Tunique stretch femme", "tuniques",
+             "Extensible, légère, elle suit chaque mouvement pendant les longues gardes.",
+             12_000, 10_500, tailles=TAILLES, couleurs=(MARINE, TURQUOISE, PRUNE), delai=10,
+             personnalisable=True, metiers=["infirmier", "sage-femme", "aide-soignant"],
+             genre="femme", manches="courtes", collection="Confort stretch", matiere=STRETCH,
+             entretien="Lavage à 40 °C, séchage à l'air libre", est_nouveau=True),
+    _produit("tunique-wax", "Tunique à empiècements wax", "tuniques",
+             "Empiècements en wax sur les épaules et les poches, tissu technique au corps.",
+             13_500, 12_000, tailles=("S", "M", "L", "XL", "XXL"),
+             couleurs=(WAX_BLEU, WAX_ORANGE), delai=14, personnalisable=True,
+             metiers=["sage-femme", "infirmier", "aide-soignant"], genre="mixte",
+             manches="courtes", collection="Wax", matiere=POLYCOTON + ", empiècements wax",
+             entretien="Lavage à 40 °C à l'envers", est_nouveau=True),
+    # Pantalons
+    _produit("pantalon-unisexe", "Pantalon médical unisexe", "pantalons",
+             "Taille élastiquée avec cordon, deux poches, assorti aux tuniques.", 7_500, 6_500,
+             tailles=TAILLES, couleurs=(BLANC, BLEU_ROI, VERT_BLOC), metiers=TOUS,
+             genre="mixte", collection="Essentielle", matiere=POLYCOTON, entretien=LAVAGE),
+    _produit("pantalon-stretch-femme", "Pantalon stretch femme", "pantalons",
+             "Coupe droite, ceinture confortable, tissu extensible.", 9_000, 8_000,
+             tailles=TAILLES, couleurs=(BLANC, MARINE), metiers=TOUS, genre="femme",
+             collection="Confort stretch", matiere=STRETCH, entretien="Lavage à 40 °C",
+             est_nouveau=True),
+    _produit("pantalon-cargo-homme", "Pantalon cargo homme", "pantalons",
+             "Six poches, genoux renforcés, pour les métiers qui bougent.", 9_500, 8_500,
+             tailles=("S", "M", "L", "XL", "XXL", "XXXL"), couleurs=(BLANC, ARDOISE),
+             metiers=["infirmier", "aide-soignant", "laboratoire"], genre="homme",
+             matiere=POLYCOTON, entretien=LAVAGE),
+    # Tenues de bloc
+    _produit("tenue-de-bloc-brodee", "Tenue de bloc brodée", "tenues-de-bloc",
+             "Tunique et pantalon, logo de la structure brodé.", 15_000, 13_500,
+             tailles=("S", "M", "L", "XL"), couleurs=(("Vert bloc", "#2e8b6e"),), delai=10,
+             personnalisable=True, metiers=["medecin", "infirmier"], genre="mixte",
+             manches="courtes", matiere=POLYCOTON, entretien="Lavage à 90 °C possible"),
+    _produit("calot-brode", "Calot brodé", "tenues-de-bloc",
+             "Calot en coton, prénom ou logo brodé.", 3_000, 2_500, personnalisable=True,
+             metiers=["medecin", "infirmier"], genre="mixte"),
+    _produit("calot-wax", "Calot en tissu wax", "tenues-de-bloc",
+             "Calot noué, en wax doublé de coton.", 2_500, 2_000,
+             couleurs=(WAX_BLEU, WAX_ORANGE), metiers=["medecin", "infirmier", "dentiste"],
+             genre="mixte", collection="Wax", est_nouveau=True),
+    # Chaussures
+    _produit("sabots-de-travail", "Sabots de travail", "chaussures",
+             "Sabots antidérapants, faciles à laver.", 9_000, 8_000,
+             tailles=("37", "38", "39", "40", "41", "42", "43", "44"), metiers=TOUS,
+             genre="mixte"),
+    _produit("baskets-soignant", "Baskets légères du soignant", "chaussures",
+             "Semelle antidérapante, dessus lavable, maintien du talon.", 15_000, 13_500,
+             tailles=POINTURES, couleurs=(BLANC, NOIR), metiers=TOUS, genre="mixte",
+             est_nouveau=True),
+    # Gilets et polos
+    _produit("gilet-zippe", "Gilet zippé du soignant", "gilets-polos",
+             "Molleton léger, pour les gardes de nuit et les salles climatisées.", 9_000, 8_000,
+             tailles=TAILLES, couleurs=(MARINE, GRIS_CHINE), metiers=TOUS, genre="mixte"),
+    _produit("polo-brode", "Polo brodé", "gilets-polos",
+             "Polo piqué, logo ou nom brodé, pour l'accueil et les équipes.", 6_500, 5_500,
+             tailles=TAILLES, couleurs=(BLANC, BLEU_ROI), delai=10, personnalisable=True,
+             metiers=["pharmacie", "laboratoire", "aide-soignant"], genre="mixte",
+             manches="courtes", matiere="Coton piqué 220 g/m²", entretien="Lavage à 40 °C"),
+    # Accessoires
+    _produit("badge-porte-nom", "Badge porte-nom gravé", "accessoires",
+             "Nom et fonction gravés, attache aimantée.", 2_000, 1_500, personnalisable=True,
+             metiers=TOUS),
+    _produit("trousse-du-soignant", "Trousse du soignant", "accessoires",
+             "Trousse de poche pour stylos, ciseaux et lampe.", 4_500, 4_000, metiers=TOUS),
+    _produit("montre-infirmiere", "Montre de poche infirmière", "accessoires",
+             "Montre à clip, cadran inversé, lavable.", 3_500, 3_000,
+             couleurs=(BLEU_ROI, ROSE_POUDRE), metiers=["infirmier", "sage-femme"]),
+    # Kits
+    _produit("kit-hygiene", "Kit hygiène et lavage des mains", "kits",
+             "Savon, bouilloire, serviettes et fiche illustrée.", 7_500, 6_500),
+    _produit("kit-du-relais", "Kit du relais communautaire", "kits",
+             "Sac, gilet, boîte à images, carnet et lampe solaire.", 18_000, 16_000, delai=14),
+    _produit("kit-premiers-secours", "Kit de premiers secours sans médicament", "kits",
+             "Pansements non stériles, bandes, ciseaux, couverture de survie.", 12_500, 11_000),
+    # Matériel médical
+    _produit("thermometre-digital", "Thermomètre digital", "materiel-medical",
+             "Lecture en 10 secondes, pile fournie.", 3_000, 2_500),
+    _produit("tensiometre-electronique", "Tensiomètre électronique", "materiel-medical",
+             "Mesure au bras, mémoire de 60 mesures.", 25_000, 22_000),
+    _produit("gants-steriles", "Gants stériles", "materiel-medical",
+             "Délivrés par notre pharmacien partenaire.", None, None, pharmaceutique=True),
+    _produit("tests-de-grossesse", "Tests de grossesse", "materiel-medical",
+             "Délivrés par notre pharmacien partenaire.", None, None, pharmaceutique=True),
+    # Campagnes de sensibilisation
+    _produit("tshirt-de-campagne", "T-shirt de campagne imprimé", "campagnes",
+             "Votre message et vos logos, en grande série.", 3_500, 3_000,
+             tailles=("S", "M", "L", "XL"), couleurs=(BLANC,), delai=14, personnalisable=True),
+    _produit("casquette-imprimee", "Casquette imprimée", "campagnes",
+             "Casquette à visière, impression du message de campagne.", 2_500, 2_000, delai=14,
+             personnalisable=True),
+    _produit("affiche-a2", "Affiche de sensibilisation A2", "campagnes",
+             "Affiche conçue par le studio, validée par le comité médical.", 1_500, 1_200),
+    _produit("boite-a-images", "Boîte à images pour causeries", "campagnes",
+             "L'outil des relais pour animer les causeries, en images et en langues locales.",
+             12_000, 10_000, delai=14),
+]  # fmt: skip
 
-
-# Poste de l'atelier qui fabrique chaque rayon ; les produits médicaux et la plupart des
-# accessoires sont revendus tels quels, suivis en stock.
-POSTES = {"tenues-brodees": "broderie", "textiles-imprimes": "impression", "kits": "assemblage"}
+TEXTILES = {"blouses-medicales", "tuniques", "tenues-de-bloc", "gilets-polos"}
 POSTES_PRODUITS = {"badge-porte-nom": "impression"}
 
 
 def poste(donnees: dict[str, Any]) -> str | None:
-    return POSTES_PRODUITS.get(donnees["slug"], POSTES.get(donnees["rayon"]))
+    """Brodé à l'atelier, imprimé, assemblé en kit ; sinon vendu tel quel, suivi en stock."""
+    if donnees["slug"] in POSTES_PRODUITS:
+        return POSTES_PRODUITS[donnees["slug"]]
+    if donnees["rayon"] == "campagnes":
+        return "impression"
+    if donnees["rayon"] == "kits":
+        return "assemblage"
+    if donnees["personnalisable"] and donnees["rayon"] in TEXTILES:
+        return "broderie"
+    return None
+
+
+def _code(texte: str) -> str:
+    sans_accents = unicodedata.normalize("NFKD", texte).encode("ascii", "ignore").decode()
+    return "-".join(sans_accents.upper().replace("'", " ").split())
+
+
+def variantes(d: dict[str, Any]) -> list[Variante]:
+    """Une variante par couleur et par taille ; le code garde l'ancien format pour les
+    produits d'une seule couleur."""
+    tailles = d["tailles"] or (None,)
+    couleurs = d["couleurs"] or ((None, None),)
+    mot = "Pointure" if d["rayon"] == "chaussures" else "Taille"
+    resultat: list[Variante] = []
+    for (couleur, teinte), taille in ((c, t) for c in couleurs for t in tailles):
+        if couleur is None and taille is None:
+            return []
+        morceaux = [d["slug"]]
+        if couleur and len(couleurs) > 1:
+            morceaux.append(_code(couleur))
+        if taille:
+            morceaux.append(taille)
+        libelle = " · ".join(x for x in (f"{mot} {taille}" if taille else None, couleur) if x)
+        resultat.append(
+            Variante(
+                sku="-".join(morceaux).upper(),
+                libelle=libelle,
+                taille=taille,
+                couleur=couleur,
+                couleur_hex=teinte,
+                position=len(resultat),
+            )
+        )
+    return resultat
 
 
 # Frais de livraison hypothétiques, à remplacer par les tarifs réels du livreur.
@@ -307,6 +379,7 @@ async def charger(database_url: str | None = None) -> tuple[int, int]:
                 slug=d["slug"],
                 nom=d["nom"],
                 resume=d["resume"],
+                description=d["description"],
                 rayon_id=par_slug[d["rayon"]].id,
                 categorie_reglementaire=CATEGORIE_PHARMACEUTIQUE
                 if d["pharmaceutique"]
@@ -314,19 +387,18 @@ async def charger(database_url: str | None = None) -> tuple[int, int]:
                 personnalisable=d["personnalisable"],
                 prix_public=d["prix_public"],
                 prix_pro=d["prix_pro"],
+                prix_avant_promo=d["prix_avant_promo"],
                 delai_jours=d["delai"],
                 poste_atelier=poste(d),
+                metiers=d["metiers"],
+                genre=d["genre"],
+                manches=d["manches"],
+                collection=d["collection"],
+                matiere=d["matiere"],
+                entretien=d["entretien"],
+                est_nouveau=d["est_nouveau"],
             )
-            produit.variantes = [
-                Variante(
-                    sku=f"{d['slug']}-{taille}".upper(),
-                    libelle=f"Taille {taille}" + (f" · {d['couleur']}" if d["couleur"] else ""),
-                    taille=taille,
-                    couleur=d["couleur"],
-                    position=i,
-                )
-                for i, taille in enumerate(d["tailles"])
-            ]
+            produit.variantes = variantes(d)
             session.add(produit)
             produits_crees += 1
 

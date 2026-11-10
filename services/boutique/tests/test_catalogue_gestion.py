@@ -1,5 +1,7 @@
 from httpx import AsyncClient
 
+from boutique.donnees_demo import PRODUITS
+
 from .aides import fiche, ligne
 from .conftest import jeton
 
@@ -21,7 +23,7 @@ async def test_produits_inactifs_visibles_par_l_equipe_seule(client: AsyncClient
     tous = (await client.get("/api/v1/admin/produits", headers=ADMIN)).json()
     retire = next(p for p in tous if p["slug"] == "affiche-a2")
     assert retire["est_actif"] is False and retire["poste_atelier"] == "impression"
-    assert len(tous) == 18
+    assert len(tous) == len(PRODUITS)
     kits = await client.get("/api/v1/admin/produits", params={"rayon": "kits"}, headers=ADMIN)
     assert {p["slug"] for p in kits.json()} == {
         "kit-hygiene",
@@ -35,7 +37,7 @@ async def test_produits_inactifs_visibles_par_l_equipe_seule(client: AsyncClient
     )
     assert gants.json()["categorie_reglementaire"] == "pharmaceutique"
     rayons = (await client.get("/api/v1/admin/rayons", headers=ADMIN)).json()
-    assert [r["slug"] for r in rayons][0] == "tenues-brodees"
+    assert [r["slug"] for r in rayons][0] == "blouses-medicales"
 
 
 async def test_variantes_prix_et_retrait(client: AsyncClient) -> None:

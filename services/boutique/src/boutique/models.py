@@ -16,18 +16,22 @@ from sqlalchemy import (
     DateTime,
     ForeignKey,
     Identity,
+    Index,
     Integer,
     MetaData,
     String,
     Text,
     UniqueConstraint,
     Uuid,
+    false,
     true,
 )
+from sqlalchemy.dialects.postgresql import ARRAY
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
 
 from boutique.atelier.etats import EtatOrdre, MotifStock
 from boutique.commandes.cycle import ModeLivraison, Moyen, Statut, valeurs_sql
+from boutique.metiers import GENRES, MANCHES, UNIVERS
 from socle.audit import JournalAuditMixin
 from socle.db import CONVENTION_NOMMAGE, HorodatageMixin, IdMixin
 
@@ -37,6 +41,10 @@ CATEGORIE_PHARMACEUTIQUE = "pharmaceutique"
 
 class Base(DeclarativeBase):
     metadata = MetaData(naming_convention=CONVENTION_NOMMAGE)
+
+
+def _valeurs(cles: dict[str, str]) -> str:
+    return ", ".join(f"'{cle}'" for cle in cles)
 
 
 class PosteAtelier(IdMixin, HorodatageMixin, Base):
@@ -53,8 +61,13 @@ class PosteAtelier(IdMixin, HorodatageMixin, Base):
 
 class Rayon(IdMixin, HorodatageMixin, Base):
     __tablename__ = "rayons"
+    __table_args__ = (CheckConstraint(f"univers IN ({_valeurs(UNIVERS)})", name="univers_valide"),)
 
     slug: Mapped[str] = mapped_column(String(80), unique=True, nullable=False)
+    # Famille du menu : tenues médicales, kits et matériel, campagnes.
+    univers: Mapped[str] = mapped_column(
+        String(20), nullable=False, default="tenues", server_default="tenues"
+    )
     nom: Mapped[str] = mapped_column(String(120), nullable=False)
     description: Mapped[str] = mapped_column(Text, nullable=False, default="", server_default="")
     position: Mapped[int] = mapped_column(nullable=False, default=0, server_default="0")
@@ -73,6 +86,14 @@ class Produit(IdMixin, HorodatageMixin, Base):
             name="prix_requis",
         ),
         CheckConstraint("prix_public IS NULL OR prix_public >= 0", name="prix_positif"),
+        CheckConstraint(
+            "prix_avant_promo IS NULL OR prix_avant_promo > prix_public", name="promo_coherente"
+        ),
+        CheckConstraint(f"genre IS NULL OR genre IN ({_valeurs(GENRES)})", name="genre_valide"),
+        CheckConstraint(
+            f"manches IS NULL OR manches IN ({_valeurs(MANCHES)})", name="manches_valides"
+        ),
+        Index("ix_produits_metiers", "metiers", postgresql_using="gin"),
     )
 
     slug: Mapped[str] = mapped_column(String(120), unique=True, nullable=False)
@@ -92,6 +113,19 @@ class Produit(IdMixin, HorodatageMixin, Base):
     # un article vendu tel quel, suivi en stock.
     poste_atelier: Mapped[str | None] = mapped_column(ForeignKey("postes_atelier.code"))
     seuil_alerte: Mapped[int] = mapped_column(nullable=False, default=0, server_default="0")
+    # Pour ranger et filtrer comme une boutique de tenues médicales : par métier, genre, manches.
+    metiers: Mapped[list[str]] = mapped_column(
+        ARRAY(String(30)), nullable=False, default=list, server_default="{}"
+    )
+    genre: Mapped[str | None] = mapped_column(String(10))
+    manches: Mapped[str | None] = mapped_column(String(10))
+    collection: Mapped[str | None] = mapped_column(String(60))
+    matiere: Mapped[str] = mapped_column(String(200), nullable=False, default="", server_default="")
+    entretien: Mapped[str] = mapped_column(
+        String(300), nullable=False, default="", server_default=""
+    )
+    est_nouveau: Mapped[bool] = mapped_column(nullable=False, default=False, server_default=false())
+    prix_avant_promo: Mapped[int | None] = mapped_column()  # prix barré pendant une promotion
 
     rayon: Mapped[Rayon] = relationship(lazy="raise")
     variantes: Mapped[list["Variante"]] = relationship(
@@ -111,11 +145,15 @@ class Produit(IdMixin, HorodatageMixin, Base):
 
 class Variante(IdMixin, Base):
     __tablename__ = "variantes"
+    __table_args__ = (
+        CheckConstraint("couleur_hex IS NULL OR couleur_hex ~ '^#[0-9a-f]{6}$'", name="hex_valide"),
+    )
 
     produit_id: Mapped[UUID] = mapped_column(
         ForeignKey("produits.id", ondelete="CASCADE"), index=True, nullable=False
     )
     sku: Mapped[str] = mapped_column(String(60), unique=True, nullable=False)
+    couleur_hex: Mapped[str | None] = mapped_column(String(7))  # pastille, ex. #1f4fa8
     libelle: Mapped[str] = mapped_column(String(120), nullable=False)
     taille: Mapped[str | None] = mapped_column(String(20))
     couleur: Mapped[str | None] = mapped_column(String(40))

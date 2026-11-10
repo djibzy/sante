@@ -38,6 +38,7 @@ async def _vue_rayon(session: AsyncSession, rayon: Rayon) -> RayonPublic:
         slug=rayon.slug,
         nom=rayon.nom,
         description=rayon.description,
+        univers=rayon.univers,
         nombre_produits=nombre or 0,
     )
 
@@ -58,6 +59,14 @@ async def _charger_produit(session: AsyncSession, produit_id: UUID) -> Produit:
     if produit is None:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "Produit introuvable")
     return produit
+
+
+def _verifier_promo(prix: int | None, avant_promo: int | None) -> None:
+    if avant_promo is not None and (prix is None or avant_promo <= prix):
+        raise HTTPException(
+            status.HTTP_422_UNPROCESSABLE_CONTENT,
+            "Le prix barré doit être supérieur au prix de vente",
+        )
 
 
 async def _verifier_poste(session: AsyncSession, code: str | None) -> None:
@@ -136,6 +145,7 @@ async def creer_produit(
     if donnees.categorie_reglementaire == CATEGORIE_LIBRE and donnees.prix_public is None:
         raise HTTPException(status.HTTP_422_UNPROCESSABLE_CONTENT, _PRIX_REQUIS)
     await _verifier_poste(session, donnees.poste_atelier)
+    _verifier_promo(donnees.prix_public, donnees.prix_avant_promo)
 
     produit = Produit(**donnees.model_dump(exclude={"rayon_slug", "variantes"}), rayon_id=rayon.id)
     produit.variantes = [Variante(**v.model_dump()) for v in donnees.variantes]
@@ -164,6 +174,11 @@ async def modifier_produit(
     changements = donnees.model_dump(exclude_unset=True)
     if "poste_atelier" in changements:
         await _verifier_poste(session, changements["poste_atelier"])
+    if {"prix_public", "prix_avant_promo"} & changements.keys():
+        _verifier_promo(
+            changements.get("prix_public", produit.prix_public),
+            changements.get("prix_avant_promo", produit.prix_avant_promo),
+        )
     for champ, valeur in changements.items():
         setattr(produit, champ, valeur)
     if produit.categorie_reglementaire == CATEGORIE_LIBRE and produit.prix_public is None:

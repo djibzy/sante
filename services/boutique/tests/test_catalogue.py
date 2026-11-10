@@ -9,8 +9,9 @@ async def test_rayons_dans_l_ordre_avec_leur_nombre_de_produits(client: AsyncCli
 
     assert [r["slug"] for r in rayons] == [r["slug"] for r in RAYONS]
     assert sum(r["nombre_produits"] for r in rayons) == len(PRODUITS)
-    tenues = next(r for r in rayons if r["slug"] == "tenues-brodees")
-    assert tenues["nombre_produits"] == 4
+    blouses = next(r for r in rayons if r["slug"] == "blouses-medicales")
+    assert (blouses["nombre_produits"], blouses["univers"]) == (5, "tenues")
+    assert {r["univers"] for r in rayons} == {"tenues", "equipement", "campagnes"}
 
 
 async def test_liste_paginee(client: AsyncClient) -> None:
@@ -50,7 +51,7 @@ async def test_fiche_produit_avec_variantes(client: AsyncClient) -> None:
     assert fiche["prix_public"] == 12500
     assert fiche["personnalisable"] is True
     assert fiche["vendable_en_ligne"] is True
-    assert [v["taille"] for v in fiche["variantes"]] == ["S", "M", "L", "XL"]
+    assert [v["taille"] for v in fiche["variantes"]] == ["S", "M", "L", "XL", "XXL"]
     assert {v["prix"] for v in fiche["variantes"]} == {12500}
     assert fiche["variantes"][0]["libelle"] == "Taille S · Blanc"
 

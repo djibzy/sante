@@ -10,7 +10,7 @@ ADMIN = jeton(["boutique:admin"])
 NOUVEAU = {
     "slug": "gilet-relais",
     "nom": "Gilet du relais",
-    "rayon_slug": "textiles-imprimes",
+    "rayon_slug": "campagnes",
     "prix_public": 4000,
     "personnalisable": True,
     "variantes": [{"sku": "GILET-M", "libelle": "Taille M", "taille": "M"}],
