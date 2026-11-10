@@ -2,6 +2,7 @@
 import type { ProduitResume } from '~/types/catalogue'
 
 const props = defineProps<{ produit: ProduitResume }>()
+const adresse = useAdresseImage()
 const remise = computed(() => {
   const { prix_public: prix, prix_avant_promo: avant } = props.produit
   return prix && avant ? Math.round((1 - prix / avant) * 100) : null
@@ -18,7 +19,7 @@ const delai = computed(() => {
   <article class="carte-produit">
   <NuxtLink :to="`/produits/${produit.slug}`" class="lien">
     <div class="visuel">
-      <img v-if="produit.image" :src="produit.image.url" :alt="produit.image.texte_alternatif" loading="lazy">
+      <img v-if="produit.image" :src="adresse(produit.image.url)" :alt="produit.image.texte_alternatif" loading="lazy">
       <ChartePictogramme v-else :type="produit.rayon_slug" :taille="96" :teinte="produit.couleurs[0]?.hex" />
       <span class="badges">
         <span v-if="produit.est_nouveau" class="badge">Nouveau</span>

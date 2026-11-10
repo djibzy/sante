@@ -16,7 +16,8 @@ semaine 4. Elle sera refaite avant l'ouverture au public, puis à chaque nouveau
 | Montants | Prix toujours recalculés par le serveur ; contraintes en base (totaux cohérents, montants positifs) ; factures numérotées sans trou ni doublon |
 | Navigateur | HTTPS automatique, HSTS, `nosniff`, Referrer-Policy, Permissions-Policy, interdiction d'affichage dans un cadre (`X-Frame-Options`, `frame-ancestors`) ; aucun `v-html` dans les interfaces |
 | Serveur | Seul Caddy est exposé (ports 80 et 443) ; une base et un rôle PostgreSQL par produit ; conteneurs sans droits root ; aucun secret dans le dépôt |
-| Sauvegardes | `pg_dump` de chaque base chaque nuit, 14 jours gardés (service `sauvegarde`) |
+| Sauvegardes | `pg_dump` de chaque base et archive des photos chaque nuit, 14 jours gardés (service `sauvegarde`) |
+| Photos | Format vérifié, image réencodée en WebP (aucune métadonnée, ni position GPS), 8 Mo et 8 photos par produit au plus |
 | Intégration continue | Style, types, tests sur une vraie base PostgreSQL, construction des images ; audit des dépendances (informatif) |
 
 ## Corrigé pendant cette revue

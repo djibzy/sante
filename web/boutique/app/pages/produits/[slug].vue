@@ -34,6 +34,8 @@ const personnalisation = ref('')
 const ajoute = ref(false)
 const erreur = ref('')
 const { ajouter } = usePanier()
+const adresse = useAdresseImage()
+const photo = ref(0)
 
 function ajouterAuPanier() {
   const p = produit.value!
@@ -92,13 +94,21 @@ useSeoMeta({
 
     <div class="colonnes">
       <div class="visuel">
-        <img v-if="produit.images[0]" :src="produit.images[0].url" :alt="produit.images[0].texte_alternatif">
+        <img v-if="produit.images[photo]" :src="adresse(produit.images[photo]!.url)" :alt="produit.images[photo]!.texte_alternatif">
         <ChartePictogramme v-else :type="produit.rayon_slug" :taille="150" :teinte="teinte" />
         <span class="badges">
           <span v-if="produit.est_nouveau" class="badge">Nouveau</span>
           <span v-if="remise" class="badge badge-promo">−{{ remise }} %</span>
         </span>
         <BoutonFavori :slug="produit.slug" :nom="produit.nom" class="bouton-favori" />
+        <div v-if="produit.images.length > 1" class="vignettes">
+          <button
+            v-for="(image, i) in produit.images" :key="image.url" type="button" :class="{ actif: i === photo }"
+            :aria-label="`Photo ${i + 1} : ${image.texte_alternatif}`" @click="photo = i"
+          >
+            <img :src="adresse(image.url)" alt="" width="48" height="60" loading="lazy">
+          </button>
+        </div>
       </div>
 
       <div class="infos">
@@ -210,6 +220,10 @@ useSeoMeta({
 .visuel img { width: 100%; height: 100%; object-fit: cover; }
 .badges { position: absolute; top: 14px; left: 14px; display: flex; gap: 6px; }
 .bouton-favori { position: absolute; top: 12px; right: 12px; }
+.vignettes { position: absolute; bottom: 12px; left: 12px; display: flex; gap: 6px; }
+.vignettes button { padding: 0; border: 2px solid transparent; border-radius: 8px; overflow: hidden; background: #fff; cursor: pointer; }
+.vignettes button.actif { border-color: var(--primaire); }
+.vignettes img { width: 48px; height: 60px; object-fit: cover; }
 .badge { padding: 4px 10px; border-radius: 999px; background: var(--primaire); color: #fff; font-size: 0.82rem; font-weight: 750; }
 .badge-promo { background: var(--accent); color: var(--texte); }
 .collection { margin: 0; color: var(--primaire); font-weight: 700; font-size: 0.92rem; }

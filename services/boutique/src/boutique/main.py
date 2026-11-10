@@ -1,6 +1,9 @@
 """Point d'entrée : uvicorn boutique.main:creer_app --factory"""
 
+from pathlib import Path
+
 from fastapi import FastAPI
+from fastapi.staticfiles import StaticFiles
 
 from boutique.config import ParametresBoutique
 from boutique.routes import (
@@ -17,7 +20,7 @@ from socle.application import creer_application
 
 def creer_app(parametres: ParametresBoutique | None = None) -> FastAPI:
     p = parametres or ParametresBoutique()
-    return creer_application(
+    application = creer_application(
         service="boutique",
         titre="Boutique : catalogue et commandes",
         parametres=p,
@@ -31,3 +34,8 @@ def creer_app(parametres: ParametresBoutique | None = None) -> FastAPI:
             stock.routeur,
         ],
     )
+    # Photos envoyées par l'équipe (derrière Caddy en production : /medias/…).
+    medias = Path(p.dossier_medias)
+    medias.mkdir(parents=True, exist_ok=True)
+    application.mount("/medias", StaticFiles(directory=medias), name="medias")
+    return application

@@ -1,7 +1,7 @@
 /** Appels à l'API de la boutique depuis le navigateur, avec le jeton de la session s'il existe. */
 interface Options {
   method?: 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE'
-  body?: Record<string, unknown>
+  body?: Record<string, unknown> | FormData
   query?: Record<string, unknown>
   responseType?: 'blob'
 }

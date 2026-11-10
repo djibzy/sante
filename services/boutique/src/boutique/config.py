@@ -39,3 +39,8 @@ class ParametresBoutique(ParametresService):
     sms_nom_expediteur: str = ""  # nom affiché (« Bibou »), s'il est validé par l'opérateur
     orange_client_id: str = ""
     orange_client_secret: SecretStr = SecretStr("")
+
+    # Photos des produits envoyées par l'équipe : dossier sur le serveur (volume Docker en
+    # production) et taille maximale d'un envoi.
+    dossier_medias: str = "medias"
+    taille_max_photo: int = 8 * 1024 * 1024

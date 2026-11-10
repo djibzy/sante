@@ -1,13 +1,26 @@
 """Gestion du catalogue par l'équipe : listes complètes (inactifs compris), variantes, photos."""
 
+from pathlib import Path
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, HTTPException, Query, status
+from fastapi import (
+    APIRouter,
+    Depends,
+    File,
+    Form,
+    HTTPException,
+    Query,
+    Request,
+    UploadFile,
+    status,
+)
+from fastapi.concurrency import run_in_threadpool
 from sqlalchemy import Select, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import contains_eager, selectinload
 
-from boutique.config import ROLE_ADMIN_BOUTIQUE
+from boutique import photos
+from boutique.config import ROLE_ADMIN_BOUTIQUE, ParametresBoutique
 from boutique.models import ImageProduit, JournalAudit, Produit, Rayon, Variante
 from boutique.schemas import (
     ImagePublique,
@@ -159,6 +172,53 @@ async def remplacer_images(
         objet_type="produit",
         objet_id=produit.id,
         details={"nombre": len(donnees.images)},
+    )
+    await session.commit()
+    return _vue(await _produit(session, produit_id))
+
+
+@routeur.post(
+    "/produits/{produit_id}/photos",
+    status_code=status.HTTP_201_CREATED,
+    summary="Envoyer une photo (depuis un téléphone ou un ordinateur)",
+)
+async def envoyer_photo(
+    produit_id: UUID,
+    request: Request,
+    fichier: UploadFile = File(...),
+    texte_alternatif: str = Form(..., min_length=3, max_length=200),
+    principal: Principal = Depends(equipe),
+    session: AsyncSession = Depends(session_db),
+) -> ProduitGestion:
+    parametres: ParametresBoutique = request.app.state.parametres
+    produit = await _produit(session, produit_id)
+    if len(produit.images) >= 8:
+        raise HTTPException(status.HTTP_409_CONFLICT, "Huit photos au plus par produit")
+    contenu = await fichier.read(parametres.taille_max_photo + 1)
+    if len(contenu) > parametres.taille_max_photo:
+        raise HTTPException(
+            status.HTTP_413_CONTENT_TOO_LARGE,
+            f"Photo trop lourde : {parametres.taille_max_photo // (1024 * 1024)} Mo au plus",
+        )
+    try:
+        adresse = await run_in_threadpool(
+            photos.enregistrer, contenu, Path(parametres.dossier_medias)
+        )
+    except photos.PhotoRefusee as exc:
+        raise HTTPException(status.HTTP_422_UNPROCESSABLE_CONTENT, str(exc)) from exc
+    produit.images.append(
+        ImageProduit(
+            url=adresse, texte_alternatif=texte_alternatif.strip(), position=len(produit.images)
+        )
+    )
+    journaliser(
+        session,
+        JournalAudit,
+        action="produit.photo",
+        acteur_id=principal.id,
+        objet_type="produit",
+        objet_id=produit.id,
+        details={"adresse": adresse},
     )
     await session.commit()
     return _vue(await _produit(session, produit_id))

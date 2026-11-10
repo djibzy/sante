@@ -27,6 +27,21 @@ const vide = () => ({
 const fiche = reactive(vide())
 const nouvelleCouleur = reactive({ couleur: '', hex: '#1f4fa8', tailles: 'XS, S, M, L, XL, XXL', prix: null as number | null })
 const photos = ref<{ url: string; texte_alternatif: string }[]>([])
+const adresse = useAdresseImage()
+const envoiPhoto = reactive({ fichier: null as File | null, texte: '' })
+
+async function envoyerPhoto() {
+  if (!envoiPhoto.fichier) return
+  const donnees = new FormData()
+  donnees.append('fichier', envoiPhoto.fichier)
+  donnees.append('texte_alternatif', envoiPhoto.texte || fiche.nom)
+  const resultat = await executer(() => appeler<ProduitGestion>(`/api/v1/admin/produits/${id.value}/photos`, { method: 'POST', body: donnees }), 'Photo ajoutée.')
+  if (resultat) {
+    remplir(resultat)
+    envoiPhoto.fichier = null
+    envoiPhoto.texte = ''
+  }
+}
 
 function remplir(p: ProduitGestion) {
   produit.value = p
@@ -237,9 +252,20 @@ watch(verifie, async () => {
 
       <div v-if="produit" class="carte bloc">
         <h2>Photos</h2>
-        <p class="aide">Adresse d'une photo en https (ou déposée dans le dossier public du site), avec une courte description pour les lecteurs d'écran.</p>
+        <form class="envoi-photo" @submit.prevent="envoyerPhoto">
+          <div class="champ">
+            <label for="fichier-photo">Photo (prise au téléphone ou sur l'ordinateur)</label>
+            <input id="fichier-photo" type="file" accept="image/jpeg,image/png,image/webp" required @change="envoiPhoto.fichier = ($event.target as HTMLInputElement).files?.[0] ?? null">
+          </div>
+          <div class="champ">
+            <label for="texte-photo">Ce qu'on voit sur la photo</label>
+            <input id="texte-photo" v-model="envoiPhoto.texte" maxlength="200" placeholder="Tunique bleu roi, de face">
+          </div>
+          <button type="submit" class="bouton" :disabled="envoi || !envoiPhoto.fichier">Envoyer la photo</button>
+        </form>
+        <p class="aide">La photo est réduite et nettoyée de ses informations (position, téléphone). Vous pouvez aussi indiquer l'adresse d'une photo déjà en ligne.</p>
         <div v-for="(photo, i) in photos" :key="i" class="photo">
-          <img v-if="photo.url" :src="photo.url" alt="" width="56" height="70">
+          <img v-if="photo.url" :src="adresse(photo.url)" alt="" width="56" height="70">
           <input v-model="photo.url" :aria-label="`Adresse de la photo ${i + 1}`" placeholder="https://…">
           <input v-model="photo.texte_alternatif" :aria-label="`Description de la photo ${i + 1}`" placeholder="Blouse blanche, de face">
           <button type="button" class="bouton bouton-discret" @click="photos.splice(i, 1)">Retirer</button>
@@ -279,4 +305,7 @@ watch(verifie, async () => {
 .photo img { object-fit: cover; border-radius: 6px; background: var(--fond-doux); }
 .photo input { min-height: 40px; padding: 0 8px; border: 1.5px solid var(--bordure); border-radius: 8px; font: inherit; min-width: 0; }
 .actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 8px; }
+.envoi-photo { display: grid; gap: 0 12px; grid-template-columns: repeat(auto-fit, minmax(min(100%, 240px), 1fr)); align-items: end; }
+.envoi-photo .bouton { margin-bottom: 1rem; }
+.envoi-photo input[type='file'] { padding: 8px; }
 </style>

@@ -28,6 +28,11 @@ boutique.{$DOMAINE} {
 	handle /api/* {
 		reverse_proxy boutique:8000
 	}
+	# Photos des produits, envoyées par l'équipe et réencodées par le service.
+	handle /medias/* {
+		header Cache-Control "public, max-age=2592000, immutable"
+		reverse_proxy boutique:8000
+	}
 	handle {
 		reverse_proxy web-boutique:3000
 	}

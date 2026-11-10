@@ -16,7 +16,8 @@ COPY pyproject.toml uv.lock ./
 COPY socle socle
 COPY services services
 RUN uv sync --frozen --no-dev --package "${SERVICE}" \
-    && useradd --system --no-create-home service
+    && useradd --system --no-create-home service \
+    && mkdir -p /medias && chown service /medias
 
 WORKDIR /app/services/${SERVICE}
 USER service

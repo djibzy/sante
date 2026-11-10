@@ -1,5 +1,6 @@
 import asyncio
 import os
+import tempfile
 from collections.abc import AsyncIterator, Iterator
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
@@ -74,7 +75,11 @@ def base_de_test() -> Iterator[None]:
 async def app() -> AsyncIterator[FastAPI]:
     await charger(URL)
     parametres = ParametresBoutique(
-        database_url=URL, environnement="test", db_pool=False, jwt_cle_publique=CLE_PUBLIQUE
+        database_url=URL,
+        environnement="test",
+        db_pool=False,
+        jwt_cle_publique=CLE_PUBLIQUE,
+        dossier_medias=tempfile.mkdtemp(prefix="medias-"),
     )
     application = creer_app(parametres)
     yield application

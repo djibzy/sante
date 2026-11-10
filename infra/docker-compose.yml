@@ -49,6 +49,9 @@ services:
       BOUTIQUE_COORDONNEES: ${BOUTIQUE_COORDONNEES:-Bamako, Mali}
       BOUTIQUE_MENTIONS_LEGALES: ${BOUTIQUE_MENTIONS_LEGALES:-}
       BOUTIQUE_URL_PUBLIQUE: https://boutique.${DOMAINE}
+      BOUTIQUE_DOSSIER_MEDIAS: /medias
+    volumes:
+      - medias:/medias
     depends_on:
       postgres: { condition: service_healthy }
 
@@ -98,6 +101,7 @@ services:
     volumes:
       - ./sauvegarde.sh:/sauvegarde.sh:ro
       - sauvegardes:/sauvegardes
+      - medias:/medias:ro
     entrypoint: ["sh", "/sauvegarde.sh"]
     depends_on:
       postgres: { condition: service_healthy }
@@ -117,6 +121,7 @@ services:
 
 volumes:
   sauvegardes:
+  medias:
   donnees-postgres:
   caddy-donnees:
   caddy-config:
