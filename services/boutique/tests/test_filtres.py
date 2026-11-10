@@ -1,6 +1,8 @@
+from io import BytesIO
 from typing import Any
 
 from httpx import AsyncClient
+from pypdf import PdfReader
 
 from .aides import fiche
 from .conftest import jeton
@@ -124,3 +126,27 @@ async def test_par_famille_du_menu(client: AsyncClient) -> None:
     equipement = await liste(client, univers="equipement")
     assert {p["rayon_slug"] for p in equipement["elements"]} == {"kits", "materiel-medical"}
     assert (await client.get("/api/v1/produits", params={"univers": "jardin"})).status_code == 422
+
+
+async def test_favoris_par_slugs(client: AsyncClient) -> None:
+    favoris = await liste(client, slug=["tunique-wax", "calot-wax", "inconnu"])
+    assert slugs(favoris) == {"tunique-wax", "calot-wax"}
+
+
+async def test_catalogue_imprimable(client: AsyncClient) -> None:
+    reponse = await client.get("/api/v1/catalogue.pdf")
+    assert reponse.status_code == 200 and reponse.headers["content-type"] == "application/pdf"
+    pages = PdfReader(BytesIO(reponse.content)).pages
+    texte = " ".join(page.extract_text() for page in pages).replace("\xa0", " ")
+    for attendu in (
+        "Catalogue",
+        "Blouses médicales",
+        "Tunique col V unisexe",
+        "Bleu roi",
+        "XS à XXL",
+        "9 500 FCFA",
+        "Pharmacien partenaire",
+        "Campagnes de sensibilisation",
+    ):
+        assert attendu in texte, attendu
+    assert len(pages) >= 11  # couverture puis un rayon par page

@@ -46,7 +46,9 @@ class Entete:
     arrete: str  # « Arrêté le présent devis » / « Arrêtée la présente facture »
 
 
-class _Document(FPDF):
+class DocumentBibou(FPDF):
+    """A4, polices Liberation, pied de page « Bibou, une marque de Yasal Santé – page n/N »."""
+
     def __init__(self) -> None:
         super().__init__(format="A4", unit="mm")
         self.add_font("Liberation", "", RESSOURCES / "polices" / "LiberationSans-Regular.ttf")
@@ -86,7 +88,7 @@ def _total(pdf: FPDF, intitule: str, valeur: str, fort: bool = False) -> None:
 def _document(
     commande: Commande, parametres: ParametresBoutique, entete: Entete, paiements: bool
 ) -> bytes:
-    pdf = _Document()
+    pdf = DocumentBibou()
     pdf.set_title(f"{entete.titre} {entete.lignes[0]}")
     pdf.add_page()
 

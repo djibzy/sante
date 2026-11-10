@@ -5,6 +5,7 @@ import type { Metier, Rayon } from '~/types/catalogue'
 // (par type, par métier) et menu mobile.
 const route = useRoute()
 const { nombre } = usePanier()
+const { nombre: favoris } = useFavoris()
 const { data: rayons } = await useBoutiqueFetch<Rayon[]>('/api/v1/rayons')
 const { data: metiers } = await useBoutiqueFetch<Metier[]>('/api/v1/metiers')
 const tenues = computed(() => (rayons.value ?? []).filter(r => r.univers === 'tenues'))
@@ -54,6 +55,10 @@ const LIENS = [
       </NuxtLink>
       <FormulaireRecherche class="recherche-entete" />
       <nav aria-label="Mon espace" class="mon-espace">
+        <NuxtLink to="/favoris" class="bouton bouton-discret lien-favoris" :aria-label="`Favoris (${favoris})`">
+          <svg width="20" height="20" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 20s-7-4.4-9.2-8.6C1.3 8.4 3 5 6.4 5c2 0 3.4 1.2 4 2.3.6-1.1 2-2.3 4-2.3C17.9 5 20 8 18.6 11.4 16.9 15.6 12 20 12 20z" /></svg>
+          <span v-if="favoris" class="nombre-favoris">{{ favoris }}</span>
+        </NuxtLink>
         <NuxtLink to="/mes-commandes" class="bouton bouton-discret lien-commandes"><span class="long">Mes commandes</span><span class="court">Commandes</span></NuxtLink>
         <NuxtLink to="/panier" class="bouton lien-panier">
           Panier
@@ -108,6 +113,7 @@ const LIENS = [
     </details>
     <NuxtLink v-for="l in LIENS" :key="l.lien" :to="l.lien" class="lien-tiroir">{{ l.nom }}</NuxtLink>
     <NuxtLink to="/guide-des-tailles" class="lien-tiroir">Guide des tailles</NuxtLink>
+    <NuxtLink to="/favoris" class="lien-tiroir">Mes favoris</NuxtLink>
   </aside>
 </template>
 
@@ -125,6 +131,12 @@ const LIENS = [
 .recherche-entete { flex: 1; max-width: 460px; margin: 0 auto; }
 .mon-espace { display: flex; align-items: center; gap: 4px; margin-left: auto; }
 .lien-commandes { white-space: nowrap; }
+.lien-favoris { position: relative; padding: 0 0.6em; }
+.lien-favoris svg { fill: none; stroke: currentColor; stroke-width: 1.8; max-width: none; }
+.nombre-favoris {
+  position: absolute; top: 4px; right: 0; min-width: 18px; height: 18px; border-radius: 999px; padding: 0 4px;
+  background: var(--accent); color: var(--texte); font-size: 0.72rem; font-weight: 800; display: grid; place-items: center;
+}
 .lien-commandes .court { display: none; }
 .lien-panier { padding: 0 0.9em 0 1.1em; }
 .compteur {
@@ -154,6 +166,7 @@ const LIENS = [
   .ligne-haute { gap: 6px; }
 }
 @media (max-width: 440px) {
+  .lien-favoris { display: none; }
   .lien-commandes .long { display: none; }
   .lien-commandes .court { display: inline; }
   .lien-commandes { padding: 0 0.4em; font-size: 0.92rem; }

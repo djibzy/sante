@@ -30,6 +30,7 @@ const whatsapp = computed(() => config.public.whatsapp ? `https://wa.me/${config
         <nav aria-label="Services">
           <p class="titre-pied">Services</p>
           <NuxtLink to="/guide-des-tailles">Guide des tailles</NuxtLink>
+          <a :href="`${config.public.apiBoutique}/api/v1/catalogue.pdf`" target="_blank" rel="noopener">Télécharger le catalogue (PDF)</a>
           <NuxtLink to="/broderie">Broderie et personnalisation</NuxtLink>
           <NuxtLink to="/services#structures">Devis pour les structures</NuxtLink>
           <NuxtLink to="/services">Nos autres services</NuxtLink>

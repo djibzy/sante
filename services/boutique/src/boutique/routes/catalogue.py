@@ -8,11 +8,12 @@ cours, les valeurs possibles et leur nombre de produits.
 from collections import Counter
 from typing import Any, Literal
 
-from fastapi import APIRouter, Depends, HTTPException, Query, status
+from fastapi import APIRouter, Depends, HTTPException, Query, Response, status
 from sqlalchemy import and_, func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import contains_eager, selectinload
 
+from boutique.catalogue_pdf import catalogue_pdf
 from boutique.metiers import GENRES, METIERS
 from boutique.models import Produit, Rayon, Variante
 from boutique.schemas import (
@@ -28,6 +29,7 @@ from boutique.schemas import (
 )
 from boutique.vues import rang_taille, vers_detail, vers_resume
 from socle.db import session_db
+from socle.limites import LimiteDebit
 
 routeur = APIRouter(prefix="/api/v1", tags=["catalogue"])
 Tri = Literal["pertinence", "prix_croissant", "prix_decroissant", "nouveautes", "nom"]
@@ -154,6 +156,7 @@ async def produits(
     collection: str | None = Query(default=None, max_length=60),
     nouveau: bool = False,
     promo: bool = False,
+    slug: list[str] | None = Query(default=None, max_length=50, description="Favoris"),
     tri: Tri = "pertinence",
     page: int = Query(default=1, ge=1),
     par_page: int = Query(default=24, ge=1, le=60),
@@ -169,6 +172,8 @@ async def produits(
         filtres.append(Produit.collection == collection)
     if nouveau:
         filtres.append(Produit.est_nouveau)
+    if slug:
+        filtres.append(Produit.slug.in_(slug))
     if promo:
         filtres.append(Produit.prix_avant_promo.is_not(None))
     for colonne, valeur in ((Variante.couleur, couleur), (Variante.taille, taille)):
@@ -204,6 +209,22 @@ async def produits(
         page=page,
         par_page=par_page,
         facettes=await _facettes(session, base),
+    )
+
+
+@routeur.get(
+    "/catalogue.pdf",
+    summary="Catalogue imprimable (PDF)",
+    dependencies=[Depends(LimiteDebit("catalogue", nombre=30, secondes=60))],
+)
+async def catalogue_imprimable(session: AsyncSession = Depends(session_db)) -> Response:
+    return Response(
+        await catalogue_pdf(session),
+        media_type="application/pdf",
+        headers={
+            "Content-Disposition": 'inline; filename="catalogue-bibou.pdf"',
+            "Cache-Control": "public, max-age=600",
+        },
     )
 
 

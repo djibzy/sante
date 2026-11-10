@@ -15,7 +15,8 @@ const delai = computed(() => {
 </script>
 
 <template>
-  <NuxtLink :to="`/produits/${produit.slug}`" class="carte-produit">
+  <article class="carte-produit">
+  <NuxtLink :to="`/produits/${produit.slug}`" class="lien">
     <div class="visuel">
       <img v-if="produit.image" :src="produit.image.url" :alt="produit.image.texte_alternatif" loading="lazy">
       <ChartePictogramme v-else :type="produit.rayon_slug" :taille="96" :teinte="produit.couleurs[0]?.hex" />
@@ -34,10 +35,14 @@ const delai = computed(() => {
       <p class="delai">{{ delai }}</p>
     </div>
   </NuxtLink>
+  <BoutonFavori :slug="produit.slug" :nom="produit.nom" class="bouton-favori" />
+  </article>
 </template>
 
 <style scoped>
-.carte-produit { display: flex; flex-direction: column; color: inherit; text-decoration: none; }
+.carte-produit { position: relative; }
+.lien { display: flex; flex-direction: column; color: inherit; text-decoration: none; }
+.bouton-favori { position: absolute; top: 10px; right: 10px; }
 .visuel {
   position: relative; display: grid; place-items: center; aspect-ratio: 4 / 5; border-radius: var(--rayon);
   background: var(--fond-doux); overflow: hidden;

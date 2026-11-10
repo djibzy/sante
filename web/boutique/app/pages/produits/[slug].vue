@@ -98,6 +98,7 @@ useSeoMeta({
           <span v-if="produit.est_nouveau" class="badge">Nouveau</span>
           <span v-if="remise" class="badge badge-promo">−{{ remise }} %</span>
         </span>
+        <BoutonFavori :slug="produit.slug" :nom="produit.nom" class="bouton-favori" />
       </div>
 
       <div class="infos">
@@ -208,6 +209,7 @@ useSeoMeta({
 @media (min-width: 860px) { .visuel { position: sticky; top: 140px; } }
 .visuel img { width: 100%; height: 100%; object-fit: cover; }
 .badges { position: absolute; top: 14px; left: 14px; display: flex; gap: 6px; }
+.bouton-favori { position: absolute; top: 12px; right: 12px; }
 .badge { padding: 4px 10px; border-radius: 999px; background: var(--primaire); color: #fff; font-size: 0.82rem; font-weight: 750; }
 .badge-promo { background: var(--accent); color: var(--texte); }
 .collection { margin: 0; color: var(--primaire); font-weight: 700; font-size: 0.92rem; }
