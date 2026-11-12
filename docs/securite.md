@@ -43,8 +43,12 @@ semaine 4. Elle sera refaite avant l'ouverture au public, puis à chaque nouveau
    trimestre 2027.
 4. **Politique de sécurité du contenu (CSP)** complète pour l'interface Nuxt (scripts et
    styles), avec le module `nuxt-security`, une fois les pages stabilisées.
-5. **Durées de conservation** : factures 10 ans (obligation comptable OHADA) ; commandes non
-   facturées et SMS anonymisés après 3 ans ; à écrire dans la politique de confidentialité.
+5. **Durées de conservation** : appliquées chaque nuit (boutique.entretien, comptes.entretien) :
+   commandes facturées anonymisées après 10 ans (obligation comptable OHADA), commandes sans
+   suite après 3 ans, SMS effacés après 3 ans, avis refusés après 30 jours, tentatives de
+   paiement abandonnées après 90 jours, codes SMS le lendemain, sessions fermées après
+   30 jours, adresses IP du journal après un an. Reste à les écrire dans la politique de
+   confidentialité.
 6. **Limites partagées** : les limites de débit vivent dans chaque processus ; à passer dans
    PostgreSQL ou Redis si l'on fait tourner plusieurs copies d'un service.
 7. **Rotation des clés** : procédure écrite pour changer la clé de signature des jetons

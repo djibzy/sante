@@ -4,6 +4,7 @@ uv run python -m comptes.outils generer-cles
 uv run python -m comptes.outils creer-admin --telephone "76 12 34 56" --nom "Prénom Nom"
 uv run python -m comptes.outils attribuer-role --telephone "76 12 34 56" --role boutique:admin
 uv run python -m comptes.outils retirer-role --telephone "76 12 34 56" --role boutique:pro
+uv run python -m comptes.outils entretien   (durées de conservation, chaque nuit)
 """
 
 import argparse
@@ -17,6 +18,7 @@ from sqlalchemy import select
 
 from comptes.cles import pem_prive, pem_public
 from comptes.config import ParametresComptes
+from comptes.entretien import entretenir
 from comptes.models import JournalAudit, Utilisateur
 from socle.audit import journaliser
 from socle.db import creer_moteur, fabrique_sessions
@@ -93,10 +95,23 @@ async def changer_role(
         await moteur.dispose()
 
 
+async def entretien(database_url: str | None = None) -> str:
+    moteur = creer_moteur(database_url or ParametresComptes().database_url, pool=False)
+    try:
+        bilan = await entretenir(fabrique_sessions(moteur))
+    finally:
+        await moteur.dispose()
+    return (
+        f"Effacés : {bilan.codes} code(s), {bilan.sessions} session(s) ; "
+        f"adresses IP retirées du journal : {bilan.adresses_ip}"
+    )
+
+
 def main(argv: list[str] | None = None) -> None:
     analyseur = argparse.ArgumentParser(prog="comptes.outils")
     commandes = analyseur.add_subparsers(dest="commande", required=True)
     commandes.add_parser("generer-cles", help="Générer une paire de clés de signature")
+    commandes.add_parser("entretien", help="Appliquer les durées de conservation des données")
     admin = commandes.add_parser("creer-admin", help="Créer ou promouvoir un administrateur")
     admin.add_argument("--telephone", required=True)
     admin.add_argument("--nom", required=True)
@@ -110,6 +125,8 @@ def main(argv: list[str] | None = None) -> None:
     arguments = analyseur.parse_args(argv)
     if arguments.commande == "generer-cles":
         generer_cles()
+    elif arguments.commande == "entretien":
+        print(asyncio.run(entretien()))
     elif arguments.commande == "creer-admin":
         asyncio.run(creer_admin(arguments.telephone, arguments.nom))
     else:

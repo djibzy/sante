@@ -1,5 +1,6 @@
 """Processus d'envoi des SMS : lit la boîte d'envoi et expédie, avec reprises espacées. Il
-relit aussi, toutes les 5 minutes, les paiements en ligne restés sans réponse.
+relit aussi, toutes les 5 minutes, les paiements en ligne restés sans réponse, et applique
+chaque jour les durées de conservation des données (boutique.entretien).
 
     uv run python -m boutique.envoi
 
@@ -16,6 +17,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 from boutique.config import ParametresBoutique
+from boutique.entretien import entretenir
 from boutique.models import Notification
 from boutique.paiements import fournisseurs
 from boutique.paiements.service import rapprocher
@@ -28,6 +30,7 @@ __all__ = ["Expediteur", "ExpediteurJournal", "ExpediteurOrange", "boucle", "tou
 journal = logging.getLogger("boutique.envoi")
 TENTATIVES_MAX = 5
 RAPPROCHEMENT_SECONDES = 300.0
+ENTRETIEN_SECONDES = 86_400.0
 
 
 async def tour(
@@ -72,7 +75,7 @@ async def boucle(parametres: ParametresBoutique, pause: float = 5.0) -> None:
     async with httpx.AsyncClient(timeout=20) as client:
         expediteur = expediteur_pour(parametres, client)
         agregateur = fournisseurs.fournisseur(parametres, client)
-        prochain_rapprochement = time.monotonic()
+        prochain_rapprochement = prochain_entretien = time.monotonic()
         journal.info("Envoi des SMS démarré", extra={"fournisseur": parametres.sms_fournisseur})
         while True:
             try:
@@ -86,6 +89,13 @@ async def boucle(parametres: ParametresBoutique, pause: float = 5.0) -> None:
                     await rapprocher(sessions, agregateur)
                 except Exception:  # noqa: BLE001 - agrégateur ou base indisponible
                     journal.exception("Rapprochement des paiements interrompu")
+            if time.monotonic() >= prochain_entretien:
+                prochain_entretien = time.monotonic() + ENTRETIEN_SECONDES
+                try:
+                    bilan = await entretenir(sessions)
+                    journal.info("Durées de conservation appliquées", extra=vars(bilan))
+                except Exception:  # noqa: BLE001 - base indisponible : demain
+                    journal.exception("Entretien des données interrompu")
             if not traites:
                 await asyncio.sleep(pause)
 

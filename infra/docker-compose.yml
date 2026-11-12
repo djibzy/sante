@@ -40,6 +40,20 @@ services:
     depends_on:
       postgres: { condition: service_healthy }
 
+  # Durées de conservation du service Comptes (codes SMS, sessions, adresses IP), chaque nuit.
+  comptes-entretien:
+    build:
+      context: ..
+      dockerfile: infra/python.Dockerfile
+      args: { SERVICE: comptes }
+    restart: unless-stopped
+    command: ["sh", "-c", "while true; do python -m comptes.outils entretien; sleep 86400; done"]
+    environment:
+      COMPTES_ENVIRONNEMENT: production
+      COMPTES_DATABASE_URL: postgresql+asyncpg://comptes:${COMPTES_DB_MOT_DE_PASSE}@postgres:5432/comptes
+    depends_on:
+      comptes: { condition: service_started }
+
   boutique:
     build:
       context: ..
