@@ -1,9 +1,10 @@
 from typing import Literal
 
-from pydantic import SecretStr
+from pydantic import SecretStr, field_validator
 from pydantic_settings import SettingsConfigDict
 
 from socle.settings import ParametresService, ParametresSms
+from socle.telephones import normaliser_telephone
 
 ROLE_ADMIN_BOUTIQUE = "boutique:admin"
 # Atelier : voit la file de fabrication (sans les téléphones des clients), rien d'autre.
@@ -28,6 +29,15 @@ class ParametresBoutique(ParametresService, ParametresSms):
 
     # Demandes non traitées (commandes à confirmer, devis demandés) par numéro, sur 24 heures.
     demandes_max_par_telephone: int = 5
+
+    # Numéros de l'équipe prévenus par SMS de chaque commande ou demande de devis (liste JSON,
+    # ex. ["76 00 00 00"]) ; vide : personne n'est prévenu, l'équipe regarde l'écran Gestion.
+    telephones_equipe: list[str] = []
+
+    @field_validator("telephones_equipe")
+    @classmethod
+    def _numeros_e164(cls, numeros: list[str]) -> list[str]:
+        return [normaliser_telephone(numero) for numero in numeros]
 
     # Adresse publique de la boutique, pour les liens de suivi envoyés par SMS.
     url_publique: str = ""

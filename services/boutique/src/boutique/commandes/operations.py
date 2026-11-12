@@ -280,6 +280,9 @@ async def creer(
     reference = commande.reference
     base = parametres.url_publique.rstrip("/")
     boite.apres_creation(session, commande, f"{base}/suivi/{reference}?cle={cle}" if base else None)
+    boite.prevenir_equipe(
+        session, commande, parametres.telephones_equipe, zone.nom if zone else None
+    )
     journaliser(
         session,
         JournalAudit,

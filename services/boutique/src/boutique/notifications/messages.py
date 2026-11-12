@@ -78,3 +78,17 @@ def paiement_recu(commande: Commande, montant: int) -> str:
     return gsm(
         f"Bibou : paiement de {_fcfa(montant)} reçu pour la commande {commande.reference}. {suite}"
     )
+
+
+def pour_l_equipe(commande: Commande, zone: str | None) -> str:
+    """Alerte à l'équipe : de quoi juger l'urgence sans ouvrir l'écran (aucun nom ni numéro)."""
+    if commande.statut == Statut.DEVIS_DEMANDE:
+        pour = f" ({commande.etablissement})" if commande.etablissement else ""
+        texte = f"Bibou : demande de devis {commande.reference}{pour}. A traiter dans Gestion."
+    else:
+        remise = f"livraison {zone}" if zone else "retrait en boutique"
+        texte = (
+            f"Bibou : nouvelle commande {commande.reference}, {_fcfa(commande.total)}, {remise}. "
+            "A confirmer dans Gestion."
+        )
+    return gsm(texte)

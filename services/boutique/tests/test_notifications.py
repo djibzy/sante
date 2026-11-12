@@ -188,3 +188,45 @@ def test_limite_de_debit_par_adresse() -> None:
     assert refus.value.status_code == 429
     assert refus.value.headers == {"Retry-After": "60"}
     limite(requete("41.73.10.2"))  # une autre adresse n'est pas touchée
+
+
+async def test_l_equipe_est_prevenue(app: FastAPI, client: AsyncClient) -> None:
+    app.state.parametres.telephones_equipe = ["+22376000001", "+22366000002"]
+    livraison = {"mode": "livraison", "zone_id": await zone(client), "adresse": ADRESSE}
+    creee = await commander(client, [await ligne(client, "kit-hygiene")], livraison=livraison)
+    reference = creee["commande"]["reference"]
+    devis = await client.post(
+        "/api/v1/devis",
+        json={
+            "etablissement": "CSCom de Banconi",
+            "client": {"nom": "Dr Oumar Sangaré", "telephone": "66 44 22 11"},
+            "lignes": [await ligne(client, "affiche-a2", quantite=40)],
+        },
+    )
+    reference_devis = devis.json()["commande"]["reference"]
+    numeros = {"+22376000001", "+22366000002"}
+    equipe = [(n.destinataire, n.message) for n in await sms(app) if n.destinataire in numeros]
+    alerte = (
+        f"Bibou : nouvelle commande {reference}, 8 500 FCFA, livraison Bamako, commune IV. "
+        "A confirmer dans Gestion."
+    )
+    alerte_devis = (
+        f"Bibou : demande de devis {reference_devis} (CSCom de Banconi). A traiter dans Gestion."
+    )
+    assert sorted(equipe) == sorted(
+        [
+            ("+22376000001", alerte),
+            ("+22366000002", alerte),
+            ("+22376000001", alerte_devis),
+            ("+22366000002", alerte_devis),
+        ]
+    )
+    assert all(set(m) <= GSM7 for _, m in equipe)
+    assert "Aminata" not in alerte  # ni nom ni numéro du client
+
+
+def test_numeros_de_l_equipe_normalises() -> None:
+    parametres = ParametresBoutique(telephones_equipe=["76 00 00 01"])
+    assert parametres.telephones_equipe == ["+22376000001"]
+    with pytest.raises(ValueError):
+        ParametresBoutique(telephones_equipe=["12"])
