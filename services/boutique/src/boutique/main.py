@@ -18,6 +18,7 @@ from boutique.routes import (
     gestion,
     paiements,
     stock,
+    tableau,
 )
 from socle.application import creer_application
 
@@ -39,6 +40,7 @@ def creer_app(parametres: ParametresBoutique | None = None) -> FastAPI:
             avis.routeur_equipe,
             atelier.routeur,
             stock.routeur,
+            tableau.routeur,
         ],
     )
     # Photos envoyées par l'équipe (derrière Caddy en production : /medias/…).

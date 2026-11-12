@@ -9,6 +9,7 @@ const { verifie, autorise, utilisateur, estGestionnaire } = useEquipe(props.role
   <p v-if="!verifie" class="aide">Chargement…</p>
   <template v-else-if="autorise">
     <nav class="navigation-equipe" aria-label="Espace de l'équipe">
+      <NuxtLink v-if="estGestionnaire" to="/gestion/tableau-de-bord">Tableau de bord</NuxtLink>
       <NuxtLink v-if="estGestionnaire" to="/gestion">Commandes</NuxtLink>
       <NuxtLink v-if="estGestionnaire" to="/gestion/livraisons">Livraisons</NuxtLink>
       <NuxtLink to="/atelier">Atelier</NuxtLink>
@@ -30,7 +31,7 @@ const { verifie, autorise, utilisateur, estGestionnaire } = useEquipe(props.role
 .refus { padding: 24px; max-width: 520px; display: grid; justify-items: start; gap: 4px; }
 .navigation-equipe { display: flex; gap: 4px; margin-bottom: 16px; border-bottom: 1px solid var(--bordure); overflow-x: auto; }
 .navigation-equipe a {
-  padding: 10px 14px; font-weight: 650; color: var(--texte-doux); text-decoration: none;
+  padding: 10px 14px; font-weight: 650; color: var(--texte-doux); text-decoration: none; white-space: nowrap;
   border-bottom: 3px solid transparent; margin-bottom: -1px;
 }
 .navigation-equipe a.router-link-exact-active { color: var(--primaire); border-bottom-color: var(--primaire); }

@@ -19,6 +19,10 @@
   /* Étoiles des avis : orange assombri, 3,5:1 sur le blanc (élément graphique lisible). */
   --etoile: #c77700;
   --etoile-vide: #d9d7ea;
+  /* Barres des graphiques : bleu de la marque éclairci (clarté OKLCH 0,43 à 0,77, validée). */
+  --graphique: #3d2ee8;
+  --graphique-survol: #2a1bd0;
+  --grille: #ecebf5;
 }
 
 /* Bouton d'action principal sur fond bleu : l'orange du sourire, texte à l'encre. */
