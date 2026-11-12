@@ -1,11 +1,13 @@
 """Point d'entrée : uvicorn boutique.main:creer_app --factory"""
 
+import logging
 from pathlib import Path
 
 from fastapi import FastAPI
 from fastapi.staticfiles import StaticFiles
 
 from boutique.config import ParametresBoutique
+from boutique.paiements.fournisseurs import configuration_incomplete
 from boutique.routes import (
     admin,
     atelier,
@@ -13,6 +15,7 @@ from boutique.routes import (
     catalogue_gestion,
     commandes,
     gestion,
+    paiements,
     stock,
 )
 from socle.application import creer_application
@@ -27,6 +30,7 @@ def creer_app(parametres: ParametresBoutique | None = None) -> FastAPI:
         routeurs=[
             catalogue.routeur,
             commandes.routeur,
+            paiements.routeur,
             admin.routeur,
             catalogue_gestion.routeur,
             gestion.routeur,
@@ -38,4 +42,8 @@ def creer_app(parametres: ParametresBoutique | None = None) -> FastAPI:
     medias = Path(p.dossier_medias)
     medias.mkdir(parents=True, exist_ok=True)
     application.mount("/medias", StaticFiles(directory=medias), name="medias")
+    if manque := configuration_incomplete(p):
+        logging.getLogger("boutique.paiements").warning(
+            "Paiement mobile éteint", extra={"raison": manque}
+        )
     return application

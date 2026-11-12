@@ -164,6 +164,8 @@ async def encaisser(
     session: AsyncSession = Depends(session_db),
 ) -> CommandeGestion:
     commande = await acces.charger(session, reference)
+    await acces.verrouiller(session, commande.id)
+    commande = await acces.charger(session, reference)  # montant payé à jour, sous verrou
     if Statut(commande.statut) in SANS_ENCAISSEMENT:
         raise HTTPException(_409, "Seule une commande confirmée peut être encaissée")
     if donnees.montant > commande.reste_a_payer:

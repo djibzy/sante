@@ -115,8 +115,9 @@ export interface PageCommandes {
 export interface Paiement {
   id: string
   montant: number
-  moyen: 'especes' | 'orange_money' | 'moov_money' | 'virement' | 'cheque'
+  moyen: 'especes' | 'orange_money' | 'moov_money' | 'mobile_money' | 'virement' | 'cheque'
   reference: string | null
+  encaisse_par: string | null // vide : payé en ligne par le client
   encaisse_le: string
 }
 

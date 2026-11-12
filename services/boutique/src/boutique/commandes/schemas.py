@@ -3,7 +3,7 @@
 from datetime import date, datetime
 from uuid import UUID
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 from boutique.commandes.cycle import ModeLivraison, ModePaiement, Moyen, Statut
 
@@ -273,6 +273,13 @@ class NouveauPaiement(BaseModel):
     montant: int = Field(ge=1, le=100_000_000)
     moyen: Moyen
     reference: str | None = Field(None, max_length=80)
+
+    @field_validator("moyen")
+    @classmethod
+    def _pas_en_ligne(cls, moyen: Moyen) -> Moyen:
+        if moyen == Moyen.MOBILE_MONEY:
+            raise ValueError("Réservé aux paiements faits en ligne par le client")
+        return moyen
 
 
 class LigneDevis(BaseModel):

@@ -14,6 +14,7 @@ semaine 4. Elle sera refaite avant l'ouverture au public, puis à chaque nouveau
 | Abus | Limites par adresse IP (commandes, devis, suivi, connexion, inscription), larges car les opérateurs mobiles partagent leurs adresses ; 5 demandes non traitées au plus par numéro sur 24 heures |
 | Données | Aucune donnée de santé dans la boutique ; rappel « n'indiquez aucune information médicale » dans les champs libres ; journal d'audit sans nom ni téléphone ; numéros masqués dans les journaux d'envoi des SMS |
 | Montants | Prix toujours recalculés par le serveur ; contraintes en base (totaux cohérents, montants positifs) ; factures numérotées sans trou ni doublon |
+| Paiement en ligne | Montant fixé par le serveur (reste à payer) ; statut et montant toujours relus auprès de CinetPay avec notre clé, jamais pris dans la notification ; crédit sous verrou, une seule fois ; montant ou devise différents = « à vérifier », rien de crédité ; aucun nom ni téléphone transmis à l'agrégateur, ni la clé du lien de suivi ; 10 tentatives par commande et par heure ; mode simulation refusé en production |
 | Navigateur | HTTPS automatique, HSTS, `nosniff`, Referrer-Policy, Permissions-Policy, interdiction d'affichage dans un cadre (`X-Frame-Options`, `frame-ancestors`) ; aucun `v-html` dans les interfaces |
 | Serveur | Seul Caddy est exposé (ports 80 et 443) ; une base et un rôle PostgreSQL par produit ; conteneurs sans droits root ; aucun secret dans le dépôt |
 | Sauvegardes | `pg_dump` de chaque base et archive des photos chaque nuit, 14 jours gardés (service `sauvegarde`) |

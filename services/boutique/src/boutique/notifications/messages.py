@@ -67,3 +67,13 @@ def changement(commande: Commande, statut: Statut) -> str | None:
     }
     texte = textes.get(statut)
     return gsm(texte) if texte else None
+
+
+def paiement_recu(commande: Commande, montant: int) -> str:
+    reste = commande.reste_a_payer
+    suite = (
+        "Commande entièrement payée, merci !" if reste == 0 else f"Reste à payer : {_fcfa(reste)}."
+    )
+    return gsm(
+        f"Bibou : paiement de {_fcfa(montant)} reçu pour la commande {commande.reference}. {suite}"
+    )

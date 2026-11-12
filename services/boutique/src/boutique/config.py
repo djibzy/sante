@@ -44,3 +44,10 @@ class ParametresBoutique(ParametresService):
     # production) et taille maximale d'un envoi.
     dossier_medias: str = "medias"
     taille_max_photo: int = 8 * 1024 * 1024
+
+    # Paiement mobile en ligne : « aucun » (paiement à la livraison seulement), « cinetpay », ou
+    # « simulation » pour les essais (refusée en production).
+    paiement_mobile: Literal["aucun", "cinetpay", "simulation"] = "aucun"
+    cinetpay_apikey: SecretStr = SecretStr("")
+    cinetpay_site_id: str = ""
+    cinetpay_canaux: str = "MOBILE_MONEY"

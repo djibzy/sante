@@ -4,8 +4,9 @@ import { classeStatut } from '~/types/commandes'
 
 const route = useRoute()
 const reference = String(route.params.reference).toUpperCase()
-const cle = typeof route.query.cle === 'string' ? route.query.cle : ''
+const cle = ref(typeof route.query.cle === 'string' ? route.query.cle : '')
 const nouvelle = route.query.nouvelle === '1'
+const retourPaiement = route.query.paiement === 'retour'
 useSeoMeta({ title: `Suivi ${reference}`, robots: 'noindex' })
 
 const { appeler, telecharger, url } = useApiBoutique()
@@ -18,23 +19,43 @@ const confirmerAnnulation = ref(false)
 const copie = ref(false)
 
 // Avec la clé du lien : suivi public. Sans clé : commande du compte connecté.
-const base = cle ? `/api/v1/suivi/${reference}` : `/api/v1/mes-commandes/${reference}`
-const requete = cle ? { cle } : undefined
-const lienSuivi = computed(() => (import.meta.client && cle ? `${window.location.origin}/suivi/${reference}?cle=${cle}` : ''))
+const base = computed(() => cle.value ? `/api/v1/suivi/${reference}` : `/api/v1/mes-commandes/${reference}`)
+const requete = computed(() => cle.value ? { cle: cle.value } : undefined)
+const lienSuivi = computed(() => (import.meta.client && cle.value ? `${window.location.origin}/suivi/${reference}?cle=${cle.value}` : ''))
 const partage = computed(() => `https://wa.me/?text=${encodeURIComponent(`Suivi de ma commande Bibou ${reference} : ${lienSuivi.value}`)}`)
+
+/** Retour de la page de paiement : l'onglet a gardé la clé du lien de suivi. */
+function cleDeCetOnglet(): string {
+  try {
+    return sessionStorage.getItem(`bibou:suivi:${reference}`) ?? ''
+  } catch {
+    return ''
+  }
+}
 
 async function charger() {
   chargement.value = true
   try {
-    if (!cle) await attendre()
-    commande.value = await appeler<Commande>(base, { query: requete })
+    if (!cle.value) cle.value = cleDeCetOnglet()
+    if (!cle.value) await attendre()
+    commande.value = await appeler<Commande>(base.value, { query: requete.value })
   } catch (e) {
     const statut = (e as { status?: number }).status
     erreur.value = statut === 404 || statut === 401
-      ? 'Commande introuvable. Ouvrez le lien de suivi reçu, ou connectez-vous avec le compte qui a passé la commande.'
+      ? retourPaiement
+        ? 'Votre paiement est en cours de vérification : vous recevrez un SMS dès qu\'il est confirmé. Ouvrez le lien de suivi reçu par SMS pour voir votre commande.'
+        : 'Commande introuvable. Ouvrez le lien de suivi reçu, ou connectez-vous avec le compte qui a passé la commande.'
       : messageErreur(e)
   } finally {
     chargement.value = false
+  }
+}
+
+async function recharger() {
+  try {
+    commande.value = await appeler<Commande>(base.value, { query: requete.value })
+  } catch {
+    // la page garde l'état affiché ; le SMS de confirmation suivra
   }
 }
 
@@ -42,7 +63,7 @@ async function agir(nom: 'annulation' | 'acceptation') {
   action.value = nom
   erreur.value = ''
   try {
-    commande.value = await appeler<Commande>(`${base}/${nom}`, { method: 'POST', query: requete })
+    commande.value = await appeler<Commande>(`${base.value}/${nom}`, { method: 'POST', query: requete.value })
     confirmerAnnulation.value = false
   } catch (e) {
     erreur.value = messageErreur(e)
@@ -52,7 +73,7 @@ async function agir(nom: 'annulation' | 'acceptation') {
 }
 
 async function telechargerDocument(nature: 'devis' | 'facture') {
-  if (cle) window.location.href = url(`/api/v1/suivi/${reference}/${nature}.pdf?cle=${encodeURIComponent(cle)}`)
+  if (cle.value) window.location.href = url(`/api/v1/suivi/${reference}/${nature}.pdf?cle=${encodeURIComponent(cle.value)}`)
   else await telecharger(`/api/v1/mes-commandes/${reference}/${nature}.pdf`, `${nature}-${reference}.pdf`)
 }
 
@@ -121,6 +142,7 @@ onMounted(charger)
           <button v-if="commande.facture" type="button" class="bouton bouton-secondaire bouton-large" @click="telechargerDocument('facture')">
             Télécharger la facture {{ commande.facture }}
           </button>
+          <PaiementMobile :commande="commande" :base="base" :requete="requete" :cle="cle" @paye="recharger" />
           <h2>Étapes</h2>
           <HistoriqueCommande :evenements="commande.historique" />
           <template v-if="commande.peut_annuler">

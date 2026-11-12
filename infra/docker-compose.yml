@@ -50,13 +50,16 @@ services:
       BOUTIQUE_MENTIONS_LEGALES: ${BOUTIQUE_MENTIONS_LEGALES:-}
       BOUTIQUE_URL_PUBLIQUE: https://boutique.${DOMAINE}
       BOUTIQUE_DOSSIER_MEDIAS: /medias
+      BOUTIQUE_PAIEMENT_MOBILE: ${BOUTIQUE_PAIEMENT_MOBILE:-aucun}
+      BOUTIQUE_CINETPAY_APIKEY: ${BOUTIQUE_CINETPAY_APIKEY:-}
+      BOUTIQUE_CINETPAY_SITE_ID: ${BOUTIQUE_CINETPAY_SITE_ID:-}
     volumes:
       - medias:/medias
     depends_on:
       postgres: { condition: service_healthy }
 
   # Envoi des SMS aux clients (boîte d'envoi en base). Sans fournisseur configuré, les SMS sont
-  # seulement écrits dans les journaux.
+  # seulement écrits dans les journaux. Relit aussi les paiements en ligne restés en attente.
   boutique-envoi:
     build:
       context: ..
@@ -72,6 +75,10 @@ services:
       BOUTIQUE_SMS_NOM_EXPEDITEUR: ${BOUTIQUE_SMS_NOM_EXPEDITEUR:-}
       BOUTIQUE_ORANGE_CLIENT_ID: ${BOUTIQUE_ORANGE_CLIENT_ID:-}
       BOUTIQUE_ORANGE_CLIENT_SECRET: ${BOUTIQUE_ORANGE_CLIENT_SECRET:-}
+      BOUTIQUE_URL_PUBLIQUE: https://boutique.${DOMAINE}
+      BOUTIQUE_PAIEMENT_MOBILE: ${BOUTIQUE_PAIEMENT_MOBILE:-aucun}
+      BOUTIQUE_CINETPAY_APIKEY: ${BOUTIQUE_CINETPAY_APIKEY:-}
+      BOUTIQUE_CINETPAY_SITE_ID: ${BOUTIQUE_CINETPAY_SITE_ID:-}
     depends_on:
       boutique: { condition: service_started }
 

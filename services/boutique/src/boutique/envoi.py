@@ -1,4 +1,5 @@
-"""Processus d'envoi des SMS : lit la boîte d'envoi et expédie, avec reprises espacées.
+"""Processus d'envoi des SMS : lit la boîte d'envoi et expédie, avec reprises espacées. Il
+relit aussi, toutes les 5 minutes, les paiements en ligne restés sans réponse.
 
     uv run python -m boutique.envoi
 
@@ -19,11 +20,14 @@ from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 from boutique.config import ParametresBoutique
 from boutique.models import Notification
+from boutique.paiements import fournisseurs
+from boutique.paiements.service import rapprocher
 from socle.db import creer_moteur, fabrique_sessions
 from socle.journaux import configurer_journaux
 
 journal = logging.getLogger("boutique.envoi")
 TENTATIVES_MAX = 5
+RAPPROCHEMENT_SECONDES = 300.0
 
 
 class Expediteur(Protocol):
@@ -142,6 +146,8 @@ async def boucle(parametres: ParametresBoutique, pause: float = 5.0) -> None:
     sessions = fabrique_sessions(moteur)
     async with httpx.AsyncClient(timeout=20) as client:
         expediteur = expediteur_pour(parametres, client)
+        agregateur = fournisseurs.fournisseur(parametres, client)
+        prochain_rapprochement = time.monotonic()
         journal.info("Envoi des SMS démarré", extra={"fournisseur": parametres.sms_fournisseur})
         while True:
             try:
@@ -149,6 +155,12 @@ async def boucle(parametres: ParametresBoutique, pause: float = 5.0) -> None:
             except Exception:  # noqa: BLE001 - base indisponible : on réessaie
                 journal.exception("Tour d'envoi interrompu")
                 traites = 0
+            if agregateur is not None and time.monotonic() >= prochain_rapprochement:
+                prochain_rapprochement = time.monotonic() + RAPPROCHEMENT_SECONDES
+                try:
+                    await rapprocher(sessions, agregateur)
+                except Exception:  # noqa: BLE001 - agrégateur ou base indisponible
+                    journal.exception("Rapprochement des paiements interrompu")
             if not traites:
                 await asyncio.sleep(pause)
 

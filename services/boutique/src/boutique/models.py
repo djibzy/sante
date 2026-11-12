@@ -456,5 +456,30 @@ class Notification(IdMixin, Base):
     envoyee_le: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
 
 
+class TransactionPaiement(IdMixin, HorodatageMixin, Base):
+    """Paiement en ligne demandé à l'agrégateur (CinetPay). Son statut ne vient jamais de la
+    notification reçue : il est toujours relu auprès de l'agrégateur."""
+
+    __tablename__ = "transactions_paiement"
+    __table_args__ = (
+        CheckConstraint(
+            "statut IN ('initiee', 'acceptee', 'refusee', 'anomalie')", name="statut_valide"
+        ),
+        CheckConstraint("montant > 0", name="montant_positif"),
+    )
+
+    commande_id: Mapped[UUID] = mapped_column(
+        ForeignKey("commandes.id"), index=True, nullable=False
+    )
+    fournisseur: Mapped[str] = mapped_column(String(20), nullable=False)
+    transaction_id: Mapped[str] = mapped_column(String(60), unique=True, nullable=False)
+    montant: Mapped[int] = mapped_column(nullable=False)
+    statut: Mapped[str] = mapped_column(String(10), index=True, nullable=False)
+    adresse_paiement: Mapped[str | None] = mapped_column(String(500))
+    operateur: Mapped[str | None] = mapped_column(String(20))  # OM, MOOV…
+    reference_operateur: Mapped[str | None] = mapped_column(String(80))
+    paiement_id: Mapped[UUID | None] = mapped_column(ForeignKey("paiements.id"))
+
+
 class JournalAudit(JournalAuditMixin, Base):
     __tablename__ = "journal_audit"

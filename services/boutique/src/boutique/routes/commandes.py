@@ -280,10 +280,7 @@ async def telecharger_devis(
 
 
 async def _mienne(session: AsyncSession, reference: str, principal: Principal) -> Commande:
-    commande = await acces.charger(session, reference)
-    if commande.client_id != principal.id:
-        raise HTTPException(status.HTTP_404_NOT_FOUND, acces.INTROUVABLE)
-    return commande
+    return await acces.charger_pour_compte(session, reference, principal.id)
 
 
 @routeur.get("/mes-commandes", summary="Mes commandes et devis")

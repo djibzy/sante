@@ -75,6 +75,12 @@ chaque service. Le service `boutique-envoi` expédie les SMS (fournisseur `journ
 rien n'est envoyé tant que le compte Orange n'est pas configuré) ; le service `sauvegarde`
 sauvegarde les bases chaque nuit.
 
+Le paiement mobile en ligne reste éteint (`BOUTIQUE_PAIEMENT_MOBILE=aucun`) tant que le compte
+marchand CinetPay n'est pas ouvert : le client paie à la livraison. Pour l'ouvrir, renseigner
+`BOUTIQUE_PAIEMENT_MOBILE=cinetpay`, `BOUTIQUE_CINETPAY_APIKEY` et `BOUTIQUE_CINETPAY_SITE_ID`,
+puis faire un premier paiement réel de 100 FCFA. En local, `simulation` accepte tout paiement
+sans argent réel (refusé en production).
+
 ## État d'avancement
 
 - [x] Socle, comptes, organisations, catalogue, interface de consultation, déploiement
@@ -82,4 +88,5 @@ sauvegarde les bases chaque nuit.
 - [x] Panier, commande, suivi par lien, devis PDF, paiement à la livraison, gestion (semaine 2)
 - [x] File d'atelier sur tablette, capacité des postes, dates promises selon la charge, stock (semaine 3)
 - [x] Livreurs et feuille de route, factures sans trou, SMS aux clients, revue de sécurité (semaine 4)
-- [ ] Paiement mobile (Orange Money, Moov Money) et pharmacien partenaire (janvier 2027)
+- [x] Paiement mobile en ligne par CinetPay (Orange Money, Moov Money), éteint jusqu'à l'ouverture du compte marchand
+- [ ] Pharmacien partenaire (janvier 2027)

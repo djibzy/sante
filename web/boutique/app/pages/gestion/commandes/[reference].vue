@@ -13,8 +13,10 @@ const envoi = ref(false)
 const base = `/api/v1/admin/commandes/${reference}`
 
 const MOYENS: Record<Paiement['moyen'], string> = {
-  especes: 'Espèces', orange_money: 'Orange Money', moov_money: 'Moov Money', virement: 'Virement', cheque: 'Chèque',
+  especes: 'Espèces', orange_money: 'Orange Money', moov_money: 'Moov Money', mobile_money: 'Paiement mobile', virement: 'Virement', cheque: 'Chèque',
 }
+// « Paiement mobile » : réservé aux paiements faits en ligne par le client.
+const MOYENS_EQUIPE = Object.fromEntries(Object.entries(MOYENS).filter(([cle]) => cle !== 'mobile_money'))
 
 function libelleAction(statut: Statut): string {
   const c = commande.value
@@ -233,7 +235,7 @@ watch(verifie, async () => {
               <p>Payé : <strong>{{ formaterFcfa(commande.montant_paye) }}</strong> sur {{ formaterFcfa(commande.total) }}</p>
               <ul v-if="commande.paiements.length" class="paiements">
                 <li v-for="p in commande.paiements" :key="p.id">
-                  {{ formaterFcfa(p.montant) }}, {{ MOYENS[p.moyen] }}<span v-if="p.reference"> ({{ p.reference }})</span>
+                  {{ formaterFcfa(p.montant) }}, {{ MOYENS[p.moyen] }}<span v-if="!p.encaisse_par">, payé en ligne</span><span v-if="p.reference"> ({{ p.reference }})</span>
                   <small>{{ formaterDateHeure(p.encaisse_le) }}</small>
                 </li>
               </ul>
@@ -247,7 +249,7 @@ watch(verifie, async () => {
                 <div class="champ">
                   <label for="moyen">Moyen</label>
                   <select id="moyen" v-model="encaissement.moyen">
-                    <option v-for="(nom, cle) in MOYENS" :key="cle" :value="cle">{{ nom }}</option>
+                    <option v-for="(nom, cle) in MOYENS_EQUIPE" :key="cle" :value="cle">{{ nom }}</option>
                   </select>
                 </div>
                 <div class="champ"><label for="ref-paiement">N° de transaction (facultatif)</label><input id="ref-paiement" v-model="encaissement.reference" maxlength="80"></div>

@@ -89,6 +89,20 @@ async def charger_pour_client(session: AsyncSession, reference: str, cle: str | 
     return commande
 
 
+async def charger_pour_compte(session: AsyncSession, reference: str, client_id: UUID) -> Commande:
+    """Commande passée avec ce compte ; même réponse qu'une référence inconnue sinon."""
+    commande = await charger(session, reference)
+    if commande.client_id != client_id:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, INTROUVABLE)
+    return commande
+
+
+async def verrouiller(session: AsyncSession, commande_id: UUID) -> None:
+    """Verrouille la commande jusqu'à la fin de la transaction : deux encaissements simultanés
+    (équipe, paiement en ligne) ne peuvent pas écraser le montant payé l'un de l'autre."""
+    await session.execute(select(Commande.id).where(Commande.id == commande_id).with_for_update())
+
+
 def requete_resumes() -> Select[Commande, str | None, int]:
     """Commandes avec le nom de leur zone et leur nombre d'articles, sans charger les lignes."""
     articles = (

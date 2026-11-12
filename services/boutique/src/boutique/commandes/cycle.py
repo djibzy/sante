@@ -64,11 +64,12 @@ class ModePaiement(StrEnum):
 
 
 class Moyen(StrEnum):
-    """Moyen d'encaissement enregistré par l'équipe."""
+    """Moyen d'encaissement : enregistré par l'équipe, ou payé en ligne par le client."""
 
     ESPECES = "especes"
     ORANGE_MONEY = "orange_money"
     MOOV_MONEY = "moov_money"
+    MOBILE_MONEY = "mobile_money"  # paiement en ligne dont l'opérateur n'est pas reconnu
     VIREMENT = "virement"
     CHEQUE = "cheque"
 
