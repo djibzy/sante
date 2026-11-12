@@ -5,11 +5,13 @@ import type { Metier, PageProduits, ProduitDetail } from '~/types/catalogue'
 
 const route = useRoute()
 const config = useRuntimeConfig()
-const { data: produit } = await useBoutiqueFetch<ProduitDetail>(
+const { data: produit, error: erreurProduit } = await useBoutiqueFetch<ProduitDetail>(
   () => `/api/v1/produits/${String(route.params.slug)}`,
 )
 if (!produit.value) {
-  throw createError({ statusCode: 404, statusMessage: 'Produit introuvable', fatal: true })
+  // 503 : hors ligne, fiche pas encore enregistrée sur l'appareil.
+  const statusCode = erreurProduit.value?.statusCode === 503 ? 503 : 404
+  throw createError({ statusCode, statusMessage: 'Produit introuvable', fatal: true })
 }
 const { data: metiers } = await useBoutiqueFetch<Metier[]>('/api/v1/metiers')
 const { data: voisins } = await useBoutiqueFetch<PageProduits>('/api/v1/produits', {
@@ -41,6 +43,8 @@ const erreur = ref('')
 const { ajouter } = usePanier()
 const adresse = useAdresseImage()
 const photo = ref(0)
+const photoAbsente = ref(false) // hors ligne, photo pas encore vue : le pictogramme la remplace
+watch(photo, () => { photoAbsente.value = false })
 
 function ajouterAuPanier() {
   const p = produit.value!
@@ -124,7 +128,10 @@ useHead(() => {
 
     <div class="colonnes">
       <div class="visuel">
-        <img v-if="produit.images[photo]" :src="adresse(produit.images[photo]!.url)" :alt="produit.images[photo]!.texte_alternatif">
+        <img
+          v-if="produit.images[photo] && !photoAbsente" :src="adresse(produit.images[photo]!.url)" :alt="produit.images[photo]!.texte_alternatif"
+          @error="photoAbsente = true"
+        >
         <ChartePictogramme v-else :type="produit.rayon_slug" :taille="150" :teinte="teinte" />
         <span class="badges">
           <span v-if="produit.est_nouveau" class="badge">Nouveau</span>

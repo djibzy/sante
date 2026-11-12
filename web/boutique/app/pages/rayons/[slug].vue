@@ -3,10 +3,11 @@ import type { Rayon } from '~/types/catalogue'
 
 const route = useRoute()
 const slug = computed(() => String(route.params.slug))
-const { data: rayons } = await useBoutiqueFetch<Rayon[]>('/api/v1/rayons')
+const { data: rayons, error } = await useBoutiqueFetch<Rayon[]>('/api/v1/rayons')
 const rayon = computed(() => rayons.value?.find(r => r.slug === slug.value))
 if (!rayon.value) {
-  throw createError({ statusCode: 404, statusMessage: 'Rayon introuvable', fatal: true })
+  const statusCode = error.value?.statusCode === 503 ? 503 : 404
+  throw createError({ statusCode, statusMessage: 'Rayon introuvable', fatal: true })
 }
 const cadre = computed(() => ({ rayon: slug.value }))
 useSeoMeta({ title: () => rayon.value?.nom ?? 'Rayon', description: () => rayon.value?.description })

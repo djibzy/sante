@@ -1,4 +1,25 @@
+import { createHash } from 'node:crypto'
+import { readdir, readFile, writeFile } from 'node:fs/promises'
+import { join, relative, sep } from 'node:path'
 import { fileURLToPath } from 'node:url'
+
+/** Écrit /sw.js (travail hors ligne) avec la liste des fichiers publics de cette construction :
+ * application (/_nuxt/), logos et icônes. */
+async function ecrireServiceWorker(dossierPublic: string) {
+  const entrees = await readdir(dossierPublic, { recursive: true, withFileTypes: true })
+  const fichiers = entrees
+    .filter(f => f.isFile())
+    .map(f => `/${relative(dossierPublic, join(f.parentPath, f.name)).split(sep).join('/')}`)
+    .filter(chemin => chemin !== '/sw.js' && !chemin.startsWith('/.well-known/')
+      && chemin !== '/_nuxt/builds/latest.json') // dernière version publiée : toujours relue
+    .sort()
+  const modele = await readFile(fileURLToPath(new URL('./sw/modele.js', import.meta.url)), 'utf8')
+  const version = createHash('sha256').update(modele).update(fichiers.join('\n')).digest('hex').slice(0, 12)
+  await writeFile(
+    join(dossierPublic, 'sw.js'),
+    modele.replace('__BIBOU_VERSION__', () => version).replace('__BIBOU_FICHIERS__', () => JSON.stringify(fichiers)),
+  )
+}
 
 export default defineNuxtConfig({
   compatibilityDate: '2026-11-01',
@@ -15,6 +36,9 @@ export default defineNuxtConfig({
       apiComptes: 'http://localhost:8001',
       whatsapp: '', // numéro de commande, format international sans « + » (ex. 22376000000)
     },
+  },
+  hooks: {
+    'nitro:build:public-assets': nitro => ecrireServiceWorker(nitro.options.output.publicDir),
   },
   app: {
     head: {

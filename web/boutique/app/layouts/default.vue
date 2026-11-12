@@ -10,6 +10,7 @@ const whatsapp = computed(() => config.public.whatsapp ? `https://wa.me/${config
 <template>
   <div class="page">
     <EnTete />
+    <BandeauHorsLigne />
     <main>
       <slot />
     </main>
@@ -35,6 +36,7 @@ const whatsapp = computed(() => config.public.whatsapp ? `https://wa.me/${config
           <NuxtLink to="/services#structures">Devis pour les structures</NuxtLink>
           <NuxtLink to="/services">Nos autres services</NuxtLink>
           <NuxtLink to="/mes-commandes">Suivre ma commande</NuxtLink>
+          <NuxtLink to="/hors-ligne">Catalogue hors ligne</NuxtLink>
         </nav>
         <div>
           <p class="titre-pied">Nous joindre</p>
