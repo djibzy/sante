@@ -3,7 +3,8 @@ useSeoMeta({ title: 'Demander un devis', robots: 'noindex' })
 const { lignes, livraison, demande } = usePanier()
 const { utilisateur } = useSession()
 const { chiffrage, zones, enCours } = useChiffrage()
-const { envoyer, envoi, erreur } = useEnvoiCommande('/api/v1/devis')
+const { envoyer, envoi, erreur, gardee, annulerEnvoiGarde } = useEnvoiCommande('/api/v1/devis')
+const { enLigne } = useHorsLigne()
 const monte = ref(false)
 const formulaire = reactive({ etablissement: '', nom: '', telephone: '', email: '', note: '' })
 
@@ -66,11 +67,16 @@ function valider() {
       </div>
       <aside class="carte bloc">
         <h2>Estimation au prix public</h2>
-        <RecapitulatifPrix :chiffrage="chiffrage" :en-cours="enCours" />
+        <RecapitulatifPrix v-if="enLigne" :chiffrage="chiffrage" :en-cours="enCours" />
         <p class="aide">Le devis final tient compte des quantités et du prix professionnel.</p>
+        <p v-if="!enLigne" class="aide">Hors ligne : l'estimation s'affichera avec le réseau.</p>
         <div v-if="erreur" class="alerte alerte-erreur" role="alert">{{ erreur }}</div>
-        <button type="submit" class="bouton bouton-large" :disabled="envoi || !chiffrage?.commandable">
-          {{ envoi ? 'Envoi…' : 'Envoyer la demande de devis' }}
+        <div v-if="gardee" class="alerte alerte-info" role="status">
+          <p>Demande gardée sur ce téléphone : elle partira toute seule dès le retour du réseau.</p>
+          <button type="button" class="bouton bouton-discret" @click="annulerEnvoiGarde">Annuler l'envoi</button>
+        </div>
+        <button v-else type="submit" class="bouton bouton-large" :disabled="envoi || (enLigne && !chiffrage?.commandable)">
+          {{ envoi ? 'Envoi…' : enLigne ? 'Envoyer la demande de devis' : 'Envoyer dès le retour du réseau' }}
         </button>
       </aside>
     </form>

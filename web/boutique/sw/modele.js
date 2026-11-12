@@ -25,7 +25,7 @@ const MESSAGE_HORS_LIGNE = "Vous êtes hors ligne, et cette page n'est pas enreg
 self.addEventListener('install', (evenement) => {
   evenement.waitUntil((async () => {
     const cache = await caches.open(COQUILLE)
-    await cache.addAll(['/', HORS_LIGNE, '/panier', ...FICHIERS])
+    await cache.addAll(['/', HORS_LIGNE, '/panier', '/commande', '/devis', ...FICHIERS])
     await self.skipWaiting()
   })())
 })
