@@ -63,7 +63,8 @@ async def test_un_sms_a_chaque_etape_utile(app: FastAPI, client: AsyncClient) ->
         f"{(datetime.now(UTC).date() + timedelta(days=8)).strftime('%d/%m')}.",
         f"Bibou : commande {reference} en route avec Moussa Konaté (+223 76 55 44 33). "
         "A payer : 8 500 FCFA.",
-        f"Bibou : commande {reference} remise. Merci de votre confiance !",
+        f"Bibou : commande {reference} remise. Merci de votre confiance ! "
+        "Donnez votre avis depuis votre lien de suivi.",
     ]
     assert all(set(m) <= GSM7 for m in messages)
     assert {n.destinataire for n in await sms(app)} == {"+22376123456"}

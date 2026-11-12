@@ -14,6 +14,7 @@ const { verifie, autorise, utilisateur, estGestionnaire } = useEquipe(props.role
       <NuxtLink to="/atelier">Atelier</NuxtLink>
       <NuxtLink v-if="estGestionnaire" to="/gestion/stock">Stock</NuxtLink>
       <NuxtLink v-if="estGestionnaire" to="/gestion/catalogue">Catalogue</NuxtLink>
+      <NuxtLink v-if="estGestionnaire" to="/gestion/avis">Avis</NuxtLink>
     </nav>
     <slot />
   </template>

@@ -52,6 +52,10 @@ def vers_resume(produit: Produit) -> ProduitResume:
         tailles=tailles,
         delai_jours=produit.delai_jours,
         fabrique_sur_commande=produit.poste_atelier is not None,
+        note_moyenne=round(produit.somme_notes / produit.nombre_avis, 1)
+        if produit.nombre_avis
+        else None,
+        nombre_avis=produit.nombre_avis,
     )
 
 

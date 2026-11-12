@@ -29,6 +29,10 @@ const delai = computed(() => {
     <div class="texte">
       <PastillesCouleurs :couleurs="produit.couleurs" />
       <h3>{{ produit.nom }}</h3>
+      <p v-if="produit.nombre_avis && produit.note_moyenne" class="note">
+        <NoteEtoiles :note="produit.note_moyenne" :taille="14" />
+        <span>({{ produit.nombre_avis }}<span class="visuellement-cache"> avis</span>)</span>
+      </p>
       <p class="prix">
         <ChartePrix :montant="produit.prix_public" />
         <s v-if="produit.prix_avant_promo" class="barre">{{ formaterFcfa(produit.prix_avant_promo) }}</s>
@@ -58,4 +62,5 @@ h3 { font-size: 1rem; font-weight: 650; margin: 0; line-height: 1.3; }
 .prix { margin: 0; display: flex; align-items: baseline; gap: 8px; font-weight: 750; }
 .barre { color: var(--texte-doux); font-weight: 400; font-size: 0.9rem; }
 .delai { margin: 0; color: var(--texte-doux); font-size: 0.85rem; }
+.note { margin: 0; display: flex; align-items: center; gap: 6px; color: var(--texte-doux); font-size: 0.85rem; }
 </style>

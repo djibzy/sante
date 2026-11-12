@@ -16,6 +16,9 @@
   --texte-doux: #5b5a78;
   --bordure: #e3e2f0;
   --ombre: 0 1px 2px rgba(23, 21, 58, 0.06), 0 6px 20px rgba(23, 21, 58, 0.07);
+  /* Étoiles des avis : orange assombri, 3,5:1 sur le blanc (élément graphique lisible). */
+  --etoile: #c77700;
+  --etoile-vide: #d9d7ea;
 }
 
 /* Bouton d'action principal sur fond bleu : l'orange du sourire, texte à l'encre. */

@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import type { PageAvis } from '~/types/avis'
+import { formaterNote } from '~/types/avis'
 import type { Metier, PageProduits, ProduitDetail } from '~/types/catalogue'
 
 const route = useRoute()
@@ -14,6 +16,9 @@ const { data: voisins } = await useBoutiqueFetch<PageProduits>('/api/v1/produits
   query: { rayon: produit.value.rayon_slug, par_page: 5 },
 })
 const suggestions = computed(() => (voisins.value?.elements ?? []).filter(p => p.slug !== produit.value?.slug).slice(0, 4))
+const { data: avis } = await useBoutiqueFetch<PageAvis>(
+  () => `/api/v1/produits/${String(route.params.slug)}/avis`, { query: { par_page: 5 } },
+)
 
 // Choix en deux temps, comme en boutique : la couleur, puis la taille.
 const couleur = ref<string | null>(produit.value.couleurs[0]?.nom ?? null)
@@ -83,6 +88,31 @@ useSeoMeta({
   ogTitle: () => produit.value?.nom,
   ogDescription: () => produit.value?.resume,
 })
+
+// Données structurées (schema.org) : prix et note moyenne visibles dans les moteurs de recherche.
+const origine = useRequestURL().origin
+useHead(() => {
+  const p = produit.value
+  if (!p?.vendable_en_ligne || p.prix_public === null) return {}
+  const absolue = (url: string) => (adresse(url).startsWith('http') ? adresse(url) : `${origine}${adresse(url)}`)
+  const donnees: Record<string, unknown> = {
+    '@context': 'https://schema.org',
+    '@type': 'Product',
+    name: p.nom,
+    description: p.resume,
+    sku: p.slug,
+    brand: { '@type': 'Brand', name: 'Bibou' },
+    image: p.images.map(i => absolue(i.url)),
+    offers: { '@type': 'Offer', price: p.prix_public, priceCurrency: 'XOF', availability: 'https://schema.org/InStock' },
+  }
+  if (p.nombre_avis && p.note_moyenne) {
+    donnees.aggregateRating = {
+      '@type': 'AggregateRating', ratingValue: p.note_moyenne, reviewCount: p.nombre_avis, bestRating: 5, worstRating: 1,
+    }
+  }
+  // « < » échappé : aucun texte du catalogue ne peut refermer la balise script.
+  return { script: [{ type: 'application/ld+json', innerHTML: JSON.stringify(donnees).replace(/</g, '\\u003c') }] }
+})
 </script>
 
 <template>
@@ -114,6 +144,10 @@ useSeoMeta({
       <div class="infos">
         <p v-if="produit.collection" class="collection">Collection {{ produit.collection }}</p>
         <h1>{{ produit.nom }}</h1>
+        <a v-if="produit.nombre_avis && produit.note_moyenne" href="#avis" class="note-resume">
+          <NoteEtoiles :note="produit.note_moyenne" />
+          {{ formaterNote(produit.note_moyenne) }} ({{ produit.nombre_avis }} avis)
+        </a>
         <p class="resume">{{ produit.resume }}</p>
 
         <template v-if="produit.vendable_en_ligne">
@@ -202,6 +236,8 @@ useSeoMeta({
       </div>
     </div>
 
+    <AvisProduit v-if="produit.vendable_en_ligne && avis" :slug="produit.slug" :page="avis" />
+
     <section v-if="suggestions.length" class="suggestions">
       <h2>Dans le même rayon</h2>
       <GrilleProduits :produits="suggestions" />
@@ -228,6 +264,8 @@ useSeoMeta({
 .badge-promo { background: var(--accent); color: var(--texte); }
 .collection { margin: 0; color: var(--primaire); font-weight: 700; font-size: 0.92rem; }
 .infos h1 { margin: 4px 0 8px; }
+.note-resume { display: inline-flex; align-items: center; gap: 8px; color: var(--texte); font-weight: 600; text-decoration: none; margin-bottom: 6px; }
+.note-resume:hover { text-decoration: underline; }
 .resume { color: var(--texte-doux); font-size: 1.05rem; }
 .prix { font-size: 1.6rem; margin: 0 0 4px; display: flex; align-items: baseline; gap: 12px; font-weight: 800; }
 .barre { color: var(--texte-doux); font-size: 1.05rem; font-weight: 400; }

@@ -159,6 +159,7 @@ onMounted(charger)
           </template>
         </aside>
       </div>
+      <AvisCommande v-if="commande.statut === 'livree'" class="carte" :base="base" :requete="requete" />
     </template>
   </section>
 </template>

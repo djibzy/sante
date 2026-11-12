@@ -93,6 +93,10 @@ class Produit(IdMixin, HorodatageMixin, Base):
         CheckConstraint(
             f"manches IS NULL OR manches IN ({_valeurs(MANCHES)})", name="manches_valides"
         ),
+        CheckConstraint(
+            "nombre_avis >= 0 AND somme_notes BETWEEN nombre_avis AND 5 * nombre_avis",
+            name="avis_coherents",
+        ),
         Index("ix_produits_metiers", "metiers", postgresql_using="gin"),
     )
 
@@ -126,6 +130,10 @@ class Produit(IdMixin, HorodatageMixin, Base):
     )
     est_nouveau: Mapped[bool] = mapped_column(nullable=False, default=False, server_default=false())
     prix_avant_promo: Mapped[int | None] = mapped_column()  # prix barré pendant une promotion
+    # Avis publiés, recomptés à chaque décision de l'équipe : les listes affichent la note
+    # sans calcul. Moyenne = somme_notes / nombre_avis.
+    nombre_avis: Mapped[int] = mapped_column(nullable=False, default=0, server_default="0")
+    somme_notes: Mapped[int] = mapped_column(nullable=False, default=0, server_default="0")
 
     rayon: Mapped[Rayon] = relationship(lazy="raise")
     variantes: Mapped[list["Variante"]] = relationship(
@@ -479,6 +487,32 @@ class TransactionPaiement(IdMixin, HorodatageMixin, Base):
     operateur: Mapped[str | None] = mapped_column(String(20))  # OM, MOOV…
     reference_operateur: Mapped[str | None] = mapped_column(String(80))
     paiement_id: Mapped[UUID | None] = mapped_column(ForeignKey("paiements.id"))
+
+
+class Avis(IdMixin, HorodatageMixin, Base):
+    """Avis d'un client sur un produit qu'il a reçu : un par produit et par commande, publié
+    seulement après relecture par l'équipe (aucune information médicale, aucun nom complet)."""
+
+    __tablename__ = "avis"
+    __table_args__ = (
+        CheckConstraint("note BETWEEN 1 AND 5", name="note_valide"),
+        CheckConstraint("statut IN ('en_attente', 'publie', 'refuse')", name="statut_valide"),
+        CheckConstraint("statut <> 'refuse' OR motif_refus IS NOT NULL", name="motif_requis"),
+        UniqueConstraint("commande_id", "produit_id"),
+    )
+
+    produit_id: Mapped[UUID] = mapped_column(ForeignKey("produits.id"), index=True, nullable=False)
+    commande_id: Mapped[UUID] = mapped_column(ForeignKey("commandes.id"), nullable=False)
+    note: Mapped[int] = mapped_column(nullable=False)
+    texte: Mapped[str] = mapped_column(String(1000), nullable=False)
+    auteur: Mapped[str] = mapped_column(String(60), nullable=False)  # « Aminata T. »
+    statut: Mapped[str] = mapped_column(
+        String(10), index=True, nullable=False, default="en_attente"
+    )
+    motif_refus: Mapped[str | None] = mapped_column(String(200))  # montré au client
+    reponse: Mapped[str | None] = mapped_column(String(1000))  # de la boutique, publiée avec
+    modere_par: Mapped[UUID | None] = mapped_column(Uuid)
+    modere_le: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
 
 
 class JournalAudit(JournalAuditMixin, Base):

@@ -92,6 +92,8 @@ class ProduitResume(BaseModel):
     tailles: list[str]
     delai_jours: int
     fabrique_sur_commande: bool = Field(description="Fabriqué ou brodé à l'atelier")
+    note_moyenne: float | None = Field(None, description="Moyenne des avis publiés, sur 5")
+    nombre_avis: int = 0
 
 
 class ProduitDetail(ProduitResume):

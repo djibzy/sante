@@ -62,7 +62,8 @@ def changement(commande: Commande, statut: Statut) -> str | None:
             else ""
         )
         + f". A payer : {reste}.",
-        Statut.LIVREE: f"Bibou : commande {ref} remise. Merci de votre confiance !",
+        Statut.LIVREE: f"Bibou : commande {ref} remise. Merci de votre confiance ! "
+        "Donnez votre avis depuis votre lien de suivi.",
         Statut.ANNULEE: f"Bibou : commande {ref} annulée. Une question ? Appelez-nous.",
     }
     texte = textes.get(statut)

@@ -62,6 +62,8 @@ export interface ProduitResume {
   tailles: string[]
   delai_jours: number
   fabrique_sur_commande: boolean
+  note_moyenne: number | null
+  nombre_avis: number
 }
 
 export interface Variante {

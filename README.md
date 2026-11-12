@@ -89,4 +89,5 @@ sans argent réel (refusé en production).
 - [x] File d'atelier sur tablette, capacité des postes, dates promises selon la charge, stock (semaine 3)
 - [x] Livreurs et feuille de route, factures sans trou, SMS aux clients, revue de sécurité (semaine 4)
 - [x] Paiement mobile en ligne par CinetPay (Orange Money, Moov Money), éteint jusqu'à l'ouverture du compte marchand
+- [x] Avis clients vérifiés : réservés aux clients livrés, relus par l'équipe avant publication, note moyenne sur les fiches et les cartes
 - [ ] Pharmacien partenaire (janvier 2027)
