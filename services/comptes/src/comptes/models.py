@@ -127,3 +127,23 @@ class Adhesion(IdMixin, Base):
 
 class JournalAudit(JournalAuditMixin, Base):
     __tablename__ = "journal_audit"
+
+
+class CodeVerification(IdMixin, Base):
+    """Code à usage unique envoyé par SMS (mot de passe oublié). Seule son empreinte est
+    gardée ; il expire vite et ne supporte que quelques essais."""
+
+    __tablename__ = "codes_verification"
+    __table_args__ = (CheckConstraint("objet IN ('mot_de_passe')", name="objet_valide"),)
+
+    utilisateur_id: Mapped[UUID] = mapped_column(
+        ForeignKey("utilisateurs.id", ondelete="CASCADE"), index=True, nullable=False
+    )
+    objet: Mapped[str] = mapped_column(String(30), nullable=False)
+    empreinte: Mapped[str] = mapped_column(String(64), nullable=False)
+    essais: Mapped[int] = mapped_column(nullable=False, default=0, server_default="0")
+    expire_le: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    utilise_le: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    cree_le: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), nullable=False
+    )

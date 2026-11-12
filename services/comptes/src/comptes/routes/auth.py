@@ -1,4 +1,4 @@
-"""Inscription, connexion, rafraîchissement et déconnexion.
+"""Inscription, connexion, rafraîchissement, déconnexion et mot de passe (oublié ou changé).
 
 Le jeton d'accès est court (15 minutes) ; le jeton de rafraîchissement, long (30 jours),
 change à chaque usage. Réutiliser un jeton déjà remplacé coupe toutes les sessions de la
@@ -10,19 +10,33 @@ from datetime import UTC, datetime, timedelta
 
 from argon2 import PasswordHasher
 from argon2.exceptions import InvalidHashError, VerificationError, VerifyMismatchError
-from fastapi import APIRouter, Cookie, Depends, HTTPException, Request, Response, status
+from fastapi import (
+    APIRouter,
+    BackgroundTasks,
+    Cookie,
+    Depends,
+    HTTPException,
+    Request,
+    Response,
+    status,
+)
 from sqlalchemy import select, update
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from comptes.config import ParametresComptes
+from comptes import codes
+from comptes.config import LONGUEUR_EQUIPE, ROLES_EQUIPE, ParametresComptes
 from comptes.jetons import Signataire, empreinte, nouveau_jeton_rafraichissement
 from comptes.models import Consentement, JetonRafraichissement, JournalAudit, Utilisateur
 from comptes.schemas import (
+    ChangementMotDePasse,
     Connexion,
+    DemandeCode,
     DemandeRafraichissement,
     Inscription,
     Jetons,
+    Message,
+    Reinitialisation,
     UtilisateurPublic,
 )
 from socle.audit import journaliser
@@ -322,3 +336,153 @@ async def moi(
     if utilisateur is None or not utilisateur.est_actif:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "Compte introuvable")
     return UtilisateurPublic.model_validate(utilisateur)
+
+
+CODE_ENVOYE = (
+    "Si un compte existe pour ce numéro, un code vient d'être envoyé par SMS. "
+    "Il est valable 10 minutes."
+)
+CODE_INVALIDE = "Code incorrect ou expiré. Demandez un nouveau code si besoin."
+
+
+def _longueur_suffisante(utilisateur: Utilisateur, mot_de_passe: str) -> None:
+    if ROLES_EQUIPE.intersection(utilisateur.roles) and len(mot_de_passe) < LONGUEUR_EQUIPE:
+        raise HTTPException(
+            status.HTTP_422_UNPROCESSABLE_CONTENT,
+            f"Compte de l'équipe : choisissez au moins {LONGUEUR_EQUIPE} caractères.",
+        )
+
+
+async def _nouveau_mot_de_passe(
+    session: AsyncSession, utilisateur: Utilisateur, mot_de_passe: str
+) -> None:
+    """Remplace le mot de passe et coupe toutes les sessions ouvertes (autres appareils)."""
+    utilisateur.mot_de_passe_hash = await asyncio.to_thread(_hacheur.hash, mot_de_passe)
+    utilisateur.echecs_connexion = 0
+    utilisateur.verrouille_jusqua = None
+    await session.execute(
+        update(JetonRafraichissement)
+        .where(
+            JetonRafraichissement.utilisateur_id == utilisateur.id,
+            JetonRafraichissement.revoque_le.is_(None),
+        )
+        .values(revoque_le=datetime.now(UTC))
+    )
+
+
+@routeur.post(
+    "/mot-de-passe-oublie",
+    status_code=status.HTTP_202_ACCEPTED,
+    summary="Recevoir par SMS un code pour choisir un nouveau mot de passe",
+    dependencies=[Depends(LimiteDebit("codes", nombre=10, secondes=600))],
+)
+async def mot_de_passe_oublie(
+    donnees: DemandeCode,
+    request: Request,
+    taches: BackgroundTasks,
+    session: AsyncSession = Depends(session_db),
+) -> Message:
+    p = _parametres(request)
+    try:
+        telephone = normaliser_telephone(donnees.telephone, p.region_telephone)
+    except NumeroInvalide as exc:
+        raise HTTPException(status.HTTP_422_UNPROCESSABLE_CONTENT, str(exc)) from exc
+    utilisateur = await session.scalar(
+        select(Utilisateur).where(Utilisateur.telephone == telephone).with_for_update()
+    )
+    # Même réponse, compte ou non : le numéro d'une personne ne se vérifie pas ici.
+    if utilisateur is not None and utilisateur.est_actif:
+        code = await codes.creer(session, utilisateur, "mot_de_passe", p)
+        if code is not None:
+            journaliser(
+                session,
+                JournalAudit,
+                action="mot_de_passe.code_envoye",
+                objet_type="utilisateur",
+                objet_id=utilisateur.id,
+                adresse_ip=_ip(request),
+            )
+            await session.commit()
+            texte = (
+                f"Yasal Santé : votre code est {code}. Il sert à choisir un nouveau mot de "
+                f"passe et expire dans {p.code_validite_minutes} minutes. Ne le donnez à personne."
+            )
+            taches.add_task(codes.envoyer_sms, request.app, telephone, texte)
+    return Message(message=CODE_ENVOYE)
+
+
+@routeur.post(
+    "/reinitialisation",
+    summary="Choisir un nouveau mot de passe avec le code reçu par SMS",
+    dependencies=[Depends(LimiteDebit("reinitialisation", nombre=30, secondes=600))],
+)
+async def reinitialiser(
+    donnees: Reinitialisation,
+    request: Request,
+    response: Response,
+    session: AsyncSession = Depends(session_db),
+) -> Jetons:
+    p = _parametres(request)
+    utilisateur: Utilisateur | None = None
+    try:
+        telephone = normaliser_telephone(donnees.telephone, p.region_telephone)
+        utilisateur = await session.scalar(
+            select(Utilisateur).where(Utilisateur.telephone == telephone).with_for_update()
+        )
+    except NumeroInvalide:
+        pass
+    if utilisateur is None or not utilisateur.est_actif:
+        raise HTTPException(status.HTTP_400_BAD_REQUEST, CODE_INVALIDE)
+    _longueur_suffisante(utilisateur, donnees.mot_de_passe)  # avant d'user le code
+    if not await codes.verifier(session, utilisateur, "mot_de_passe", donnees.code, p):
+        await session.commit()  # l'essai manqué est compté
+        raise HTTPException(status.HTTP_400_BAD_REQUEST, CODE_INVALIDE)
+    await _nouveau_mot_de_passe(session, utilisateur, donnees.mot_de_passe)
+    journaliser(
+        session,
+        JournalAudit,
+        action="mot_de_passe.reinitialise",
+        acteur_id=utilisateur.id,
+        objet_type="utilisateur",
+        objet_id=utilisateur.id,
+        adresse_ip=_ip(request),
+    )
+    jetons, _ = await _emettre_jetons(request, response, session, utilisateur, "navigateur")
+    await session.commit()
+    return jetons
+
+
+@routeur.post(
+    "/mot-de-passe",
+    summary="Changer mon mot de passe",
+    dependencies=[Depends(LimiteDebit("changement", nombre=20, secondes=600))],
+)
+async def changer_mot_de_passe(
+    donnees: ChangementMotDePasse,
+    request: Request,
+    response: Response,
+    principal: Principal = Depends(principal_requis),
+    session: AsyncSession = Depends(session_db),
+) -> Jetons:
+    utilisateur = await session.get(Utilisateur, principal.id, with_for_update=True)
+    if utilisateur is None or not utilisateur.est_actif:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "Compte introuvable")
+    valide = await asyncio.to_thread(
+        _mot_de_passe_valide, utilisateur.mot_de_passe_hash, donnees.actuel
+    )
+    if not valide:
+        raise HTTPException(status.HTTP_400_BAD_REQUEST, "Mot de passe actuel incorrect")
+    _longueur_suffisante(utilisateur, donnees.nouveau)
+    await _nouveau_mot_de_passe(session, utilisateur, donnees.nouveau)
+    journaliser(
+        session,
+        JournalAudit,
+        action="mot_de_passe.change",
+        acteur_id=utilisateur.id,
+        objet_type="utilisateur",
+        objet_id=utilisateur.id,
+        adresse_ip=_ip(request),
+    )
+    jetons, _ = await _emettre_jetons(request, response, session, utilisateur, "navigateur")
+    await session.commit()
+    return jetons

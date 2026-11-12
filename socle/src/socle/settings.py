@@ -1,5 +1,8 @@
 """Configuration commune, lue dans les variables d'environnement."""
 
+from typing import Literal
+
+from pydantic import SecretStr
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -22,3 +25,17 @@ class ParametresService(BaseSettings):
     @property
     def en_production(self) -> bool:
         return self.environnement == "production"
+
+
+class ParametresSms(BaseSettings):
+    """Envoi de SMS, pour les services qui en envoient (préfixe du service : BOUTIQUE_, COMPTES_).
+
+    « journal » écrit les messages dans les journaux sans rien envoyer (essais) ; « orange »
+    passe par l'API SMS d'Orange (compte Orange Developer requis).
+    """
+
+    sms_fournisseur: Literal["journal", "orange"] = "journal"
+    sms_expediteur: str = ""  # numéro E.164 du compte SMS, ex. +22370000000
+    sms_nom_expediteur: str = ""  # nom affiché, s'il est validé par l'opérateur
+    orange_client_id: str = ""
+    orange_client_secret: SecretStr = SecretStr("")

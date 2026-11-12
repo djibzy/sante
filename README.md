@@ -72,8 +72,9 @@ et les mentions légales (`BOUTIQUE_MENTIONS_LEGALES` : RCCM, NIF, régime fisca
 
 Caddy obtient les certificats HTTPS tout seul. Les migrations s'appliquent au démarrage de
 chaque service. Le service `boutique-envoi` expédie les SMS (fournisseur `journal` par défaut :
-rien n'est envoyé tant que le compte Orange n'est pas configuré) ; le service `sauvegarde`
-sauvegarde les bases chaque nuit.
+rien n'est envoyé tant que le compte Orange n'est pas configuré, voir `SMS_*` et `ORANGE_*` dans
+`.env`) ; le service Comptes envoie avec le même compte les codes « mot de passe oublié » ; le
+service `sauvegarde` sauvegarde les bases chaque nuit.
 
 Le paiement mobile en ligne reste éteint (`BOUTIQUE_PAIEMENT_MOBILE=aucun`) tant que le compte
 marchand CinetPay n'est pas ouvert : le client paie à la livraison. Pour l'ouvrir, renseigner
@@ -91,4 +92,5 @@ sans argent réel (refusé en production).
 - [x] Paiement mobile en ligne par CinetPay (Orange Money, Moov Money), éteint jusqu'à l'ouverture du compte marchand
 - [x] Avis clients vérifiés : réservés aux clients livrés, relus par l'équipe avant publication, note moyenne sur les fiches et les cartes
 - [x] Mode hors ligne : application et catalogue enregistrés sur le téléphone, pages déjà vues, commande préparée sans réseau et envoyée à son retour
+- [x] Mot de passe oublié (code par SMS) et « Mon compte » (changement du mot de passe)
 - [ ] Pharmacien partenaire (janvier 2027)

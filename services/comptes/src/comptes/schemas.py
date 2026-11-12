@@ -97,3 +97,22 @@ class Membre(BaseModel):
     nom: str
     telephone: str
     role: str
+
+
+class DemandeCode(BaseModel):
+    telephone: str = Field(min_length=6, max_length=30)
+
+
+class Reinitialisation(BaseModel):
+    telephone: str = Field(min_length=6, max_length=30)
+    code: str = Field(pattern=r"^\d{6}$", description="Code à 6 chiffres reçu par SMS")
+    mot_de_passe: str = Field(min_length=8, max_length=128)
+
+
+class ChangementMotDePasse(BaseModel):
+    actuel: str = Field(min_length=1, max_length=128)
+    nouveau: str = Field(min_length=8, max_length=128)
+
+
+class Message(BaseModel):
+    message: str

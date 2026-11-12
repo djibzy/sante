@@ -33,7 +33,7 @@ export function useSession() {
       method: 'POST',
       body,
       credentials: 'include',
-      headers: { 'X-Client': 'web' },
+      headers: { 'X-Client': 'web', ...(jeton.value ? { Authorization: `Bearer ${jeton.value}` } : {}) },
     })
 
   function ouvrir(reponse: ReponseJetons) {
@@ -55,6 +55,23 @@ export function useSession() {
 
   async function inscription(donnees: Record<string, unknown>) {
     ouvrir(await appeler<ReponseJetons>('/api/v1/auth/inscription', donnees))
+  }
+
+  /** Mot de passe oublié : un code part par SMS (même réponse si le numéro n'a pas de compte). */
+  async function demanderCode(telephone: string): Promise<string> {
+    const { message } = await appeler<{ message: string }>('/api/v1/auth/mot-de-passe-oublie', { telephone })
+    return message
+  }
+
+  /** Nouveau mot de passe avec le code reçu : la personne est connectée, ses autres sessions coupées. */
+  async function reinitialiser(telephone: string, code: string, motDePasse: string) {
+    ouvrir(await appeler<ReponseJetons>('/api/v1/auth/reinitialisation', {
+      telephone, code, mot_de_passe: motDePasse,
+    }))
+  }
+
+  async function changerMotDePasse(actuel: string, nouveau: string) {
+    ouvrir(await appeler<ReponseJetons>('/api/v1/auth/mot-de-passe', { actuel, nouveau }))
   }
 
   function rafraichir(): Promise<void> {
@@ -87,7 +104,10 @@ export function useSession() {
     return roles.includes(role) || roles.includes('admin')
   }
 
-  return { jeton, utilisateur, prete, connexion, inscription, rafraichir, attendre, deconnexion, aLeRole }
+  return {
+    jeton, utilisateur, prete, connexion, inscription, demanderCode, reinitialiser, changerMotDePasse,
+    rafraichir, attendre, deconnexion, aLeRole,
+  }
 }
 
 /** Message lisible à partir d'une erreur renvoyée par une API. */

@@ -42,6 +42,7 @@ onMounted(charger)
       <div v-if="erreur" class="alerte alerte-erreur" role="alert">{{ erreur }}</div>
       <div v-if="utilisateur" class="compte">
         <span>Connecté : <strong>{{ utilisateur.nom }}</strong></span>
+        <NuxtLink to="/mon-compte" class="bouton bouton-discret">Mon compte</NuxtLink>
         <button type="button" class="bouton bouton-discret" @click="seDeconnecter">Se déconnecter</button>
       </div>
       <div v-else class="carte invitation">

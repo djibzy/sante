@@ -38,6 +38,7 @@ async function valider() {
         </div>
         <button type="submit" class="bouton bouton-large" :disabled="envoi">Se connecter</button>
       </form>
+      <p class="bas"><NuxtLink :to="{ path: '/mot-de-passe-oublie', query: route.query }">Mot de passe oublié ?</NuxtLink></p>
       <p class="bas">Pas encore de compte ? <NuxtLink :to="{ path: '/inscription', query: route.query }">Créer un compte</NuxtLink></p>
     </div>
   </section>

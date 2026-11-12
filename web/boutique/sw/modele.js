@@ -19,7 +19,7 @@ const HORS_LIGNE = '/hors-ligne'
 const DELAI_RESEAU = 4000
 const PHOTOS_MAX = 120
 const API_PUBLIQUE = /^\/api\/v1\/(rayons|metiers|zones-livraison|produits)(\/|$)/
-const PAGES_PRIVEES = /^\/(suivi|mes-commandes|gestion|atelier|connexion|inscription)(\/|$)/
+const PAGES_PRIVEES = /^\/(suivi|mes-commandes|mon-compte|mot-de-passe-oublie|gestion|atelier|connexion|inscription)(\/|$)/
 const MESSAGE_HORS_LIGNE = "Vous êtes hors ligne, et cette page n'est pas enregistrée sur votre téléphone."
 
 self.addEventListener('install', (evenement) => {

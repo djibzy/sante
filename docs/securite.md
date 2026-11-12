@@ -8,6 +8,7 @@ semaine 4. Elle sera refaite avant l'ouverture au public, puis à chaque nouveau
 | Domaine | Mesure |
 | --- | --- |
 | Connexion | Mots de passe Argon2 ; compte verrouillé 15 minutes après 5 échecs ; limite de 60 essais par minute et par adresse IP |
+| Mot de passe oublié | Code à 6 chiffres par SMS : seule son empreinte est gardée, 10 minutes, 5 essais, 3 codes par heure et par compte ; même réponse qu'un compte existe ou non (SMS envoyé après la réponse) ; nouveau mot de passe = toutes les sessions coupées ; 12 caractères au moins pour les comptes de l'équipe |
 | Jetons | Accès de 15 minutes signé Ed25519 (émetteur et audience vérifiés) ; rafraîchissement à usage unique, stocké en empreinte, dans un cookie httpOnly, Secure, SameSite=Lax ; réutilisation d'un jeton remplacé = toutes les sessions coupées |
 | Droits | Rôles vérifiés par l'API à chaque appel : `boutique:admin` (gestion), `boutique:atelier` (file de fabrication, sans téléphone des clients), `boutique:pro` (prix professionnel) ; attribués en ligne de commande, journalisés |
 | Suivi sans compte | Clé de 128 bits tirée par l'appareil, stockée en empreinte SHA-256 ; même réponse pour une référence inconnue et une mauvaise clé ; la clé ne part pas vers les autres sites (Referrer-Policy) |
@@ -37,8 +38,9 @@ semaine 4. Elle sera refaite avant l'ouverture au public, puis à chaque nouveau
    chiffré), et faire un essai de restauration (`pg_restore --dbname=boutique fichier.dump`).
 2. **Avant l'ouverture** : renseigner les mentions légales (RCCM, NIF, régime de TVA) avec le
    comptable ; déclarer le traitement des données clients à l'APDP (loi n° 2013-015).
-3. **Comptes de l'équipe** : mot de passe d'au moins 12 caractères pour les rôles de gestion,
-   puis second facteur (code par SMS) au premier trimestre 2027.
+3. **Comptes de l'équipe** : 12 caractères exigés à chaque nouveau mot de passe (fait) ;
+   second facteur (code par SMS, sur la même base que « mot de passe oublié ») au premier
+   trimestre 2027.
 4. **Politique de sécurité du contenu (CSP)** complète pour l'interface Nuxt (scripts et
    styles), avec le module `nuxt-security`, une fois les pages stabilisées.
 5. **Durées de conservation** : factures 10 ans (obligation comptable OHADA) ; commandes non
