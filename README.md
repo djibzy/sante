@@ -109,6 +109,7 @@ jours (`BOUTIQUE_RELANCE_DEVIS_JOURS`).
 - [x] Idées de tenues composées par l'équipe (« la tenue du bloc »…), sur la page Explorer et dans le composeur, gérées dans « Tenues proposées »
 - [x] « Composer ma tenue » : haut, pantalon, blouse, chaussures et calot sur un mannequin, couleurs assorties, toute la tenue au panier, partage par WhatsApp
 - [x] Rappels SMS automatiques : acompte attendu, devis bientôt expiré
+- [x] Taille conseillée d'après ses mesures (fiche produit et guide des tailles) ; plan du site et robots.txt
 - [x] Commande pour une équipe : le même article brodé au nom de chacun (liste saisie ou collée depuis un tableur), puis commande ou devis
 - [x] Acompte non remboursable des articles faits à la demande : demandé à la confirmation, payé en ligne ou à la boutique, il lance la fabrication (clause à faire valider : acompte ou arrhes)
 - [ ] Pharmacien partenaire (janvier 2027)

@@ -120,6 +120,10 @@ const delai = computed(() => {
   return `En stock, ou sous ${p.delai_jours} jours. La date exacte vous est donnée dans le panier.`
 })
 
+// Adresses absolues (partages, moteurs de recherche), définies avant leur premier usage.
+const origine = useRequestURL().origin
+const absolue = (url: string) => (adresse(url).startsWith('http') ? adresse(url) : `${origine}${adresse(url)}`)
+
 useSeoMeta({
   title: () => produit.value?.nom ?? 'Produit',
   description: () => produit.value?.resume,
@@ -129,8 +133,6 @@ useSeoMeta({
 })
 
 // Une seule adresse pour les moteurs de recherche, quelle que soit la couleur choisie.
-const origine = useRequestURL().origin
-const absolue = (url: string) => (adresse(url).startsWith('http') ? adresse(url) : `${origine}${adresse(url)}`)
 useHead(() => ({ link: [{ rel: 'canonical', href: `${origine}/produits/${produit.value?.slug ?? ''}` }] }))
 
 // Données structurées (schema.org) : prix et note moyenne visibles dans les moteurs de recherche.
@@ -231,6 +233,10 @@ useHead(() => {
               </label>
             </div>
           </fieldset>
+          <TrouverTaille
+            v-if="produit.tailles.length" :pointure="produit.rayon_slug === 'chaussures'"
+            :disponibles="produit.tailles.filter(tailleDisponible)" @choisir="(t: string) => (taille = t)"
+          />
 
           <div v-if="produit.personnalisable" class="champ">
             <label for="personnalisation">Texte à broder (facultatif)</label>

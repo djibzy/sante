@@ -179,8 +179,12 @@ async function proposer() {
   }
 }
 
+// Lien de partage : construit dans le navigateur, une fois la page affichée (même rendu au
+// serveur et à l'hydratation).
+const monte = ref(false)
+onMounted(() => { monte.value = true })
 const partage = computed(() => {
-  if (!import.meta.client || !resume.value.length) return ''
+  if (!monte.value || !resume.value.length) return ''
   const adresse = new URL('/composer', window.location.origin)
   for (const [cle, valeur] of Object.entries(requeteActuelle())) adresse.searchParams.set(cle, valeur)
   return `https://wa.me/?text=${encodeURIComponent(`Ma tenue Bibou : ${resume.value.join(', ')}. ${adresse.href}`)}`

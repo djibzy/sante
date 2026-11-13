@@ -1,16 +1,10 @@
 <script setup lang="ts">
 useSeoMeta({ title: 'Guide des tailles', description: 'Mesures en centimètres pour choisir la taille de sa blouse, de sa tunique, de son pantalon et de ses chaussures.' })
 const config = useRuntimeConfig()
-const HAUTS = [
-  ['XS', '80 à 84', '64 à 68', '88 à 92'],
-  ['S', '85 à 90', '69 à 74', '93 à 98'],
-  ['M', '91 à 96', '75 à 80', '99 à 104'],
-  ['L', '97 à 102', '81 à 86', '105 à 110'],
-  ['XL', '103 à 108', '87 à 92', '111 à 116'],
-  ['XXL', '109 à 116', '93 à 100', '117 à 124'],
-  ['XXXL', '117 à 124', '101 à 108', '125 à 132'],
-]
-const POINTURES = [['36', '23,0'], ['37', '23,7'], ['38', '24,3'], ['39', '25,0'], ['40', '25,7'], ['41', '26,3'], ['42', '27,0'], ['43', '27,7'], ['44', '28,3'], ['45', '29,0']]
+// Mêmes mesures que le calcul de la taille conseillée (utils/tailles.ts).
+const fourchette = ([de, a]: [number, number]) => `${de} à ${a}`
+const HAUTS = MESURES_HAUTS.map(m => [m.taille, fourchette(m.poitrine), fourchette(m.tour), fourchette(m.hanches)])
+const LONGUEURS = POINTURES.map(([pointure, cm]) => [pointure, cm.toFixed(1).replace('.', ',')])
 const whatsapp = computed(() => `https://wa.me/${config.public.whatsapp}?text=${encodeURIComponent('Bonjour, voici mes mesures pour choisir ma taille : ')}`)
 </script>
 
@@ -19,6 +13,7 @@ const whatsapp = computed(() => `https://wa.me/${config.public.whatsapp}?text=${
     <EnteteListe titre="Guide des tailles" description="Mesurez-vous avec un mètre ruban, sur un vêtement léger, sans serrer." />
     <div class="colonnes">
       <div>
+        <TrouverTaille informatif open />
         <h2>Blouses, tuniques et pantalons</h2>
         <div class="defilement">
           <table>
@@ -29,11 +24,12 @@ const whatsapp = computed(() => `https://wa.me/${config.public.whatsapp}?text=${
         </div>
         <p class="aide">Mesures du corps, en centimètres. Les coupes cintrées taillent plus près du corps : entre deux tailles, prenez la plus grande.</p>
         <h2>Chaussures</h2>
+        <TrouverTaille pointure informatif />
         <div class="defilement">
           <table>
             <caption class="visuellement-cache">Longueur du pied en centimètres</caption>
             <thead><tr><th scope="col">Pointure</th><th scope="col">Longueur du pied</th></tr></thead>
-            <tbody><tr v-for="l in POINTURES" :key="l[0]"><th scope="row">{{ l[0] }}</th><td>{{ l[1] }} cm</td></tr></tbody>
+            <tbody><tr v-for="l in LONGUEURS" :key="l[0]"><th scope="row">{{ l[0] }}</th><td>{{ l[1] }} cm</td></tr></tbody>
           </table>
         </div>
       </div>
