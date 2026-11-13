@@ -43,12 +43,13 @@ async def commander(
     lignes: list[dict[str, Any]],
     *,
     telephone: str = "76 12 34 56",
+    nom: str = "Aminata Traoré",
     livraison: dict[str, Any] | None = None,
     entetes: dict[str, str] | None = None,
     cle: str | None = None,
 ) -> dict[str, Any]:
     corps: dict[str, Any] = {
-        "client": {"nom": "Aminata Traoré", "telephone": telephone},
+        "client": {"nom": nom, "telephone": telephone},
         "livraison": livraison or {"mode": "retrait"},
         "lignes": lignes,
     }

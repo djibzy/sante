@@ -108,6 +108,7 @@ jours (`BOUTIQUE_RELANCE_DEVIS_JOURS`).
 - [x] Recherche par la couleur d'une photo (calculée sur le téléphone, la photo n'est pas envoyée) ou d'une couleur choisie
 - [x] Idées de tenues composées par l'équipe (« la tenue du bloc »…), sur la page Explorer et dans le composeur, gérées dans « Tenues proposées »
 - [x] « Composer ma tenue » : haut, pantalon, blouse, chaussures et calot sur un mannequin, couleurs assorties, toute la tenue au panier, partage par WhatsApp
+- [x] Exports CSV pour le comptable (factures, encaissements, commandes), depuis le tableau de bord
 - [x] Codes promo : saisis au panier (motif affiché s'ils ne s'appliquent pas), vérifiés de nouveau à la commande, gérés par l'équipe (utilisations, remises accordées)
 - [x] Rappels SMS automatiques : acompte attendu, devis bientôt expiré
 - [x] Taille conseillée d'après ses mesures (fiche produit et guide des tailles) ; plan du site et robots.txt

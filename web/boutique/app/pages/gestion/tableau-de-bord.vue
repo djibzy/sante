@@ -15,7 +15,7 @@ const MOYENS: Record<string, string> = {
 }
 const route = useRoute()
 const router = useRouter()
-const { appeler } = useApiBoutique()
+const { appeler, telecharger } = useApiBoutique()
 const { verifie, autorise } = useEquipe()
 const donnees = ref<TableauDeBord | null>(null)
 const chargement = ref(false)
@@ -39,6 +39,26 @@ function bornes(): { du?: string, au?: string } {
     default: return {} // 30 derniers jours, calculés par le serveur
   }
 }
+// Exports CSV de la période affichée (factures, encaissements, commandes), pour Excel.
+const EXPORTS = [
+  { nature: 'factures', libelle: 'Factures' },
+  { nature: 'encaissements', libelle: 'Encaissements' },
+  { nature: 'commandes', libelle: 'Commandes' },
+]
+const exportEnCours = ref('')
+async function exporter(nature: string) {
+  if (!donnees.value) return
+  exportEnCours.value = nature
+  try {
+    const { du, au } = donnees.value
+    await telecharger(`/api/v1/admin/exports/${nature}.csv?du=${du}&au=${au}`, `bibou-${nature}-${du}-${au}.csv`)
+  } catch (e) {
+    erreur.value = messageErreur(e)
+  } finally {
+    exportEnCours.value = ''
+  }
+}
+
 const periode = computed(() => (route.query.du ? 'libre' : (route.query.periode as string) || '30j'))
 
 async function charger() {
@@ -114,7 +134,18 @@ watch([verifie, () => route.query], charger, { deep: true })
       </div>
       <div v-if="erreur" class="alerte alerte-erreur" role="alert">{{ erreur }}</div>
       <div v-if="donnees" class="contenu" :class="{ attente: chargement }">
-        <p class="aide">Du {{ formaterDate(donnees.du) }} au {{ formaterDate(donnees.au) }} inclus.</p>
+        <div class="periode-exports">
+          <p class="aide">Du {{ formaterDate(donnees.du) }} au {{ formaterDate(donnees.au) }} inclus.</p>
+          <div class="exports" role="group" aria-label="Exports pour la comptabilité (CSV)">
+            <span class="aide">Exporter pour le comptable :</span>
+            <button
+              v-for="e in EXPORTS" :key="e.nature" type="button" class="bouton bouton-discret"
+              :disabled="exportEnCours === e.nature" @click="exporter(e.nature)"
+            >
+              {{ exportEnCours === e.nature ? 'Préparation…' : e.libelle }}
+            </button>
+          </div>
+        </div>
 
         <ul class="alertes" aria-label="À surveiller aujourd'hui">
           <li v-for="a in alertes" :key="a.titre" :class="{ calme: !a.nombre }">
@@ -217,6 +248,9 @@ watch([verifie, () => route.query], charger, { deep: true })
 .contenu { display: grid; gap: 16px; transition: opacity 0.2s; }
 .contenu.attente { opacity: 0.55; }
 .contenu > .aide { margin: 0; }
+.periode-exports { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 6px 16px; }
+.periode-exports p { margin: 0; }
+.exports { display: flex; flex-wrap: wrap; align-items: center; gap: 4px; }
 .alertes { list-style: none; margin: 0; padding: 0; display: flex; flex-wrap: wrap; gap: 8px; }
 .alertes li a, .alertes li span { display: inline-flex; gap: 6px; align-items: baseline; padding: 8px 12px; border-radius: 10px; background: var(--accent-clair); color: var(--accent-texte); text-decoration: none; font-weight: 600; }
 .alertes li.calme a, .alertes li.calme span { background: var(--fond-doux); color: var(--texte-doux); }

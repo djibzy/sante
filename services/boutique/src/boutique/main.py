@@ -17,6 +17,7 @@ from boutique.routes import (
     codes_promo,
     commandes,
     explorer,
+    exports,
     gestion,
     mes_donnees,
     paiements,
@@ -49,6 +50,7 @@ def creer_app(parametres: ParametresBoutique | None = None) -> FastAPI:
             atelier.routeur,
             stock.routeur,
             tableau.routeur,
+            exports.routeur,
             tenues.routeur_equipe,
         ],
     )
