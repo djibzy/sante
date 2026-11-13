@@ -62,6 +62,12 @@ async function payer(objet: 'acompte' | 'solde' = 'solde') {
   }
 }
 
+// Rien à dire (commande annulée sans paiement en ligne, par exemple) : pas de cadre vide.
+const visible = computed(() => {
+  const e = etat.value
+  return !!e && (!!e.dernier || (e.disponible && (e.possible || !!e.raison)))
+})
+
 const message = computed(() => {
   const dernier = etat.value?.dernier
   if (!dernier) return null
@@ -87,7 +93,7 @@ watch(() => [props.commande.statut, props.commande.montant_paye], () => { lire()
 </script>
 
 <template>
-  <section v-if="etat && (etat.disponible || etat.dernier)" class="paiement" aria-labelledby="titre-paiement">
+  <section v-if="visible" class="paiement" aria-labelledby="titre-paiement">
     <h2 id="titre-paiement">Paiement en ligne</h2>
     <p v-if="message" :class="['alerte', message.classe]" role="status">{{ message.texte }}</p>
     <p v-if="attente" class="aide">Nous attendons la réponse de votre opérateur…</p>

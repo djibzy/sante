@@ -2,8 +2,8 @@
 (exception, hydratation, politique de sécurité du contenu), passe les règles d'accessibilité
 WCAG 2.1 A et AA vérifiées par axe-core (défauts graves et critiques), et les gestes essentiels
 marchent (choisir une taille, ajouter au panier, commander, filtrer par couleur, corriger les
-articles d'une commande). Les services, la boutique et un compte de l'équipe doivent tourner
-(voir .github/workflows/ci.yml).
+articles d'une commande, encaisser, annuler et rembourser). Les services, la boutique et un
+compte de l'équipe doivent tourner (voir .github/workflows/ci.yml).
 
     python essais/balayage.py            # BIBOU_ADRESSE=http://localhost:3000 par défaut
 """
@@ -30,7 +30,8 @@ PUBLIQUES = [
 ]
 EQUIPE = [
     "/gestion/tableau-de-bord", "/gestion", "/gestion/livraisons", "/gestion/stock", "/gestion/catalogue",
-    "/gestion/avis", "/gestion/tenues", "/gestion/codes-promo", "/atelier", "/mon-compte", "/mes-commandes", "/composer",
+    "/gestion/avis", "/gestion/tenues", "/gestion/codes-promo", "/gestion?onglet=a-rembourser", "/atelier",
+    "/mon-compte", "/mes-commandes", "/composer",
 ]
 # Bruit sans conséquence : session absente (401), préchargements servis par le service worker.
 IGNORES = ("401", "cross-world service worker")
@@ -114,6 +115,19 @@ def main() -> int:
         if page.evaluate("document.documentElement.scrollWidth") > 391:
             erreurs.append(f"{chemin} : la correction des articles déborde de l'écran du téléphone")
         erreurs.extend(f"{chemin} : accessibilité, {d}" for d in accessibilite(page))
+
+        # Encaissée puis annulée par la boutique : tout est à rendre, le formulaire apparaît.
+        page.get_by_role("button", name="Abandonner").click()
+        page.get_by_role("button", name="Enregistrer l'encaissement").click()
+        expect(page.locator(".paiements li")).to_have_count(1)
+        page.get_by_role("button", name="Annuler", exact=True).click()
+        expect(page.locator(".remboursement")).to_be_visible()
+        if page.evaluate("document.documentElement.scrollWidth") > 391:
+            erreurs.append(f"{chemin} : le remboursement déborde de l'écran du téléphone")
+        erreurs.extend(f"{chemin} (remboursement) : accessibilité, {d}" for d in accessibilite(page))
+        page.get_by_role("button", name="Enregistrer le remboursement").click()
+        expect(page.locator(".remboursement")).to_have_count(0)
+        expect(page.locator(".rendus li")).to_have_count(1)
         navigateur.close()
 
     print(f"{len(PUBLIQUES) + len(EQUIPE) + 1} pages parcourues.")

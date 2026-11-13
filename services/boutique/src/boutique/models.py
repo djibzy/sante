@@ -301,6 +301,9 @@ class Commande(IdMixin, HorodatageMixin, Base):
     paiements: Mapped[list["Paiement"]] = relationship(
         order_by="Paiement.encaisse_le", lazy="raise"
     )
+    remboursements: Mapped[list["Remboursement"]] = relationship(
+        order_by="Remboursement.rembourse_le", lazy="raise"
+    )
 
     @property
     def reference(self) -> str:
@@ -308,6 +311,9 @@ class Commande(IdMixin, HorodatageMixin, Base):
 
     @property
     def reste_a_payer(self) -> int:
+        """Rien pour une commande annulée ou un devis refusé : le client ne doit plus rien."""
+        if self.statut in (Statut.ANNULEE, Statut.DEVIS_REFUSE):
+            return 0
         return max(self.total - self.montant_paye, 0)
 
 
@@ -376,6 +382,30 @@ class Paiement(IdMixin, Base):
     reference: Mapped[str | None] = mapped_column(String(80))  # n° de transaction, de chèque…
     encaisse_par: Mapped[UUID | None] = mapped_column(Uuid)
     encaisse_le: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, default=_maintenant
+    )
+
+
+class Remboursement(IdMixin, Base):
+    """Argent rendu au client : trop-perçu, annulation par la boutique, part de l'acompte au-delà
+    de ce qui est gardé. Le montant payé de la commande baisse d'autant ; la ligne reste pour
+    la comptabilité (sortie de caisse)."""
+
+    __tablename__ = "remboursements"
+    __table_args__ = (
+        CheckConstraint("montant > 0", name="montant_positif"),
+        CheckConstraint(f"moyen IN ({valeurs_sql(Moyen)})", name="moyen_valide"),
+    )
+
+    commande_id: Mapped[UUID] = mapped_column(
+        ForeignKey("commandes.id"), index=True, nullable=False
+    )
+    montant: Mapped[int] = mapped_column(nullable=False)
+    moyen: Mapped[str] = mapped_column(String(20), nullable=False)
+    reference: Mapped[str | None] = mapped_column(String(80))  # n° de transaction, de chèque…
+    motif: Mapped[str] = mapped_column(String(200), nullable=False, default="", server_default="")
+    rembourse_par: Mapped[UUID | None] = mapped_column(Uuid)
+    rembourse_le: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), nullable=False, default=_maintenant
     )
 

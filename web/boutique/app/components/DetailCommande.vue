@@ -37,6 +37,7 @@ defineProps<{ commande: Commande }>()
       </div>
       <div v-if="commande.acompte_garde"><dt>Acompte gardé (non remboursable)</dt><dd>{{ formaterFcfa(commande.acompte_garde) }}</dd></div>
       <div v-if="commande.montant_paye"><dt>Déjà payé</dt><dd>{{ formaterFcfa(commande.montant_paye) }}</dd></div>
+      <div v-if="commande.rembourse"><dt>Remboursé</dt><dd>{{ formaterFcfa(commande.rembourse) }}</dd></div>
       <div v-if="commande.montant_paye && commande.reste_a_payer"><dt>Reste à payer</dt><dd>{{ formaterFcfa(commande.reste_a_payer) }}</dd></div>
     </dl>
     <p v-if="commande.mode_livraison === 'livraison' && commande.adresse" class="aide">Adresse : {{ commande.adresse }}</p>

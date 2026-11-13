@@ -111,6 +111,7 @@ jours (`BOUTIQUE_RELANCE_DEVIS_JOURS`).
 - [x] Exports CSV pour le comptable (factures, encaissements, commandes), depuis le tableau de bord
 - [x] Codes promo : saisis au panier (motif affiché s'ils ne s'appliquent pas), vérifiés de nouveau à la commande, gérés par l'équipe (utilisations, remises accordées)
 - [x] Correction des articles d'une commande par l'équipe avant la fabrication (taille, quantité, ajout, retrait) : prix d'origine gardé, tarif professionnel repris, total, acompte et code promo recalculés, trop-perçu signalé
+- [x] Remboursements enregistrés (trop-perçu, annulation) : onglet « À rembourser », alerte du tableau de bord, SMS au client, sorties de caisse dans l'export des encaissements
 - [x] Rappels SMS automatiques : acompte attendu, devis bientôt expiré
 - [x] Taille conseillée d'après ses mesures (fiche produit et guide des tailles) ; plan du site et robots.txt
 - [x] Commande pour une équipe : le même article brodé au nom de chacun (liste saisie ou collée depuis un tableur), puis commande ou devis

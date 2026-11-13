@@ -81,6 +81,7 @@ export interface Commande {
   acompte: number // articles faits à la demande, non remboursable
   acompte_restant: number
   acompte_garde: number // annulée par le client : acompte gardé
+  rembourse: number // déjà rendu au client (déduit du montant payé)
   code_promo: string | null
   date_promise: string | null
   devis_valable_jusqu_au: string | null
@@ -111,6 +112,7 @@ export interface CommandeResume {
   zone_nom: string | null
   total: number
   montant_paye: number
+  du_au_client: number
   nombre_articles: number
   date_promise: string | null
 }
@@ -131,6 +133,16 @@ export interface Paiement {
   encaisse_le: string
 }
 
+export interface Remboursement {
+  id: string
+  montant: number
+  moyen: Paiement['moyen']
+  reference: string | null
+  motif: string
+  rembourse_par: string | null
+  rembourse_le: string
+}
+
 export interface CommandeGestion extends Commande {
   id: string
   client_id: string | null
@@ -139,6 +151,8 @@ export interface CommandeGestion extends Commande {
   tarif_professionnel: boolean
   devis_emis_le: string | null
   paiements: Paiement[]
+  remboursements: Remboursement[]
+  du_au_client: number // payé au-delà de ce que la boutique garde : à rendre
   historique_complet: (Evenement & { visible_client: boolean })[]
   passages_possibles: Statut[]
 }

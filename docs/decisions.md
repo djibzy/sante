@@ -23,6 +23,7 @@ ajoutant une nouvelle ligne qui la remplace, avec sa raison.
 | D16 | Avis clients réservés aux commandes livrées, publiés après relecture par l'équipe, signés du prénom et de l'initiale du nom | Avis crédibles (achat vérifié) ; aucune information médicale ni nom complet en ligne |
 | D18 | Découverte visuelle par la couleur : familles calculées dans l'espace OKLab, articles dessinés dans leur couleur tant qu'il n'y a pas de photo, couleur indiquée sur chaque photo | Une couleur de service se choisit d'un coup d'œil ; le catalogue reste juste sans photos ; aucune photo d'une couleur montrée pour une autre |
 | D17 | Articles faits à la demande (brodés, imprimés, personnalisés) : acompte non remboursable (50 % de leur prix, réglable), demandé à la confirmation ; la fabrication attend qu'il soit payé ; tout est rendu si la boutique annule | Un article à votre nom ne se revend pas : le tissu et le temps de l'atelier sont couverts ; les kits, assemblés à partir du stock, n'en demandent pas |
+| D19 | Un remboursement est une écriture à part (montant, moyen, référence, motif) qui baisse le montant payé de la commande ; il apparaît en négatif dans l'export des encaissements | La caisse exportée au comptable reste juste ; ce qui est dû au client (trop-perçu, annulation, part de l'acompte non gardée) se lit sur la commande et dans l'onglet « À rembourser » |
 
 ## Choix de mise en œuvre (novembre 2026)
 

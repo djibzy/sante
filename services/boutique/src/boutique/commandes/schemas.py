@@ -167,6 +167,7 @@ class CommandeClient(BaseModel):
     acompte: int = Field(description="Acompte des articles faits à la demande, non remboursable")
     acompte_restant: int = Field(description="Part de l'acompte encore à payer")
     acompte_garde: int = Field(description="Commande annulée par le client : acompte gardé")
+    rembourse: int = Field(0, description="Déjà rendu au client (déduit du montant payé)")
     code_promo: str | None = Field(description="Code de réduction appliqué (montant : remise)")
     date_promise: date | None
     devis_valable_jusqu_au: date | None
@@ -197,6 +198,7 @@ class CommandeResume(BaseModel):
     zone_nom: str | None
     total: int
     montant_paye: int
+    du_au_client: int = Field(0, description="À rendre au client")
     nombre_articles: int
     date_promise: date | None
 
@@ -211,6 +213,18 @@ class PageCommandes(BaseModel):
 class EvenementGestion(EvenementVue):
     visible_client: bool
     acteur_id: UUID | None
+
+
+class RemboursementVue(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: UUID
+    montant: int
+    moyen: Moyen
+    reference: str | None
+    motif: str
+    rembourse_par: UUID | None
+    rembourse_le: datetime
 
 
 class PaiementVue(BaseModel):
@@ -234,6 +248,8 @@ class CommandeGestion(CommandeClient):
     tarif_professionnel: bool
     devis_emis_le: datetime | None
     paiements: list[PaiementVue]
+    remboursements: list[RemboursementVue]
+    du_au_client: int = Field(description="Payé au-delà de ce que la boutique garde : à rendre")
     historique_complet: list[EvenementGestion]
     passages_possibles: list[Statut]
 
@@ -297,6 +313,21 @@ class NouveauPaiement(BaseModel):
     def _pas_en_ligne(cls, moyen: Moyen) -> Moyen:
         if moyen == Moyen.MOBILE_MONEY:
             raise ValueError("Réservé aux paiements faits en ligne par le client")
+        return moyen
+
+
+class NouveauRemboursement(BaseModel):
+    montant: int = Field(ge=1, le=100_000_000)
+    moyen: Moyen
+    reference: str | None = Field(None, max_length=80)
+    motif: str = Field("", max_length=200)
+    prevenir_client: bool = Field(True, description="SMS au client : montant rendu")
+
+    @field_validator("moyen")
+    @classmethod
+    def _pas_en_ligne(cls, moyen: Moyen) -> Moyen:
+        if moyen == Moyen.MOBILE_MONEY:
+            raise ValueError("Précisez l'opérateur (Orange Money, Moov Money) ou le moyen utilisé")
         return moyen
 
 

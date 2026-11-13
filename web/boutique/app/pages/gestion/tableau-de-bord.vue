@@ -87,7 +87,14 @@ const tuiles = computed(() => {
   if (!d) return []
   return [
     { titre: "Chiffre d'affaires remis", valeur: formaterFcfa(d.ventes.chiffre_affaires), detail: `${d.ventes.commandes_livrees} commande(s) remise(s)` },
-    { titre: 'Encaissé', valeur: formaterFcfa(d.ventes.encaisse), detail: d.ventes.encaisse_en_ligne ? `dont ${formaterFcfa(d.ventes.encaisse_en_ligne)} en ligne` : 'à la livraison et au retrait' },
+    {
+      titre: 'Encaissé',
+      valeur: formaterFcfa(d.ventes.encaisse),
+      detail: [
+        d.ventes.encaisse_en_ligne ? `dont ${formaterFcfa(d.ventes.encaisse_en_ligne)} en ligne` : 'à la livraison et au retrait',
+        d.ventes.rembourse ? `${formaterFcfa(d.ventes.rembourse)} rendus aux clients` : '',
+      ].filter(Boolean).join(' · '),
+    },
     { titre: 'Panier moyen', valeur: d.ventes.panier_moyen === null ? '–' : formaterFcfa(d.ventes.panier_moyen), detail: 'commandes remises' },
     { titre: 'Commandes reçues', valeur: String(d.ventes.commandes_recues), detail: `${d.ventes.annulees} annulée(s)` },
     { titre: 'Reste à encaisser', valeur: formaterFcfa(d.ventes.a_encaisser), detail: 'sur des commandes déjà remises' },
@@ -105,6 +112,7 @@ const alertes = computed(() => {
     { titre: 'Stock bas', nombre: a.stock_bas, lien: '/gestion/stock' },
     { titre: 'Avis à relire', nombre: relire, lien: '/gestion/avis' },
     { titre: 'Paiements à vérifier', nombre: a.paiements_a_verifier, lien: '/gestion?onglet=en-cours' },
+    { titre: 'À rembourser', nombre: a.a_rembourser, lien: '/gestion?onglet=a-rembourser' },
     { titre: 'SMS non partis', nombre: a.sms_en_echec, lien: null },
   ]
 })

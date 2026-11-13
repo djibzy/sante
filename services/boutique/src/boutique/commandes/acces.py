@@ -42,6 +42,7 @@ _COMPLETE = (
     selectinload(Commande.lignes),
     selectinload(Commande.evenements),
     selectinload(Commande.paiements),
+    selectinload(Commande.remboursements),
     selectinload(Commande.zone),
     selectinload(Commande.livreur),
     selectinload(Commande.facture),

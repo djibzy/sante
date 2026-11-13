@@ -1,6 +1,6 @@
 """Mise en forme des commandes pour le client et pour l'équipe."""
 
-from boutique.commandes import acompte
+from boutique.commandes import acompte, remboursements
 from boutique.commandes.cycle import ANNULABLES_PAR_CLIENT, LIBELLES, PASSAGES, Statut
 from boutique.commandes.schemas import (
     CommandeClient,
@@ -10,6 +10,7 @@ from boutique.commandes.schemas import (
     EvenementVue,
     LigneVue,
     PaiementVue,
+    RemboursementVue,
 )
 from boutique.commandes.tarifs import aujourd_hui
 from boutique.models import Commande
@@ -55,6 +56,7 @@ def vue_client(commande: Commande) -> CommandeClient:
         acompte=commande.acompte,
         acompte_restant=acompte.restant(commande),
         acompte_garde=commande.acompte_garde,
+        rembourse=sum(r.montant for r in commande.remboursements),
         code_promo=commande.code_promo,
         devis_valable_jusqu_au=commande.devis_valable_jusqu_au,
         devis_disponible=commande.devis_emis_le is not None,
@@ -87,6 +89,8 @@ def vue_gestion(commande: Commande) -> CommandeGestion:
         tarif_professionnel=commande.tarif_professionnel,
         devis_emis_le=commande.devis_emis_le,
         paiements=[PaiementVue.model_validate(p) for p in commande.paiements],
+        remboursements=[RemboursementVue.model_validate(r) for r in commande.remboursements],
+        du_au_client=remboursements.du_au_client(commande),
         historique_complet=[
             EvenementGestion(
                 statut=Statut(e.statut),
@@ -106,5 +110,6 @@ def vue_resume(commande: Commande, zone_nom: str | None, nombre_articles: int) -
     return CommandeResume(
         **_champs_communs(commande),
         zone_nom=zone_nom,
+        du_au_client=remboursements.du_au_client(commande),
         nombre_articles=nombre_articles,
     )

@@ -9,9 +9,9 @@ from sqlalchemy import ColumnElement, func, or_, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from boutique.commandes import acces, acompte, factures, operations
+from boutique.commandes import acces, acompte, factures, operations, remboursements
 from boutique.commandes.cycle import ModeLivraison, Statut, passage_autorise
-from boutique.commandes.pdf import reponse_devis, reponse_facture
+from boutique.commandes.pdf import MOYENS, reponse_devis, reponse_facture
 from boutique.commandes.schemas import (
     ArretLivraison,
     ChangementStatut,
@@ -25,6 +25,7 @@ from boutique.commandes.schemas import (
     ModificationLivreur,
     ModificationZone,
     NouveauPaiement,
+    NouveauRemboursement,
     PageCommandes,
     ZoneGestion,
 )
@@ -49,6 +50,7 @@ from boutique.models import (
     Livreur,
     Paiement,
     Produit,
+    Remboursement,
     ZoneLivraison,
 )
 from boutique.notifications import boite, messages
@@ -78,6 +80,7 @@ def _parametres(request: Request) -> ParametresBoutique:
 async def lister(
     statut: list[Statut] | None = Query(None, description="Un ou plusieurs statuts"),
     q: str | None = Query(None, max_length=100, description="Référence, nom, téléphone"),
+    a_rembourser: bool = Query(False, description="Seulement les commandes où rendre de l'argent"),
     page: int = Query(1, ge=1),
     par_page: int = Query(30, ge=1, le=100),
     _: Principal = Depends(equipe),
@@ -86,6 +89,8 @@ async def lister(
     filtres: list[ColumnElement[bool]] = []
     if statut:
         filtres.append(Commande.statut.in_(statut))
+    if a_rembourser:
+        filtres.append(remboursements.montant_du_sql() > 0)
     if q and q.strip():
         texte = q.strip()
         chiffres = "".join(c for c in texte if c.isdigit())
@@ -202,6 +207,57 @@ async def encaisser(
         details={"montant": donnees.montant, "moyen": donnees.moyen.value},
     )
     await operations.apres_paiement(session, commande, principal.id)  # acompte couvert ?
+    await session.commit()
+    return vue_gestion(await acces.charger(session, reference))
+
+
+@routeur.post(
+    "/commandes/{reference}/remboursements",
+    status_code=status.HTTP_201_CREATED,
+    summary="Rendre de l'argent au client (trop-perçu, annulation)",
+)
+async def rembourser(
+    reference: str,
+    donnees: NouveauRemboursement,
+    principal: Principal = Depends(equipe),
+    session: AsyncSession = Depends(session_db),
+) -> CommandeGestion:
+    commande = await acces.charger(session, reference)
+    await acces.verrouiller(session, commande.id)
+    commande = await acces.charger(session, reference)  # montant payé à jour, sous verrou
+    du = remboursements.du_au_client(commande)
+    if du == 0:
+        raise HTTPException(_409, "Rien n'est dû au client sur cette commande")
+    if donnees.montant > du:
+        raise HTTPException(_422, f"Le montant dépasse ce qui est dû au client ({_fcfa(du)})")
+    commande.remboursements.append(
+        Remboursement(
+            montant=donnees.montant,
+            moyen=donnees.moyen,
+            reference=(donnees.reference or "").strip() or None,
+            motif=donnees.motif.strip(),
+            rembourse_par=principal.id,
+        )
+    )
+    commande.montant_paye -= donnees.montant
+    moyen = MOYENS.get(donnees.moyen, donnees.moyen)
+    operations.evenement(
+        commande,
+        Statut(commande.statut),
+        principal.id,
+        f"Remboursement de {_fcfa(donnees.montant)} ({moyen})",
+    )
+    if donnees.prevenir_client:
+        boite.deposer(session, commande, messages.remboursement(commande, donnees.montant, moyen))
+    journaliser(
+        session,
+        JournalAudit,
+        action="commande.remboursement",
+        acteur_id=principal.id,
+        objet_type="commande",
+        objet_id=commande.reference,
+        details={"montant": donnees.montant, "moyen": donnees.moyen.value},
+    )
     await session.commit()
     return vue_gestion(await acces.charger(session, reference))
 

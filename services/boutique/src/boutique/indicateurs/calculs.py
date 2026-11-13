@@ -10,6 +10,7 @@ from sqlalchemy.sql import Subquery
 from sqlalchemy.sql.expression import Exists
 
 from boutique.atelier.stock import lignes_de_stock
+from boutique.commandes import remboursements
 from boutique.commandes.cycle import EN_ATTENTE_DE_L_EQUIPE, Statut
 from boutique.indicateurs.schemas import (
     Alertes,
@@ -29,6 +30,7 @@ from boutique.models import (
     Notification,
     Paiement,
     Produit,
+    Remboursement,
     TransactionPaiement,
 )
 
@@ -106,6 +108,11 @@ async def _ventes(session: AsyncSession, debut: datetime, fin: datetime) -> Vent
     ):
         par_moyen[moyen] = par_moyen.get(moyen, 0) + int(montant)
         en_ligne += int(montant) if sans_equipe else 0
+    rembourse = await session.scalar(
+        select(func.coalesce(func.sum(Remboursement.montant), 0)).where(
+            Remboursement.rembourse_le >= debut, Remboursement.rembourse_le < fin
+        )
+    )
     a_encaisser = await session.scalar(
         select(func.coalesce(func.sum(Commande.total - Commande.montant_paye), 0)).where(
             Commande.statut == Statut.LIVREE, Commande.total > Commande.montant_paye
@@ -119,6 +126,7 @@ async def _ventes(session: AsyncSession, debut: datetime, fin: datetime) -> Vent
         encaisse=sum(par_moyen.values()),
         encaisse_par_moyen=par_moyen,
         encaisse_en_ligne=en_ligne,
+        rembourse=int(rembourse or 0),
         a_encaisser=int(a_encaisser or 0),
         annulees=await _compter_etape(session, Statut.ANNULEE, debut, fin),
     )
@@ -261,6 +269,12 @@ async def _alertes(session: AsyncSession, aujourd_hui: date) -> Alertes:
     acomptes = await session.scalar(
         select(func.count()).select_from(Commande).where(Commande.statut == Statut.ACOMPTE_ATTENDU)
     )
+    du = remboursements.montant_du_sql()
+    a_rendre, montant_a_rendre = (
+        await session.execute(
+            select(func.count(), func.coalesce(func.sum(du), 0)).select_from(Commande).where(du > 0)
+        )
+    ).one()
     return Alertes(
         a_traiter=int(a_traiter or 0),
         acomptes_attendus=int(acomptes or 0),
@@ -268,6 +282,8 @@ async def _alertes(session: AsyncSession, aujourd_hui: date) -> Alertes:
         stock_bas=sum(1 for ligne in await lignes_de_stock(session) if ligne.alerte),
         sms_en_echec=int(echecs or 0),
         paiements_a_verifier=int(a_verifier or 0),
+        a_rembourser=int(a_rendre),
+        montant_a_rembourser=int(montant_a_rendre),
     )
 
 

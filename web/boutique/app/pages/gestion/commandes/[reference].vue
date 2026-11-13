@@ -58,6 +58,8 @@ const peutFacturer = computed(() => {
 })
 
 const encaissement = reactive({ montant: 0, moyen: 'especes' as Paiement['moyen'], reference: '' })
+// Argent à rendre : trop-perçu après une correction, annulation, paiement arrivé trop tard.
+const remboursement = reactive({ montant: 0, moyen: 'especes' as Paiement['moyen'], reference: '', motif: '', prevenir: true })
 const peutEncaisser = computed(() => {
   const c = commande.value
   return !!c && c.reste_a_payer > 0 && !['devis_demande', 'devis_envoye', 'devis_refuse', 'annulee'].includes(c.statut)
@@ -148,6 +150,7 @@ async function enregistrerArticles() {
 function preparer(c: CommandeGestion) {
   commande.value = c
   encaissement.montant = c.statut === 'acompte_attendu' ? c.acompte_restant : c.reste_a_payer
+  remboursement.montant = c.du_au_client
   etape.date_promise = c.date_promise ?? ''
   etape.garder_acompte = true
   devis.lignes = c.lignes.map(l => ({
@@ -190,6 +193,14 @@ async function encaisser() {
     montant: encaissement.montant, moyen: encaissement.moyen, reference: encaissement.reference || null,
   })
   if (ok) encaissement.reference = ''
+}
+
+async function rembourser() {
+  const ok = await executer('/remboursements', 'POST', {
+    montant: remboursement.montant, moyen: remboursement.moyen, reference: remboursement.reference || null,
+    motif: remboursement.motif, prevenir_client: remboursement.prevenir,
+  })
+  if (ok) Object.assign(remboursement, { reference: '', motif: '', prevenir: true })
 }
 
 async function envoyerDevis() {
@@ -398,6 +409,26 @@ watch(verifie, async () => {
                   <small>{{ formaterDateHeure(p.encaisse_le) }}</small>
                 </li>
               </ul>
+              <ul v-if="commande.remboursements.length" class="paiements rendus">
+                <li v-for="r in commande.remboursements" :key="r.id">
+                  − {{ formaterFcfa(r.montant) }} rendus, {{ MOYENS[r.moyen] }}<span v-if="r.reference"> ({{ r.reference }})</span>
+                  <small>{{ formaterDateHeure(r.rembourse_le) }}<template v-if="r.motif"> · {{ r.motif }}</template></small>
+                </li>
+              </ul>
+              <form v-if="commande.du_au_client > 0" class="remboursement" @submit.prevent="rembourser">
+                <p class="alerte alerte-info" role="status">À rendre au client : <strong>{{ formaterFcfa(commande.du_au_client) }}</strong></p>
+                <div class="champ"><label for="montant-rendu">Montant rendu (FCFA)</label><input id="montant-rendu" v-model.number="remboursement.montant" type="number" min="1" :max="commande.du_au_client" inputmode="numeric" required></div>
+                <div class="champ">
+                  <label for="moyen-rendu">Rendu par</label>
+                  <select id="moyen-rendu" v-model="remboursement.moyen">
+                    <option v-for="(nom, cle) in MOYENS_EQUIPE" :key="cle" :value="cle">{{ nom }}</option>
+                  </select>
+                </div>
+                <div class="champ"><label for="ref-rendu">N° de transaction (facultatif)</label><input id="ref-rendu" v-model="remboursement.reference" maxlength="80"></div>
+                <div class="champ"><label for="motif-rendu">Motif (facultatif)</label><input id="motif-rendu" v-model="remboursement.motif" maxlength="200" placeholder="Annulation, trop-perçu…"></div>
+                <label class="case"><input v-model="remboursement.prevenir" type="checkbox"> Prévenir le client par SMS</label>
+                <button type="submit" class="bouton bouton-large" :disabled="envoi">Enregistrer le remboursement</button>
+              </form>
               <p v-if="commande.facture" class="facture">
                 Facture {{ commande.facture }}
                 <button type="button" class="bouton bouton-discret" @click="telecharger(`${base}/facture.pdf`, `facture-${commande.facture}.pdf`)">Télécharger</button>
@@ -476,6 +507,8 @@ watch(verifie, async () => {
 .total-devis { font-size: 1.1rem; }
 .paiements { margin: 0; padding-left: 1.1em; }
 .paiements small { display: block; color: var(--texte-doux); }
+.remboursement { display: grid; gap: 4px; padding-top: 12px; border-top: 1px solid var(--bordure); }
+.remboursement .alerte { margin: 0 0 6px; }
 .encaissement .champ { margin-bottom: 0.6rem; }
 .facture { display: flex; align-items: center; justify-content: space-between; gap: 8px; font-weight: 650; }
 </style>

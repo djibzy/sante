@@ -3,12 +3,13 @@ import type { PageCommandes, Statut } from '~/types/commandes'
 import { classeStatut } from '~/types/commandes'
 
 useSeoMeta({ title: 'Commandes', robots: 'noindex' })
-const ONGLETS: { cle: string; titre: string; statuts: Statut[] }[] = [
+const ONGLETS: { cle: string; titre: string; statuts: Statut[]; aRembourser?: boolean }[] = [
   { cle: 'a-traiter', titre: 'À traiter', statuts: ['en_attente', 'devis_demande'] },
   { cle: 'acomptes', titre: 'Acompte attendu', statuts: ['acompte_attendu'] },
   { cle: 'en-cours', titre: 'En cours', statuts: ['confirmee', 'en_preparation', 'prete', 'en_livraison'] },
   { cle: 'devis', titre: 'Devis envoyés', statuts: ['devis_envoye'] },
   { cle: 'terminees', titre: 'Terminées', statuts: ['livree', 'annulee', 'devis_refuse'] },
+  { cle: 'a-rembourser', titre: 'À rembourser', statuts: [], aRembourser: true },
   { cle: 'toutes', titre: 'Toutes', statuts: [] },
 ]
 const route = useRoute()
@@ -25,7 +26,10 @@ async function charger() {
   if (!autorise.value) return
   try {
     resultat.value = await appeler<PageCommandes>('/api/v1/admin/commandes', {
-      query: { statut: onglet.value.statuts, q: recherche.value || undefined, page: page.value, par_page: 30 },
+      query: {
+        statut: onglet.value.statuts, a_rembourser: onglet.value.aRembourser || undefined,
+        q: recherche.value || undefined, page: page.value, par_page: 30,
+      },
     })
     erreur.value = ''
   } catch (e) {
@@ -66,7 +70,7 @@ watch([verifie, () => route.query], charger, { deep: true })
             <span :class="classeStatut(c.statut)">{{ c.statut_libelle }}</span>
             <span class="client">{{ c.etablissement ?? c.nom_client }}<small>{{ formaterTelephone(c.telephone) }}</small></span>
             <span class="quand">{{ formaterDateHeure(c.cree_le) }}<small v-if="c.date_promise">Promise le {{ formaterDate(c.date_promise) }}</small></span>
-            <span class="montant">{{ formaterFcfa(c.total) }}<small>{{ c.montant_paye >= c.total ? 'Payée' : c.mode_livraison === 'livraison' ? c.zone_nom : 'Retrait' }}</small></span>
+            <span class="montant">{{ formaterFcfa(c.total) }}<small>{{ c.du_au_client ? `À rendre : ${formaterFcfa(c.du_au_client)}` : c.montant_paye >= c.total ? 'Payée' : c.mode_livraison === 'livraison' ? c.zone_nom : 'Retrait' }}</small></span>
           </NuxtLink>
         </li>
       </ul>

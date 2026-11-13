@@ -121,6 +121,13 @@ def articles_modifies(commande: Commande) -> str:
     return gsm(f"{texte}. Détail sur votre lien de suivi.")
 
 
+def remboursement(commande: Commande, montant: int, moyen: str) -> str:
+    return gsm(
+        f"Bibou : {_fcfa(montant)} vous ont été rendus ({moyen}) pour la commande "
+        f"{commande.reference}."
+    )
+
+
 def paiement_recu(commande: Commande, montant: int) -> str:
     reste = commande.reste_a_payer
     suite = (

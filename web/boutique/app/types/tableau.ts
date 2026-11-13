@@ -10,6 +10,7 @@ export interface TableauDeBord {
     encaisse: number
     encaisse_par_moyen: Record<string, number>
     encaisse_en_ligne: number
+    rembourse: number
     a_encaisser: number
     annulees: number
   }
@@ -19,7 +20,7 @@ export interface TableauDeBord {
   meilleures_ventes: { produit_slug: string | null, libelle: string, quantite: number, montant: number }[]
   alertes: {
     a_traiter: number, acomptes_attendus: number, en_retard: number, stock_bas: number,
-    sms_en_echec: number, paiements_a_verifier: number,
+    sms_en_echec: number, paiements_a_verifier: number, a_rembourser: number, montant_a_rembourser: number,
   }
   pas: 'jour' | 'semaine'
   serie: { debut: string, chiffre_affaires: number, commandes: number }[]

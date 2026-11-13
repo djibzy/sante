@@ -10,14 +10,14 @@ from datetime import UTC, date, datetime, time, timedelta
 from typing import Literal
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Request, Response, status
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import contains_eager
 
 from boutique.commandes.cycle import LIBELLES, Moyen, Statut
 from boutique.commandes.pdf import MOYENS
 from boutique.config import ROLE_ADMIN_BOUTIQUE
-from boutique.models import Commande, Facture, JournalAudit, Paiement
+from boutique.models import Commande, Facture, JournalAudit, Paiement, Remboursement
 from socle.audit import journaliser
 from socle.db import session_db
 from socle.security import Principal, exiger_role
@@ -27,6 +27,10 @@ equipe = exiger_role(ROLE_ADMIN_BOUTIQUE)
 Nature = Literal["factures", "encaissements", "commandes"]
 DANGEREUX = ("=", "+", "-", "@", "\t", "\r")
 LIBELLES_MOYENS = {**MOYENS, Moyen.MOBILE_MONEY: "paiement mobile"}
+# Devis pas encore acceptés, devis refusés, commandes annulées : le client ne doit rien.
+RIEN_A_PAYER = frozenset(
+    {Statut.DEVIS_DEMANDE, Statut.DEVIS_ENVOYE, Statut.DEVIS_REFUSE, Statut.ANNULEE}
+)
 
 
 def cellule(valeur: object) -> str | int:
@@ -79,38 +83,62 @@ async def _factures(session: AsyncSession, debut: datetime, fin: datetime) -> st
 
 
 async def _encaissements(session: AsyncSession, debut: datetime, fin: datetime) -> str:
-    resultat = await session.execute(
+    """Entrées et sorties de caisse : un remboursement au client est une ligne négative."""
+    paiements = await session.execute(
         select(Paiement, Commande.numero, Facture)
         .join(Commande, Commande.id == Paiement.commande_id)
         .outerjoin(Facture, Facture.commande_id == Commande.id)
         .where(Paiement.encaisse_le >= debut, Paiement.encaisse_le < fin)
-        .order_by(Paiement.encaisse_le)
     )
+    rendus = await session.execute(
+        select(Remboursement, Commande.numero, Facture)
+        .join(Commande, Commande.id == Remboursement.commande_id)
+        .outerjoin(Facture, Facture.commande_id == Commande.id)
+        .where(Remboursement.rembourse_le >= debut, Remboursement.rembourse_le < fin)
+    )
+    lignes = [
+        (p.encaisse_le, "Encaissement", numero, facture, p.moyen, p.montant, p.reference)
+        for p, numero, facture in paiements
+    ] + [
+        (r.rembourse_le, "Remboursement", numero, facture, r.moyen, -r.montant, r.reference)
+        for r, numero, facture in rendus
+    ]
     return en_csv(
-        ["Date", "Commande", "Facture", "Moyen", "Montant", "Référence"],
+        ["Date", "Opération", "Commande", "Facture", "Moyen", "Montant", "Référence"],
         (
-            [p.encaisse_le, f"BB-{numero}", facture.reference if facture else None,
-             LIBELLES_MOYENS.get(Moyen(p.moyen), p.moyen), p.montant, p.reference]
-            for p, numero, facture in resultat
+            [le, operation, f"BB-{numero}", facture.reference if facture else None,
+             LIBELLES_MOYENS.get(Moyen(moyen), moyen), montant, reference]
+            for le, operation, numero, facture, moyen, montant, reference in sorted(
+                lignes, key=lambda ligne: ligne[0]
+            )
         ),
     )  # fmt: skip
 
 
 async def _commandes(session: AsyncSession, debut: datetime, fin: datetime) -> str:
-    commandes = await session.scalars(
-        select(Commande)
+    """« Payé » : tout ce que le client a versé ; « Remboursé » : ce qui lui a été rendu."""
+    rendu = (
+        select(func.coalesce(func.sum(Remboursement.montant), 0))
+        .where(Remboursement.commande_id == Commande.id)
+        .correlate(Commande)
+        .scalar_subquery()
+    )
+    resultat = await session.execute(
+        select(Commande, rendu)
         .where(Commande.cree_le >= debut, Commande.cree_le < fin)
         .order_by(Commande.numero)
     )
     return en_csv(
         ["Commande", "Date", "Statut", "Client", "Structure", "Réception", "Articles", "Livraison",
-         "Remise", "Code promo", "Total", "Acompte", "Acompte gardé", "Payé", "Reste à payer"],
+         "Remise", "Code promo", "Total", "Acompte", "Acompte gardé", "Payé", "Remboursé",
+         "Reste à payer"],
         (
             [c.reference, c.cree_le, LIBELLES[Statut(c.statut)], c.nom_client, c.etablissement,
              "livraison" if c.mode_livraison == "livraison" else "retrait", c.sous_total,
              c.frais_livraison, c.remise, c.code_promo, c.total, c.acompte, c.acompte_garde,
-             c.montant_paye, max(c.total - c.montant_paye, 0)]
-            for c in commandes
+             c.montant_paye + rembourse, rembourse,
+             0 if Statut(c.statut) in RIEN_A_PAYER else c.reste_a_payer]
+            for c, rembourse in resultat
         ),
     )  # fmt: skip
 

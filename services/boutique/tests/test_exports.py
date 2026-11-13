@@ -58,7 +58,15 @@ async def test_exports_comptables(app: FastAPI, client: AsyncClient) -> None:
             )
         ).content
     )
-    assert encaissements[1][1:] == [reference, facture[0], "Orange Money", "7500", "OM123"]
+    assert encaissements[0][:2] == ["Date", "Opération"]
+    assert encaissements[1][1:] == [
+        "Encaissement",
+        reference,
+        facture[0],
+        "Orange Money",
+        "7500",
+        "OM123",
+    ]
 
     commandes = lire(
         (

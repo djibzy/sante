@@ -12,6 +12,7 @@ class Ventes(BaseModel):
     encaisse: int = Field(description="Paiements reçus sur la période, FCFA")
     encaisse_par_moyen: dict[str, int]
     encaisse_en_ligne: int
+    rembourse: int = Field(0, description="Rendu aux clients sur la période, FCFA")
     a_encaisser: int = Field(description="Reste dû sur les commandes déjà remises, FCFA")
     annulees: int
 
@@ -52,6 +53,8 @@ class Alertes(BaseModel):
     stock_bas: int
     sms_en_echec: int
     paiements_a_verifier: int
+    a_rembourser: int = Field(0, description="Commandes où de l'argent reste à rendre")
+    montant_a_rembourser: int = Field(0, description="Total à rendre aux clients, FCFA")
 
 
 class Point(BaseModel):
