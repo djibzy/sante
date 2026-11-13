@@ -43,6 +43,7 @@ const whatsapp = computed(() => config.public.whatsapp ? `https://wa.me/${config
           <p>Bamako, Mali</p>
           <a v-if="whatsapp" :href="whatsapp" target="_blank" rel="noopener">WhatsApp</a>
           <NuxtLink to="/gestion">Espace de l'équipe</NuxtLink>
+          <InstallerApplication />
         </div>
       </div>
       <p>

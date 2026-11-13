@@ -148,6 +148,7 @@ onMounted(async () => {
         </p>
       </template>
       <p v-else-if="!enLigne" class="aide">Vous êtes hors ligne : l'enregistrement reprendra avec le réseau.</p>
+      <InstallerApplication />
     </div>
 
     <p v-if="chargement" class="aide">Chargement du catalogue…</p>

@@ -3,7 +3,9 @@
 export default defineNuxtPlugin(() => {
   const { enLigne } = useHorsLigne()
   const differe = useEnvoiDiffere()
+  const installation = useInstallation()
   onNuxtReady(() => {
+    installation.suivre()
     enLigne.value = navigator.onLine
     differe.restaurer()
     if (navigator.onLine) void differe.tenter()
