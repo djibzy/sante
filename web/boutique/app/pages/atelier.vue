@@ -6,7 +6,7 @@ const ROLES = ['boutique:atelier', 'boutique:admin']
 const ACTIONS: Record<EtatOrdre, string> = {
   en_cours: 'Commencer', controle: 'Au contrôle', termine: 'Terminé', a_faire: 'Remettre à faire', annule: '',
 }
-const { appeler } = useApiBoutique()
+const { appeler, telecharger } = useApiBoutique()
 const { verifie, autorise, estGestionnaire } = useEquipe(ROLES)
 const postes = ref<Poste[]>([])
 const ordres = ref<Ordre[]>([])
@@ -58,6 +58,20 @@ async function changerCapacite(code: string, capacite: number) {
   }
 }
 
+// Une étiquette par pièce de la file affichée (même poste), à épingler sur le vêtement.
+const impression = ref(false)
+async function etiquettes() {
+  impression.value = true
+  try {
+    const query = poste.value ? `?poste=${encodeURIComponent(poste.value)}` : ''
+    await telecharger(`/api/v1/atelier/etiquettes.pdf${query}`, `etiquettes-${poste.value ?? 'atelier'}.pdf`)
+  } catch (e) {
+    erreur.value = messageErreur(e)
+  } finally {
+    impression.value = false
+  }
+}
+
 watch([verifie, poste], charger)
 onMounted(() => { minuterie = setInterval(charger, 60_000) })
 onBeforeUnmount(() => clearInterval(minuterie))
@@ -83,6 +97,12 @@ onBeforeUnmount(() => clearInterval(minuterie))
         </div>
       </div>
 
+      <div v-if="ordres.length" class="outils">
+        <button type="button" class="bouton bouton-secondaire" :disabled="impression" @click="etiquettes">
+          {{ impression ? 'Préparation…' : `Imprimer les étiquettes (${ordres.length})` }}
+        </button>
+        <span class="aide">Une par pièce de la file, avec le texte à broder en entier : à épingler sur le vêtement.</span>
+      </div>
       <div v-if="erreur" class="alerte alerte-erreur" role="alert">{{ erreur }}</div>
       <p v-if="verifie && !ordres.length" class="vide">Rien à fabriquer pour le moment.</p>
 
@@ -113,6 +133,8 @@ onBeforeUnmount(() => clearInterval(minuterie))
 </template>
 
 <style scoped>
+.outils { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 12px; margin: 0 0 12px; }
+.outils .aide { margin: 0; }
 .atelier { padding-top: 20px; }
 .postes { display: grid; gap: 10px; grid-template-columns: repeat(auto-fill, minmax(min(100%, 210px), 1fr)); margin-bottom: 18px; }
 .poste {

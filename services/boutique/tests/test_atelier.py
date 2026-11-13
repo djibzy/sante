@@ -1,7 +1,9 @@
 from datetime import UTC, datetime, timedelta
+from io import BytesIO
 from typing import Any
 
 from httpx import AsyncClient
+from pypdf import PdfReader
 
 from .aides import commander, fiche, ligne
 from .conftest import jeton
@@ -227,3 +229,34 @@ async def test_mouvements_refuses(client: AsyncClient) -> None:
         f"/api/v1/admin/produits/{blouse['id']}", json={"poste_atelier": "soudure"}, headers=ADMIN
     )
     assert inconnu.status_code == 422
+
+
+async def test_etiquettes_de_fabrication(client: AsyncClient) -> None:
+    lignes = [
+        await ligne(client, "blouse-medicale-brodee", "L", 2, "A. Traoré, sage-femme"),
+        await ligne(client, "kit-hygiene"),
+    ]
+    reference = (await commander(client, lignes))["commande"]["reference"]
+    await statut(client, reference, "confirmee")
+
+    reponse = await client.get(
+        "/api/v1/atelier/etiquettes.pdf", params={"poste": "broderie"}, headers=ATELIER
+    )
+    assert reponse.status_code == 200, reponse.text
+    assert reponse.headers["content-type"] == "application/pdf"
+    texte = PdfReader(BytesIO(reponse.content)).pages[0].extract_text()
+    for attendu in (reference, "× 2", "Texte à broder", "A. Traoré, sage-femme", "Broderie"):
+        assert attendu in texte, attendu
+    assert "Assemblage" not in texte  # filtre du poste, comme l'écran
+
+    toutes = await client.get("/api/v1/atelier/etiquettes.pdf", headers=ATELIER)
+    assert "Assemblage" in PdfReader(BytesIO(toutes.content)).pages[0].extract_text()
+    vide = await client.get(
+        "/api/v1/atelier/etiquettes.pdf", params={"etat": "termine"}, headers=ATELIER
+    )
+    assert "Aucune pièce" in PdfReader(BytesIO(vide.content)).pages[0].extract_text()
+    assert (await client.get("/api/v1/atelier/etiquettes.pdf")).status_code == 401
+    client_seul = jeton()
+    assert (
+        await client.get("/api/v1/atelier/etiquettes.pdf", headers=client_seul)
+    ).status_code == 403

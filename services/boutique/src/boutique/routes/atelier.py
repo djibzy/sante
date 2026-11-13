@@ -4,12 +4,13 @@ from datetime import UTC, datetime
 from math import ceil
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, HTTPException, Query, status
+from fastapi import APIRouter, Depends, HTTPException, Query, Response, status
 from sqlalchemy import Select, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from boutique.atelier.delais import charges_par_poste
 from boutique.atelier.etats import LIBELLES_ORDRE, OUVERTS, PASSAGES_ORDRE, EtatOrdre
+from boutique.atelier.etiquettes import Etiquette, etiquettes_pdf
 from boutique.atelier.schemas import ChangementEtat, ModificationPoste, OrdreVue, PosteVue
 from boutique.commandes import operations
 from boutique.commandes.tarifs import aujourd_hui
@@ -73,6 +74,56 @@ async def file(
     if poste:
         requete = requete.where(OrdreFabrication.poste == poste)
     return [_vue(o, n, e, nom) for o, n, e, nom in await session.execute(requete)]
+
+
+@routeur.get(
+    "/atelier/etiquettes.pdf",
+    summary="Étiquettes des pièces de la file (A4, dix par page), à épingler sur les vêtements",
+    response_class=Response,
+)
+async def etiquettes(
+    poste: str | None = Query(None, max_length=20),
+    etat: list[EtatOrdre] | None = Query(None, description="Par défaut : à faire, en cours"),
+    _: Principal = Depends(atelier),
+    session: AsyncSession = Depends(session_db),
+) -> Response:
+    requete = (
+        _requete()
+        .add_columns(PosteAtelier.nom)
+        .join(PosteAtelier, PosteAtelier.code == OrdreFabrication.poste)
+        .where(OrdreFabrication.etat.in_(etat or OUVERTS))
+        .order_by(
+            OrdreFabrication.date_promise.asc().nulls_last(),
+            Commande.numero,
+            OrdreFabrication.cree_le,
+        )
+        .limit(300)
+    )
+    if poste:
+        requete = requete.where(OrdreFabrication.poste == poste)
+    contenu = etiquettes_pdf(
+        [
+            Etiquette(
+                reference=f"BB-{numero}",
+                client=etablissement or nom,
+                libelle=ordre.libelle,
+                personnalisation=ordre.personnalisation,
+                quantite=ordre.quantite,
+                poste=nom_poste,
+                poste_code=ordre.poste,
+                date_promise=ordre.date_promise,
+            )
+            for ordre, numero, etablissement, nom, nom_poste in await session.execute(requete)
+        ]
+    )
+    return Response(
+        contenu,
+        media_type="application/pdf",
+        headers={
+            "Content-Disposition": 'inline; filename="etiquettes-atelier.pdf"',
+            "Cache-Control": "no-store",
+        },
+    )
 
 
 @routeur.post("/atelier/ordres/{ordre_id}/etat", summary="Faire avancer une pièce")
