@@ -55,7 +55,10 @@ async function valider() {
         </div>
         <label class="accord">
           <input v-model="formulaire.accepte_conditions" type="checkbox" required>
-          J'accepte les conditions d'utilisation et la façon dont mes données sont traitées.
+          <span>
+            J'accepte les <NuxtLink to="/conditions" target="_blank">conditions d'utilisation</NuxtLink>
+            et la façon dont mes données sont traitées (<NuxtLink to="/confidentialite" target="_blank">confidentialité</NuxtLink>).
+          </span>
         </label>
         <button type="submit" class="bouton bouton-large" :disabled="envoi">Créer mon compte</button>
       </form>

@@ -49,6 +49,11 @@ const whatsapp = computed(() => config.public.whatsapp ? `https://wa.me/${config
         Les articles du domaine pharmaceutique ne sont ni vendus ni affichés avec un prix en ligne :
         notre pharmacien partenaire les délivre.
       </p>
+      <nav class="liens-legaux" aria-label="Informations légales">
+        <NuxtLink to="/conditions">Conditions de vente</NuxtLink>
+        <NuxtLink to="/confidentialite">Confidentialité</NuxtLink>
+        <NuxtLink to="/mentions-legales">Mentions légales</NuxtLink>
+      </nav>
     </ChartePied>
   </div>
 </template>
@@ -64,4 +69,6 @@ const whatsapp = computed(() => config.public.whatsapp ? `https://wa.me/${config
 .colonnes-pied a:hover { color: var(--primaire); text-decoration: underline; }
 .colonnes-pied p { margin: 0; }
 .titre-pied { font-weight: 800; color: var(--texte) !important; margin-bottom: 4px !important; }
+.liens-legaux { display: flex; flex-wrap: wrap; gap: 6px 16px; margin: 8px 0; }
+.liens-legaux a { color: var(--texte-doux); }
 </style>

@@ -96,4 +96,5 @@ sans argent réel (refusé en production).
 - [x] Tableau de bord de l'équipe : ventes, encaissements, délais, devis, avis, meilleures ventes, alertes du jour
 - [x] Durées de conservation appliquées chaque nuit (anonymisation, effacement), alertes SMS à l'équipe
 - [x] Droits des personnes : téléchargement de ses données et suppression du compte
+- [x] Projets de conditions de vente, politique de confidentialité et mentions légales (à faire valider)
 - [ ] Pharmacien partenaire (janvier 2027)

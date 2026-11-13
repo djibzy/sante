@@ -113,6 +113,8 @@ services:
       NUXT_PUBLIC_API_BOUTIQUE: https://boutique.${DOMAINE}
       NUXT_PUBLIC_API_COMPTES: https://comptes.${DOMAINE}
       NUXT_PUBLIC_WHATSAPP: ${WHATSAPP:-}
+      # « true » une fois les conditions, la confidentialité et les mentions validées par un juriste.
+      NUXT_PUBLIC_TEXTES_JURIDIQUES_VALIDES: ${TEXTES_JURIDIQUES_VALIDES:-}
     depends_on: [boutique]
 
   # Sauvegarde de chaque base, chaque nuit, gardée 14 jours dans le volume « sauvegardes ».

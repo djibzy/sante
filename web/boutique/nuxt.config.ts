@@ -35,6 +35,8 @@ export default defineNuxtConfig({
       apiBoutique: 'http://localhost:8002',
       apiComptes: 'http://localhost:8001',
       whatsapp: '', // numéro de commande, format international sans « + » (ex. 22376000000)
+      // « true » une fois les textes juridiques validés par un juriste : retire le bandeau « projet ».
+      textesJuridiquesValides: '',
     },
   },
   hooks: {
