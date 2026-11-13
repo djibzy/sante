@@ -35,6 +35,9 @@ export default defineNuxtConfig({
       apiBoutique: 'http://localhost:8002',
       apiComptes: 'http://localhost:8001',
       whatsapp: '', // numéro de commande, format international sans « + » (ex. 22376000000)
+      // Où et quand retirer une commande : pied de page, choix du retrait, suivi d'une commande prête.
+      adresse: '', // ex. « Hamdallaye ACI 2000, rue 440, porte 12, Bamako »
+      horaires: '', // ex. « Du lundi au samedi, de 9 h à 18 h »
       // « true » une fois les textes juridiques validés par un juriste : retire le bandeau « projet ».
       textesJuridiquesValides: '',
     },

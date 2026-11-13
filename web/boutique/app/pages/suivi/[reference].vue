@@ -18,6 +18,7 @@ const action = ref<'annulation' | 'acceptation' | null>(null)
 const confirmerAnnulation = ref(false)
 const copie = ref(false)
 const { ajouter, reprise } = usePanier()
+const retrait = useRuntimeConfig().public // adresse et horaires de la boutique, s'ils sont connus
 const reprendre = ref(false)
 
 // Les mêmes articles dans le panier : le serveur dit ce qui est encore proposé.
@@ -139,6 +140,10 @@ onMounted(charger)
       </div>
       <p v-if="commande.date_promise && !['livree', 'annulee'].includes(commande.statut)" class="promesse">
         {{ commande.mode_livraison === 'livraison' ? 'Livraison prévue' : 'Prête' }} vers le {{ formaterDate(commande.date_promise) }}
+      </p>
+      <p v-if="commande.statut === 'prete' && commande.mode_livraison === 'retrait' && (retrait.adresse || retrait.horaires)" class="alerte alerte-succes">
+        Votre commande vous attend à la boutique<template v-if="retrait.adresse">&nbsp;: {{ retrait.adresse }}</template>.
+        <template v-if="retrait.horaires"><br>{{ retrait.horaires }}.</template>
       </p>
       <p v-if="commande.statut === 'acompte_attendu'" class="alerte alerte-info">
         Acompte à régler : <strong>{{ formaterFcfa(commande.acompte_restant) }}</strong>. La fabrication commence dès sa

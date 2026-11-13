@@ -114,6 +114,8 @@ services:
       NUXT_PUBLIC_API_BOUTIQUE: https://boutique.${DOMAINE}
       NUXT_PUBLIC_API_COMPTES: https://comptes.${DOMAINE}
       NUXT_PUBLIC_WHATSAPP: ${WHATSAPP:-}
+      NUXT_PUBLIC_ADRESSE: ${ADRESSE_BOUTIQUE:-}
+      NUXT_PUBLIC_HORAIRES: ${HORAIRES_BOUTIQUE:-}
       # « true » une fois les conditions, la confidentialité et les mentions validées par un juriste.
       NUXT_PUBLIC_TEXTES_JURIDIQUES_VALIDES: ${TEXTES_JURIDIQUES_VALIDES:-}
     depends_on: [boutique]

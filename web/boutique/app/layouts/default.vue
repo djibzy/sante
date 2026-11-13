@@ -40,7 +40,8 @@ const whatsapp = computed(() => config.public.whatsapp ? `https://wa.me/${config
         </nav>
         <div>
           <p class="titre-pied">Nous joindre</p>
-          <p>Bamako, Mali</p>
+          <p>{{ config.public.adresse || 'Bamako, Mali' }}</p>
+          <p v-if="config.public.horaires">{{ config.public.horaires }}</p>
           <a v-if="whatsapp" :href="whatsapp" target="_blank" rel="noopener">WhatsApp</a>
           <NuxtLink to="/gestion">Espace de l'équipe</NuxtLink>
           <InstallerApplication />

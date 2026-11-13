@@ -4,6 +4,7 @@ import type { Zone } from '~/types/commandes'
 // Retrait gratuit à la boutique, ou livraison dans une zone desservie (frais affichés).
 const props = defineProps<{ zones: Zone[]; adresseRequise?: boolean }>()
 const { livraison } = usePanier()
+const { adresse, horaires } = useRuntimeConfig().public
 watch(() => livraison.value.mode, (mode) => {
   if (mode === 'livraison' && !livraison.value.zone_id) livraison.value.zone_id = props.zones[0]?.id ?? null
 })
@@ -14,7 +15,10 @@ watch(() => livraison.value.mode, (mode) => {
     <legend>Réception</legend>
     <label class="option" :class="{ actif: livraison.mode === 'retrait' }">
       <input v-model="livraison.mode" type="radio" value="retrait">
-      <span><strong>Retrait à la boutique</strong><small>Gratuit, nous vous appelons quand c'est prêt</small></span>
+      <span>
+        <strong>Retrait à la boutique</strong><small>Gratuit, nous vous appelons quand c'est prêt</small>
+        <small v-if="adresse || horaires" class="ou-quand">{{ [adresse, horaires].filter(Boolean).join(' · ') }}</small>
+      </span>
     </label>
     <label class="option" :class="{ actif: livraison.mode === 'livraison' }">
       <input v-model="livraison.mode" type="radio" value="livraison" :disabled="!zones.length">
