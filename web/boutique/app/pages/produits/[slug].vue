@@ -61,6 +61,12 @@ const photoAbsente = ref(false) // hors ligne, photo pas encore vue : le dessin 
 watch(photo, () => { photoAbsente.value = false })
 watch(couleur, (nom) => { photo.value = photoPour(nom) })
 const forme = computed(() => formeArticle(produit.value!.rayon_slug, produit.value!.slug))
+// Essayer l'article avec d'autres pièces, dans la couleur choisie.
+const composer = computed(() => {
+  const piece = forme.value ? PIECE_DE_FORME[forme.value] : undefined
+  if (!piece) return null
+  return { path: '/composer', query: { [piece]: produit.value!.slug, [`${piece}_couleur`]: couleur.value ?? undefined } }
+})
 
 function ajouterAuPanier() {
   const p = produit.value!
@@ -242,6 +248,7 @@ useHead(() => {
           <p v-if="acompte" class="acompte">
             {{ acompte }} <NuxtLink to="/conditions#acompte">Conditions</NuxtLink>
           </p>
+          <NuxtLink v-if="composer" :to="composer" class="lien-composer">Composer une tenue avec cet article</NuxtLink>
           <ul class="garanties">
             <li>{{ delai }}</li>
             <li>Paiement à la livraison, en espèces ou par transfert Orange Money ou Moov Money.</li>
@@ -329,6 +336,7 @@ useHead(() => {
 .achat .champ { margin: 0; }
 .quantite input { width: 92px; }
 .achat .bouton { flex: 1; }
+.lien-composer { display: inline-block; margin-top: 12px; font-weight: 650; }
 .acompte { margin: 12px 0 0; padding: 10px 12px; border-radius: 10px; background: var(--accent-clair); color: var(--accent-texte); font-size: 0.95rem; }
 .acompte a { color: inherit; font-weight: 650; }
 .garanties { margin: 12px 0; padding-left: 1.1em; display: grid; gap: 6px; color: var(--texte-doux); font-size: 0.95rem; }

@@ -49,3 +49,32 @@ export function formeArticle(rayon: string, slug: string): string | null {
   if (rayon === 'campagnes' && slug.includes('shirt')) return 'tshirt'
   return null
 }
+
+/** « #rrggbb » vers OKLab (comme le service : boutique.couleurs). */
+export function oklab(hexa: string): [number, number, number] {
+  const [r, g, b] = versRvb(hexa).map((c) => {
+    const v = c / 255
+    return v <= 0.04045 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4
+  }) as [number, number, number]
+  const l = Math.cbrt(0.4122214708 * r + 0.5363325363 * g + 0.0514459929 * b)
+  const m = Math.cbrt(0.2119034982 * r + 0.6806995451 * g + 0.1073969566 * b)
+  const s = Math.cbrt(0.0883024619 * r + 0.2817188376 * g + 0.6299787005 * b)
+  return [
+    0.2104542553 * l + 0.793617785 * m - 0.0040720468 * s,
+    1.9779984951 * l - 2.428592205 * m + 0.4505937099 * s,
+    0.0259040371 * l + 0.7827717662 * m - 0.808675766 * s,
+  ]
+}
+
+/** Écart perçu entre deux couleurs, de 0 (identiques) à 100 (noir et blanc). */
+export function ecart(une: string, autre: string): number {
+  const a = oklab(une)
+  const b = oklab(autre)
+  return 100 * Math.hypot(a[0] - b[0], a[1] - b[1], a[2] - b[2])
+}
+
+/** Blanc, gris, noir ou bleu marine : se marie avec toutes les couleurs. */
+export function estNeutre(hexa: string): boolean {
+  const [clarte, a, b] = oklab(hexa)
+  return Math.hypot(a, b) < 0.035 || clarte < 0.33
+}

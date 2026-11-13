@@ -89,6 +89,7 @@ const LIENS = [
         <div>
           <p class="titre-colonne">À découvrir</p>
           <NuxtLink to="/explorer">Explorer par couleur</NuxtLink>
+          <NuxtLink to="/composer">Composer ma tenue</NuxtLink>
           <NuxtLink to="/nouveautes">Nouveautés</NuxtLink>
           <NuxtLink to="/collection/Wax">La collection wax</NuxtLink>
           <NuxtLink to="/guide-des-tailles">Guide des tailles</NuxtLink>
@@ -114,6 +115,7 @@ const LIENS = [
       <NuxtLink v-for="m in metiersActifs" :key="m.slug" :to="`/metiers/${m.slug}`">{{ m.nom }}</NuxtLink>
     </details>
     <NuxtLink v-for="l in LIENS" :key="l.lien" :to="l.lien" class="lien-tiroir">{{ l.nom }}</NuxtLink>
+    <NuxtLink to="/composer" class="lien-tiroir">Composer ma tenue</NuxtLink>
     <NuxtLink to="/guide-des-tailles" class="lien-tiroir">Guide des tailles</NuxtLink>
     <NuxtLink to="/favoris" class="lien-tiroir">Mes favoris</NuxtLink>
   </aside>

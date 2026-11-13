@@ -41,7 +41,10 @@ const actifs = computed(() => Object.values(filtres.value).some(Boolean))
   <section class="conteneur explorer">
     <header class="intro">
       <h1>Explorer par couleur</h1>
-      <p>Toutes nos tenues, rangées par couleur. Choisissez une teinte, puis affinez par métier ou par type d'article.</p>
+      <p>
+        Toutes nos tenues, rangées par couleur. Choisissez une teinte, puis affinez par métier ou par type d'article.
+        Ou <NuxtLink to="/composer">composez votre tenue</NuxtLink> sur le mannequin.
+      </p>
     </header>
 
     <div class="nuancier" role="group" aria-label="Familles de couleurs">
