@@ -1,8 +1,9 @@
 """Parcours de contrôle dans un vrai navigateur : chaque page s'affiche et s'hydrate sans erreur
 (exception, hydratation, politique de sécurité du contenu), passe les règles d'accessibilité
 WCAG 2.1 A et AA vérifiées par axe-core (défauts graves et critiques), et les gestes essentiels
-marchent (choisir une taille, ajouter au panier, filtrer par couleur). Les services, la
-boutique et un compte de l'équipe doivent tourner (voir .github/workflows/ci.yml).
+marchent (choisir une taille, ajouter au panier, commander, filtrer par couleur, corriger les
+articles d'une commande). Les services, la boutique et un compte de l'équipe doivent tourner
+(voir .github/workflows/ci.yml).
 
     python essais/balayage.py            # BIBOU_ADRESSE=http://localhost:3000 par défaut
 """
@@ -80,6 +81,14 @@ def main() -> int:
         page.goto(f"{ADRESSE}/panier", wait_until="networkidle")
         expect(page.locator(".ligne")).to_have_count(1)
         expect(page.locator(".ligne")).to_contain_text("M")
+        page.goto(f"{ADRESSE}/commande", wait_until="networkidle")
+        page.get_by_label("Prénom et nom").fill("Awa Sidibé")
+        page.get_by_label("Téléphone").fill(os.environ.get("BIBOU_CLIENT_TELEPHONE", "76 45 12 50"))
+        if page.get_by_label("J'ai compris").count():  # article fait à la demande : acompte
+            page.get_by_label("J'ai compris").check()
+        page.get_by_role("button", name="Confirmer la commande").click()
+        page.wait_for_url(re.compile(r"/suivi/"))
+        reference = page.url.split("/suivi/")[1].split("?")[0]
         page.goto(f"{ADRESSE}/explorer", wait_until="networkidle")
         page.get_by_role("button", name=re.compile("Bleus")).click()
         page.wait_for_url(re.compile(r"famille=bleu"))
@@ -95,9 +104,19 @@ def main() -> int:
             courante["chemin"] = chemin
             page.goto(f"{ADRESSE}{chemin}", wait_until="networkidle")
             erreurs.extend(f"{chemin} : accessibilité, {d}" for d in accessibilite(page))
+
+        # La commande passée plus haut, ouverte par l'équipe, articles en cours de correction.
+        chemin = f"/gestion/commandes/{reference}"
+        courante["chemin"] = chemin
+        page.goto(f"{ADRESSE}{chemin}", wait_until="networkidle")
+        page.get_by_role("button", name="Corriger les articles").click()
+        expect(page.locator(".ligne-article")).to_have_count(1)
+        if page.evaluate("document.documentElement.scrollWidth") > 391:
+            erreurs.append(f"{chemin} : la correction des articles déborde de l'écran du téléphone")
+        erreurs.extend(f"{chemin} : accessibilité, {d}" for d in accessibilite(page))
         navigateur.close()
 
-    print(f"{len(PUBLIQUES) + len(EQUIPE)} pages parcourues.")
+    print(f"{len(PUBLIQUES) + len(EQUIPE) + 1} pages parcourues.")
     for erreur in erreurs:
         print("ERREUR", erreur)
     return 1 if erreurs else 0

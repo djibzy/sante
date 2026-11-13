@@ -277,6 +277,11 @@ class Commande(IdMixin, HorodatageMixin, Base):
     relances: Mapped[int] = mapped_column(nullable=False, default=0, server_default="0")
     # Code de réduction appliqué à la commande (la remise est dans « remise »).
     code_promo: Mapped[str | None] = mapped_column(String(30), index=True)
+    # Prix professionnels accordés à la commande (soignant vérifié) : une correction des
+    # articles par l'équipe reprend le même tarif.
+    tarif_professionnel: Mapped[bool] = mapped_column(
+        nullable=False, default=False, server_default=false()
+    )
     # Empreinte SHA-256 de la clé du lien de suivi ; la clé elle-même n'est jamais stockée.
     empreinte_cle_suivi: Mapped[str] = mapped_column(String(64), unique=True, nullable=False)
     livreur_id: Mapped[UUID | None] = mapped_column(ForeignKey("livreurs.id"), index=True)

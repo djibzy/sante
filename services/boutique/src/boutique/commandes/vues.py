@@ -84,6 +84,7 @@ def vue_gestion(commande: Commande) -> CommandeGestion:
         client_id=commande.client_id,
         email=commande.email,
         note_client=commande.note_client,
+        tarif_professionnel=commande.tarif_professionnel,
         devis_emis_le=commande.devis_emis_le,
         paiements=[PaiementVue.model_validate(p) for p in commande.paiements],
         historique_complet=[

@@ -231,6 +231,7 @@ class CommandeGestion(CommandeClient):
     client_id: UUID | None
     email: str | None
     note_client: str
+    tarif_professionnel: bool
     devis_emis_le: datetime | None
     paiements: list[PaiementVue]
     historique_complet: list[EvenementGestion]
@@ -308,6 +309,14 @@ class LigneDevis(BaseModel):
     quantite: int = Field(ge=1, le=10_000)
     prix_unitaire: int | None = Field(None, ge=0, le=100_000_000)
     personnalisation: str | None = Field(None, max_length=200)
+
+
+class ModificationArticles(BaseModel):
+    """Articles corrigés au téléphone avant la fabrication (taille, quantité, ajout, retrait).
+    Prix vide : celui du catalogue ; une ligne déjà commandée garde le sien."""
+
+    lignes: list[LigneDevis] = Field(min_length=1, max_length=80)
+    note: str = Field("", max_length=500)
 
 
 class EmissionDevis(BaseModel):

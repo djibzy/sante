@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import type { CommandeGestion, Livreur, Paiement, Statut } from '~/types/commandes'
+import type { ProduitGestion } from '~/types/gestion'
 import { classeStatut } from '~/types/commandes'
 
 const route = useRoute()
@@ -74,6 +75,73 @@ const devis = reactive({ lignes: [] as LigneEditee[], remise: 0, frais_livraison
 const devisModifiable = computed(() => ['devis_demande', 'devis_envoye'].includes(commande.value?.statut ?? ''))
 const totalDevis = computed(() =>
   devis.lignes.reduce((t, l) => t + l.quantite * l.prix_unitaire, 0) + devis.frais_livraison - devis.remise)
+
+// Correction des articles au téléphone, avant la fabrication : taille, quantité, ajout,
+// retrait. Une ligne déjà commandée garde son prix ; un ajout prend celui du catalogue.
+interface LigneCorrigee {
+  produit_id: string | null
+  variante_id: string | null
+  libelle: string
+  quantite: number
+  prix_unitaire: number | null
+  personnalisation: string | null
+}
+const articles = reactive({ ouvert: false, lignes: [] as LigneCorrigee[], note: '', ajout: { produit_id: '', variante_id: '', quantite: 1 } })
+const articlesModifiables = computed(() => ['en_attente', 'acompte_attendu'].includes(commande.value?.statut ?? ''))
+const catalogue = ref<ProduitGestion[]>([])
+// Articles vendables en ligne seulement : un article pharmaceutique passe par le pharmacien.
+const ajoutables = computed(() => catalogue.value.filter(p => p.est_actif && p.categorie_reglementaire !== 'pharmaceutique'))
+const variantesDe = computed(() => {
+  const commandees = new Set(commande.value?.lignes.map(l => l.variante_id))
+  return Object.fromEntries(catalogue.value.map(p => [p.id, p.variantes.filter(v => v.est_active || commandees.has(v.id))]))
+})
+async function ouvrirArticles() {
+  const c = commande.value
+  if (!c) return
+  try {
+    if (!catalogue.value.length) catalogue.value = await appeler<ProduitGestion[]>('/api/v1/admin/produits')
+  } catch (e) {
+    erreur.value = messageErreur(e)
+    return
+  }
+  articles.lignes = c.lignes.map(l => ({
+    produit_id: l.produit_id, variante_id: l.variante_id, libelle: l.libelle, quantite: l.quantite,
+    prix_unitaire: l.prix_unitaire, personnalisation: l.personnalisation,
+  }))
+  articles.ouvert = true
+}
+// Même article, même variante qu'à la commande : le serveur garde le prix d'origine ; sinon
+// prix du catalogue, au tarif de la commande (public ou professionnel).
+function prixDOrigine(ligne: LigneCorrigee): number | null {
+  const origine = commande.value?.lignes.find(l => l.produit_id === ligne.produit_id && l.variante_id === ligne.variante_id)
+  return origine?.prix_unitaire ?? null
+}
+function ajouterArticle() {
+  const { produit_id: id, variante_id: varianteId, quantite } = articles.ajout
+  const variantes = (variantesDe.value[id] ?? []).filter(v => v.est_active)
+  if (!id || (variantes.length > 0 && !varianteId)) return
+  const variante = variantes.find(v => v.id === varianteId)
+  const nom = catalogue.value.find(p => p.id === id)?.nom ?? ''
+  articles.lignes.push({
+    produit_id: id, variante_id: varianteId || null, libelle: variante ? `${nom} – ${variante.libelle}` : nom,
+    quantite: Math.max(1, quantite), prix_unitaire: null, personnalisation: null,
+  })
+  Object.assign(articles.ajout, { produit_id: '', variante_id: '', quantite: 1 })
+}
+async function enregistrerArticles() {
+  const ok = await executer('/articles', 'PUT', {
+    lignes: articles.lignes.map(l => ({
+      produit_id: l.produit_id, variante_id: l.variante_id, quantite: l.quantite,
+      prix_unitaire: l.produit_id ? null : l.prix_unitaire, personnalisation: l.personnalisation,
+      libelle: l.produit_id ? null : l.libelle,
+    })),
+    note: articles.note,
+  })
+  if (ok) {
+    articles.ouvert = false
+    articles.note = ''
+  }
+}
 
 function preparer(c: CommandeGestion) {
   commande.value = c
@@ -209,12 +277,60 @@ watch(verifie, async () => {
               <button type="button" class="bouton" :disabled="envoi || !devis.lignes.length" @click="envoyerDevis">Envoyer le devis</button>
             </div>
 
-            <div class="carte bloc">
-              <h2>Articles</h2>
-              <DetailCommande :commande="commande" />
-              <button v-if="commande.devis_emis_le" type="button" class="bouton bouton-secondaire" @click="telecharger(`${base}/devis.pdf`, `devis-${commande.reference}.pdf`)">
-                Télécharger le devis (PDF)
-              </button>
+            <div class="carte bloc carte-articles">
+              <h2>
+                Articles
+                <span v-if="commande.tarif_professionnel" class="pastille pastille-accent">Tarif professionnel</span>
+              </h2>
+              <template v-if="articles.ouvert">
+                <div class="table-devis">
+                  <div v-for="(l, i) in articles.lignes" :key="i" class="ligne-devis ligne-article">
+                    <input v-if="!l.produit_id" v-model="l.libelle" aria-label="Libellé" placeholder="Libellé de la ligne">
+                    <span v-else>{{ l.libelle.split(' – ')[0] }}<small v-if="l.personnalisation">, texte « {{ l.personnalisation }} »</small></span>
+                    <label v-if="l.produit_id && variantesDe[l.produit_id]?.length">
+                      Variante
+                      <select v-model="l.variante_id">
+                        <option v-for="v in variantesDe[l.produit_id]" :key="v.id" :value="v.id">{{ v.libelle }}{{ v.est_active ? '' : ' (retirée)' }}</option>
+                      </select>
+                    </label>
+                    <label>Qté <input v-model.number="l.quantite" type="number" min="1" inputmode="numeric"></label>
+                    <label v-if="!l.produit_id">Prix <input v-model.number="l.prix_unitaire" type="number" min="0" step="500" inputmode="numeric"></label>
+                    <span v-else class="aide">{{ prixDOrigine(l) !== null ? formaterFcfa(prixDOrigine(l)!) : 'prix du catalogue' }}</span>
+                    <button type="button" class="bouton bouton-discret" :aria-label="`Retirer ${l.libelle}`" @click="articles.lignes.splice(i, 1)">Retirer</button>
+                  </div>
+                </div>
+                <fieldset class="ajout-article">
+                  <legend>Ajouter un article du catalogue</legend>
+                  <select v-model="articles.ajout.produit_id" aria-label="Article à ajouter" @change="articles.ajout.variante_id = ''">
+                    <option value="">Choisir un article…</option>
+                    <option v-for="p in ajoutables" :key="p.id" :value="p.id">{{ p.nom }}</option>
+                  </select>
+                  <select v-if="articles.ajout.produit_id && variantesDe[articles.ajout.produit_id]?.length" v-model="articles.ajout.variante_id" aria-label="Variante de l'article à ajouter">
+                    <option value="">Variante…</option>
+                    <option v-for="v in variantesDe[articles.ajout.produit_id]?.filter(v => v.est_active)" :key="v.id" :value="v.id">{{ v.libelle }}</option>
+                  </select>
+                  <input v-model.number="articles.ajout.quantite" type="number" min="1" inputmode="numeric" aria-label="Quantité à ajouter">
+                  <button type="button" class="bouton bouton-secondaire" @click="ajouterArticle">Ajouter</button>
+                </fieldset>
+                <button type="button" class="bouton bouton-discret ajout" @click="articles.lignes.push({ produit_id: null, variante_id: null, libelle: '', quantite: 1, prix_unitaire: 0, personnalisation: null })">
+                  Ajouter une ligne libre (retouche, transport…)
+                </button>
+                <div class="champ"><label for="note-articles">Note visible du client (facultatif)</label><input id="note-articles" v-model="articles.note" maxlength="500" placeholder="Taille L au lieu de M, à votre demande"></div>
+                <div class="actions-articles">
+                  <button type="button" class="bouton" :disabled="envoi || !articles.lignes.length" @click="enregistrerArticles">Enregistrer les corrections</button>
+                  <button type="button" class="bouton bouton-discret" @click="articles.ouvert = false">Abandonner</button>
+                </div>
+              </template>
+              <template v-else>
+                <DetailCommande :commande="commande" />
+                <div v-if="articlesModifiables" class="corriger">
+                  <button type="button" class="bouton bouton-secondaire" @click="ouvrirArticles">Corriger les articles</button>
+                  <span class="aide">Taille, quantité, ajout ou retrait, avant la fabrication. Total, acompte et code promo suivent.</span>
+                </div>
+                <button v-if="commande.devis_emis_le" type="button" class="bouton bouton-secondaire" @click="telecharger(`${base}/devis.pdf`, `devis-${commande.reference}.pdf`)">
+                  Télécharger le devis (PDF)
+                </button>
+              </template>
             </div>
           </div>
 
@@ -328,6 +444,19 @@ watch(verifie, async () => {
 .retenue legend { font-weight: 650; padding: 0 4px; }
 .retenue .case { align-items: flex-start; }
 .table-devis { display: grid; gap: 8px; }
+.ajout-article { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; border: 1px dashed var(--bordure); border-radius: 10px; padding: 8px 10px 10px; margin: 4px 0; }
+.ajout-article legend { font-weight: 650; padding: 0 4px; }
+.ajout-article select, .ajout-article input { min-height: 40px; border: 1.5px solid var(--bordure); border-radius: 8px; padding: 0 8px; font: inherit; }
+/* Largeur en pourcentage : un long nom d'article ne fait plus déborder la page sur téléphone. */
+.ajout-article select { flex: 1 1 14em; width: 100%; min-width: 0; }
+.ajout-article input { width: 72px; }
+.actions-articles { display: flex; flex-wrap: wrap; gap: 8px; }
+/* Après .ligne-devis (grille du devis) : ici, les champs passent à la ligne sur téléphone. */
+.ligne-devis.ligne-article { display: flex; flex-wrap: wrap; }
+.ligne-devis.ligne-article > :first-child { flex: 1 1 100%; }
+.ligne-devis select { min-height: 40px; max-width: 100%; padding: 0 0.5em; border: 1.5px solid var(--bordure); border-radius: 8px; font: inherit; }
+.carte-articles h2 { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+.corriger { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; margin-top: 8px; }
 .ligne-devis {
   display: grid; grid-template-columns: 1fr auto auto; gap: 6px 10px; align-items: center;
   padding: 10px; border: 1px solid var(--bordure); border-radius: 10px;

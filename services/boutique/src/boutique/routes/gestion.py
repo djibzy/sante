@@ -21,6 +21,7 @@ from boutique.commandes.schemas import (
     EmissionDevis,
     LigneDevis,
     LivreurVue,
+    ModificationArticles,
     ModificationLivreur,
     ModificationZone,
     NouveauPaiement,
@@ -41,6 +42,7 @@ from boutique.commandes.tarifs import (
 from boutique.commandes.vues import vue_gestion, vue_resume
 from boutique.config import ROLE_ADMIN_BOUTIQUE, ParametresBoutique
 from boutique.models import (
+    CodePromo,
     Commande,
     JournalAudit,
     LigneCommande,
@@ -49,6 +51,7 @@ from boutique.models import (
     Produit,
     ZoneLivraison,
 )
+from boutique.promotions.service import montant as montant_promo
 from socle.audit import journaliser
 from socle.db import session_db
 from socle.security import Principal, exiger_role
@@ -58,6 +61,8 @@ equipe = exiger_role(ROLE_ADMIN_BOUTIQUE)
 _409 = status.HTTP_409_CONFLICT
 _422 = status.HTTP_422_UNPROCESSABLE_CONTENT
 DEVIS_MODIFIABLES = frozenset({Statut.DEVIS_DEMANDE, Statut.DEVIS_ENVOYE})
+# Avant la fabrication : la commande se corrige encore au téléphone.
+ARTICLES_MODIFIABLES = frozenset({Statut.EN_ATTENTE, Statut.ACOMPTE_ATTENDU})
 SANS_ENCAISSEMENT = frozenset(
     {Statut.DEVIS_DEMANDE, Statut.DEVIS_ENVOYE, Statut.DEVIS_REFUSE, Statut.ANNULEE}
 )
@@ -200,7 +205,9 @@ async def encaisser(
     return vue_gestion(await acces.charger(session, reference))
 
 
-def _ligne_devis(position: int, ligne: LigneDevis, produits: dict[UUID, Produit]) -> LigneCommande:
+def _ligne_devis(
+    position: int, ligne: LigneDevis, produits: dict[UUID, Produit], professionnel: bool
+) -> LigneCommande:
     if ligne.produit_id is None:
         if not ligne.libelle or ligne.prix_unitaire is None:
             raise HTTPException(_422, "Une ligne libre demande un libellé et un prix")
@@ -224,7 +231,7 @@ def _ligne_devis(position: int, ligne: LigneDevis, produits: dict[UUID, Produit]
         raise HTTPException(_422, f"{produit.nom} : {VARIANTE_INDISPONIBLE}")
     prix = ligne.prix_unitaire
     if prix is None:
-        prix = prix_catalogue(produit, variante, professionnel=False) or 0
+        prix = prix_catalogue(produit, variante, professionnel) or 0
     return LigneCommande(
         produit_id=produit.id,
         variante_id=variante.id if variante else None,
@@ -252,7 +259,10 @@ async def emettre_devis(
     produits = await charger_produits(
         session, (ligne.produit_id for ligne in donnees.lignes if ligne.produit_id)
     )
-    lignes = [_ligne_devis(i, ligne, produits) for i, ligne in enumerate(donnees.lignes)]
+    lignes = [
+        _ligne_devis(i, ligne, produits, commande.tarif_professionnel)
+        for i, ligne in enumerate(donnees.lignes)
+    ]
     sous_total = sum(ligne.montant for ligne in lignes)
     frais = (
         donnees.frais_livraison
@@ -282,6 +292,87 @@ async def emettre_devis(
         objet_id=commande.reference,
         details={"total": commande.total, "lignes": len(lignes), "validite_jours": validite},
     )
+    await session.commit()
+    return vue_gestion(await acces.charger(session, reference))
+
+
+def _prix_d_origine(
+    ligne: LigneDevis, anciens: dict[tuple[UUID | None, UUID | None], int]
+) -> LigneDevis:
+    cle = (ligne.produit_id, ligne.variante_id)
+    if ligne.produit_id is None or ligne.prix_unitaire is not None or cle not in anciens:
+        return ligne
+    return ligne.model_copy(update={"prix_unitaire": anciens[cle]})
+
+
+def _fcfa(montant: int) -> str:
+    return f"{montant:,}".replace(",", " ") + " FCFA"
+
+
+@routeur.put(
+    "/commandes/{reference}/articles", summary="Corriger les articles avant la fabrication"
+)
+async def modifier_articles(
+    reference: str,
+    donnees: ModificationArticles,
+    request: Request,
+    principal: Principal = Depends(equipe),
+    session: AsyncSession = Depends(session_db),
+) -> CommandeGestion:
+    commande = await acces.charger(session, reference)
+    # Sous verrou, comme un encaissement : un paiement en ligne simultané ne lit pas un total
+    # en cours de changement.
+    await acces.verrouiller(session, commande.id)
+    commande = await acces.charger(session, reference)
+    if Statut(commande.statut) not in ARTICLES_MODIFIABLES:
+        raise HTTPException(
+            _409, "La fabrication a commencé : annulez la commande et refaites-la si besoin"
+        )
+    produits = await charger_produits(
+        session, (ligne.produit_id for ligne in donnees.lignes if ligne.produit_id)
+    )
+    # Une ligne déjà commandée (même article, même variante) garde son prix d'origine.
+    anciens = {(a.produit_id, a.variante_id): a.prix_unitaire for a in commande.lignes}
+    demandees = [_prix_d_origine(ligne, anciens) for ligne in donnees.lignes]
+    lignes = [
+        _ligne_devis(i, ligne, produits, commande.tarif_professionnel)
+        for i, ligne in enumerate(demandees)
+    ]
+    sous_total = sum(ligne.montant for ligne in lignes)
+    remise = 0
+    if commande.code_promo:  # le code reste acquis ; sa réduction suit les articles
+        code = await session.scalar(select(CodePromo).where(CodePromo.code == commande.code_promo))
+        if code is not None and sous_total >= code.minimum:
+            remise = montant_promo(code, sous_total)
+    avant = commande.total
+    commande.lignes = lignes
+    commande.sous_total = sous_total
+    commande.remise = remise
+    commande.total = sous_total + commande.frais_livraison - remise
+    commande.acompte = acompte.pour_lignes(lignes, produits, commande.total, _parametres(request))
+    if Statut(commande.statut) == Statut.EN_ATTENTE:  # date estimée : elle suit les articles
+        commande.date_promise = await operations.estimer_date(session, commande, produits)
+    note = donnees.note.strip() or f"Articles modifiés : {_fcfa(avant)} → {_fcfa(commande.total)}"
+    operations.evenement(commande, Statut(commande.statut), principal.id, note)
+    if commande.montant_paye > commande.total:
+        trop = commande.montant_paye - commande.total
+        operations.evenement(
+            commande,
+            Statut(commande.statut),
+            principal.id,
+            f"Trop-perçu à rendre au client : {_fcfa(trop)}",
+            visible_client=False,
+        )
+    journaliser(
+        session,
+        JournalAudit,
+        action="commande.articles_modifies",
+        acteur_id=principal.id,
+        objet_type="commande",
+        objet_id=commande.reference,
+        details={"avant": avant, "apres": commande.total, "lignes": len(lignes)},
+    )
+    await operations.apres_paiement(session, commande, principal.id)  # acompte couvert ?
     await session.commit()
     return vue_gestion(await acces.charger(session, reference))
 

@@ -136,6 +136,7 @@ export interface CommandeGestion extends Commande {
   client_id: string | null
   email: string | null
   note_client: string
+  tarif_professionnel: boolean
   devis_emis_le: string | null
   paiements: Paiement[]
   historique_complet: (Evenement & { visible_client: boolean })[]

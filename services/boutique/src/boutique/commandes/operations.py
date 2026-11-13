@@ -303,6 +303,7 @@ async def creer(
         frais_livraison=frais,
         remise=remise,
         code_promo=reduction.code if reduction else None,
+        tarif_professionnel=professionnel,
         total=sous_total + frais - remise,
         acompte=acompte.pour_panier(tarifees, sous_total + frais - remise, parametres),
         date_promise=await delais.estimer(
