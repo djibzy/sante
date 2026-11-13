@@ -12,10 +12,11 @@ compte de l'équipe doivent tourner (voir .github/workflows/ci.yml).
 import os
 import re
 import sys
+from contextlib import suppress
 from pathlib import Path
 from urllib.parse import parse_qs, urlsplit
 
-from playwright.sync_api import Page, expect, sync_playwright
+from playwright.sync_api import Browser, Page, Response, expect, sync_playwright
 
 ADRESSE = os.environ.get("BIBOU_ADRESSE", "http://localhost:3000")
 TELEPHONE = os.environ.get("BIBOU_EQUIPE_TELEPHONE", "70 00 00 01")
@@ -53,6 +54,28 @@ def accessibilite(page: Page) -> list[str]:
     return list(defauts)
 
 
+# Premier chargement (cache vide) des pages d'entrée, en octets non compressés : sur un forfait
+# mobile, chaque centaine de kilo-octets compte. Aujourd'hui entre 330 et 490 Ko.
+BUDGET_OCTETS = 600_000
+PAGES_D_ENTREE = ("/", "/produits/blouse-medicale-brodee", "/explorer", "/panier")
+
+
+def poids(navigateur: Browser, chemin: str) -> int:
+    contexte = navigateur.new_context(viewport={"width": 390, "height": 844})
+    page = contexte.new_page()
+    total = 0
+
+    def compter(reponse: Response) -> None:
+        nonlocal total
+        with suppress(Exception):  # redirection, réponse sans corps
+            total += len(reponse.body())
+
+    page.on("response", compter)
+    page.goto(f"{ADRESSE}{chemin}", wait_until="networkidle")
+    contexte.close()
+    return total
+
+
 def main() -> int:
     erreurs: list[str] = []
     with sync_playwright() as p:
@@ -66,6 +89,11 @@ def main() -> int:
 
         page.on("pageerror", lambda e: noter(f"exception : {e}"))
         page.on("console", lambda m: noter(m.text) if m.type in ("error", "warning") else None)
+
+        for chemin in PAGES_D_ENTREE:
+            octets = poids(navigateur, chemin)
+            if octets > BUDGET_OCTETS:
+                erreurs.append(f"{chemin} : {octets // 1000} Ko au premier chargement (budget 600)")
 
         for chemin in PUBLIQUES:
             courante["chemin"] = chemin
