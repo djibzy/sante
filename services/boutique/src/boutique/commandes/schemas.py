@@ -57,6 +57,7 @@ class Livraison(BaseModel):
 class DemandeChiffrage(BaseModel):
     lignes: list[LigneDemandee] = Field(min_length=1, max_length=50)
     livraison: Livraison = Livraison()
+    code_promo: str | None = Field(None, max_length=30)
 
 
 class LigneChiffree(BaseModel):
@@ -78,6 +79,10 @@ class Chiffrage(BaseModel):
     lignes: list[LigneChiffree]
     sous_total: int
     frais_livraison: int
+    remise: int = Field(0, description="Réduction du code promo, sur les articles")
+    code_promo: str | None = Field(None, description="Code accepté (en majuscules)")
+    libelle_promo: str | None = None
+    code_refuse: str | None = Field(None, description="Pourquoi le code saisi ne s'applique pas")
     total: int
     acompte: int = Field(description="À régler une fois la commande confirmée (non remboursable)")
     date_estimee: date
@@ -95,6 +100,7 @@ class CreationCommande(BaseModel):
     lignes: list[LigneDemandee] = Field(min_length=1, max_length=50)
     note: str = Field("", max_length=500)
     mode_paiement: ModePaiement = ModePaiement.A_LA_LIVRAISON
+    code_promo: str | None = Field(None, max_length=30)
     cle_suivi: str | None = Field(
         None,
         min_length=22,
@@ -161,6 +167,7 @@ class CommandeClient(BaseModel):
     acompte: int = Field(description="Acompte des articles faits à la demande, non remboursable")
     acompte_restant: int = Field(description="Part de l'acompte encore à payer")
     acompte_garde: int = Field(description="Commande annulée par le client : acompte gardé")
+    code_promo: str | None = Field(description="Code de réduction appliqué (montant : remise)")
     date_promise: date | None
     devis_valable_jusqu_au: date | None
     devis_disponible: bool

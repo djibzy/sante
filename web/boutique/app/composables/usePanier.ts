@@ -22,6 +22,7 @@ export interface ChoixLivraison {
 
 const CLE_PANIER = 'bibou-panier'
 const CLE_SUIVIS = 'bibou-suivis'
+const CLE_CODE = 'bibou-code-promo'
 const QUANTITE_MAX = 500
 
 export interface SuiviLocal {
@@ -52,11 +53,19 @@ export function usePanier() {
   const lignes = useState<LignePanier[]>('panier', () => [])
   const livraison = useState<ChoixLivraison>('livraison', () => ({ mode: 'retrait', zone_id: null, adresse: '' }))
   const suivis = useState<SuiviLocal[]>('suivis', () => [])
+  // Code de réduction saisi au panier ; le serveur le vérifie au chiffrage puis à la commande.
+  const codePromo = useState<string>('code-promo', () => '')
   const nombre = computed(() => lignes.value.reduce((total, l) => total + l.quantite, 0))
 
   function restaurer() {
     lignes.value = lire<LignePanier[]>(CLE_PANIER, [])
     suivis.value = lire<SuiviLocal[]>(CLE_SUIVIS, [])
+    codePromo.value = lire<string>(CLE_CODE, '')
+  }
+
+  function choisirCode(code: string) {
+    codePromo.value = code.trim().toUpperCase().slice(0, 30)
+    ecrire(CLE_CODE, codePromo.value)
   }
 
   function enregistrer() {
@@ -84,6 +93,7 @@ export function usePanier() {
   function vider() {
     lignes.value = []
     enregistrer()
+    choisirCode('') // le code accompagnait ce panier-là
   }
 
   function retenirSuivi(suivi: SuiviLocal) {
@@ -99,5 +109,8 @@ export function usePanier() {
     personnalisation: l.personnalisation,
   })))
 
-  return { lignes, livraison, suivis, nombre, demande, restaurer, ajouter, changerQuantite, vider, retenirSuivi }
+  return {
+    lignes, livraison, suivis, nombre, demande, codePromo,
+    restaurer, ajouter, changerQuantite, vider, retenirSuivi, choisirCode,
+  }
 }

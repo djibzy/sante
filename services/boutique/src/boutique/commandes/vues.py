@@ -55,6 +55,7 @@ def vue_client(commande: Commande) -> CommandeClient:
         acompte=commande.acompte,
         acompte_restant=acompte.restant(commande),
         acompte_garde=commande.acompte_garde,
+        code_promo=commande.code_promo,
         devis_valable_jusqu_au=commande.devis_valable_jusqu_au,
         devis_disponible=commande.devis_emis_le is not None,
         facture=commande.facture.reference if commande.facture else None,

@@ -23,10 +23,11 @@ from boutique.commandes.schemas import (
     LigneChiffree,
     ZonePublique,
 )
-from boutique.commandes.tarifs import frais_de_livraison, jours_de_transport, tarifer
+from boutique.commandes.tarifs import aujourd_hui, frais_de_livraison, jours_de_transport, tarifer
 from boutique.commandes.vues import devis_expire, vue_client, vue_resume
 from boutique.config import ROLE_PRO, ParametresBoutique
 from boutique.models import Commande, JournalAudit, ZoneLivraison
+from boutique.promotions import service as promotions
 from socle.audit import journaliser
 from socle.db import session_db
 from socle.limites import LimiteDebit
@@ -79,6 +80,15 @@ async def chiffrer(
     sous_total = sum(ligne.montant for ligne in lignes)
     frais = frais_de_livraison(demande.livraison.mode, zone)
     regle: ParametresBoutique = request.app.state.parametres
+    reduction, refus = None, None
+    if demande.code_promo and demande.code_promo.strip():
+        try:
+            reduction = await promotions.evaluer(
+                session, demande.code_promo, sous_total, aujourd_hui()
+            )
+        except promotions.CodeRefuse as exc:
+            refus = str(exc)
+    remise = reduction.montant if reduction else 0
     return Chiffrage(
         lignes=[
             LigneChiffree(
@@ -101,8 +111,12 @@ async def chiffrer(
         ],
         sous_total=sous_total,
         frais_livraison=frais,
-        total=sous_total + frais,
-        acompte=acompte.pour_panier(lignes, sous_total + frais, regle),
+        remise=remise,
+        code_promo=reduction.code if reduction else None,
+        libelle_promo=reduction.libelle if reduction else None,
+        code_refuse=refus,
+        total=sous_total + frais - remise,
+        acompte=acompte.pour_panier(lignes, sous_total + frais - remise, regle),
         date_estimee=await delais.estimer(
             session,
             [delais.article(ligne) for ligne in lignes if ligne.commandable],
@@ -136,6 +150,7 @@ async def commander(
         cle=donnees.cle_suivi,
         principal=principal,
         adresse_ip=_ip(request),
+        code_promo=donnees.code_promo,
     )
     if not nouvelle.creee:
         response.status_code = status.HTTP_200_OK

@@ -2,7 +2,7 @@ import type { Chiffrage, Zone } from '~/types/commandes'
 
 /** Prix du panier recalculés par le serveur à chaque changement (panier ou livraison). */
 export function useChiffrage() {
-  const { demande, livraison } = usePanier()
+  const { demande, livraison, codePromo } = usePanier()
   const { appeler } = useApiBoutique()
   const chiffrage = ref<Chiffrage | null>(null)
   const zones = ref<Zone[]>([])
@@ -22,6 +22,7 @@ export function useChiffrage() {
         body: {
           lignes: demande.value,
           livraison: { mode: livraison.value.mode, zone_id: livraison.value.zone_id },
+          code_promo: codePromo.value || null,
         },
       })
       erreur.value = ''
@@ -38,7 +39,7 @@ export function useChiffrage() {
     } catch {
       zones.value = []
     }
-    watch([demande, () => livraison.value.mode, () => livraison.value.zone_id], () => {
+    watch([demande, () => livraison.value.mode, () => livraison.value.zone_id, codePromo], () => {
       clearTimeout(minuterie)
       minuterie = setTimeout(recalculer, 250)
     }, { immediate: true, deep: true })

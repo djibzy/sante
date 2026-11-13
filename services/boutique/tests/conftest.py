@@ -88,7 +88,7 @@ async def app() -> AsyncIterator[FastAPI]:
     await application.state.moteur.dispose()
     await _executer(
         "TRUNCATE rayons, produits, zones_livraison, commandes, livreurs, compteurs_factures, "
-        "notifications, journal_audit, tenues_proposees "
+        "notifications, journal_audit, tenues_proposees, codes_promo "
         "RESTART IDENTITY CASCADE",
         # Postes de l'atelier : capacités d'origine (créées par la migration 0003).
         "UPDATE postes_atelier SET est_actif = true, capacite_jour = CASE code "

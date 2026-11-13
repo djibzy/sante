@@ -30,6 +30,10 @@ export interface Chiffrage {
   lignes: LigneChiffree[]
   sous_total: number
   frais_livraison: number
+  remise: number // code promo, sur les articles
+  code_promo: string | null // code accepté
+  libelle_promo: string | null
+  code_refuse: string | null // pourquoi le code saisi ne s'applique pas
   total: number
   acompte: number // à régler une fois la commande confirmée, non remboursable
   date_estimee: string
@@ -77,6 +81,7 @@ export interface Commande {
   acompte: number // articles faits à la demande, non remboursable
   acompte_restant: number
   acompte_garde: number // annulée par le client : acompte gardé
+  code_promo: string | null
   date_promise: string | null
   devis_valable_jusqu_au: string | null
   devis_disponible: boolean

@@ -18,6 +18,7 @@ from boutique.commandes.schemas import Coordonnees, LigneDemandee, Livraison
 from boutique.commandes.tarifs import (
     Demande,
     LigneTarifee,
+    aujourd_hui,
     charger_produits,
     frais_de_livraison,
     jours_de_transport,
@@ -34,6 +35,7 @@ from boutique.models import (
     ZoneLivraison,
 )
 from boutique.notifications import boite
+from boutique.promotions import service as promotions
 from socle.audit import journaliser
 from socle.security import Principal
 from socle.telephones import NumeroInvalide, normaliser_telephone
@@ -244,6 +246,7 @@ async def creer(
     adresse_ip: str | None,
     etablissement: str | None = None,
     email: str | None = None,
+    code_promo: str | None = None,
 ) -> Nouvelle:
     cle = cle or acces.nouvelle_cle()
     deja = await acces.charger_par_cle(session, cle)
@@ -272,6 +275,18 @@ async def creer(
     sous_total = sum(ligne.montant for ligne in tarifees)
     frais = frais_de_livraison(livraison.mode, zone)
     acteur = principal.id if principal else None
+    reduction = None
+    if code_promo and code_promo.strip():
+        try:
+            reduction = await promotions.evaluer(
+                session, code_promo, sous_total, aujourd_hui(), numero, verrouiller=True
+            )
+        except promotions.CodeRefuse as exc:
+            raise HTTPException(
+                status.HTTP_422_UNPROCESSABLE_CONTENT,
+                f"Code « {promotions.normaliser(code_promo)} » : {exc}",
+            ) from exc
+    remise = reduction.montant if reduction else 0
     commande = Commande(
         statut=statut,
         client_id=acteur,
@@ -286,9 +301,10 @@ async def creer(
         mode_paiement=ModePaiement.A_LA_LIVRAISON,
         sous_total=sous_total,
         frais_livraison=frais,
-        remise=0,
-        total=sous_total + frais,
-        acompte=acompte.pour_panier(tarifees, sous_total + frais, parametres),
+        remise=remise,
+        code_promo=reduction.code if reduction else None,
+        total=sous_total + frais - remise,
+        acompte=acompte.pour_panier(tarifees, sous_total + frais - remise, parametres),
         date_promise=await delais.estimer(
             session,
             [delais.article(ligne) for ligne in tarifees],
@@ -336,7 +352,8 @@ async def creer(
         acteur_id=acteur,
         objet_type="commande",
         objet_id=reference,
-        details={"total": commande.total, "lignes": len(tarifees)},
+        details={"total": commande.total, "lignes": len(tarifees)}
+        | ({"code_promo": commande.code_promo} if commande.code_promo else {}),
         adresse_ip=adresse_ip,
     )
     await session.commit()

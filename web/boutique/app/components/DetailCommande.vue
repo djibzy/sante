@@ -26,7 +26,7 @@ defineProps<{ commande: Commande }>()
     </table>
     <dl class="montants">
       <div><dt>Articles</dt><dd>{{ formaterFcfa(commande.sous_total) }}</dd></div>
-      <div v-if="commande.remise"><dt>Remise</dt><dd>− {{ formaterFcfa(commande.remise) }}</dd></div>
+      <div v-if="commande.remise"><dt>{{ commande.code_promo ? `Réduction ${commande.code_promo}` : 'Remise' }}</dt><dd>− {{ formaterFcfa(commande.remise) }}</dd></div>
       <div>
         <dt>{{ commande.mode_livraison === 'livraison' ? `Livraison, ${commande.zone_nom}` : 'Retrait à la boutique' }}</dt>
         <dd>{{ commande.frais_livraison ? formaterFcfa(commande.frais_livraison) : 'Gratuit' }}</dd>

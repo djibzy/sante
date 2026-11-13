@@ -12,6 +12,9 @@ const { livraison } = usePanier()
       <dt>Livraison</dt>
       <dd>{{ chiffrage.frais_livraison ? formaterFcfa(chiffrage.frais_livraison) : 'Gratuit' }}</dd>
     </div>
+    <div v-if="chiffrage.remise" class="remise">
+      <dt>Réduction {{ chiffrage.code_promo }}</dt><dd>− {{ formaterFcfa(chiffrage.remise) }}</dd>
+    </div>
     <div class="total">
       <dt>{{ chiffrage.acompte ? 'Total' : 'Total à payer à la livraison' }}</dt><dd>{{ formaterFcfa(chiffrage.total) }}</dd>
     </div>
@@ -34,6 +37,7 @@ const { livraison } = usePanier()
 .recap div { display: flex; justify-content: space-between; gap: 12px; }
 .recap dt { color: var(--texte-doux); }
 .recap dd { margin: 0; font-weight: 650; white-space: nowrap; }
+.recap .remise dd { color: var(--succes); }
 .recap .total { padding-top: 8px; margin-top: 4px; border-top: 1px solid var(--bordure); }
 .recap .total dt { color: var(--texte); font-weight: 700; }
 .recap .total dd { font-size: 1.25rem; font-weight: 800; color: var(--primaire); }

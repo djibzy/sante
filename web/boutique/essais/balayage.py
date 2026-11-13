@@ -27,7 +27,7 @@ PUBLIQUES = [
 ]
 EQUIPE = [
     "/gestion/tableau-de-bord", "/gestion", "/gestion/livraisons", "/gestion/stock", "/gestion/catalogue",
-    "/gestion/avis", "/gestion/tenues", "/atelier", "/mon-compte", "/mes-commandes", "/composer",
+    "/gestion/avis", "/gestion/tenues", "/gestion/codes-promo", "/atelier", "/mon-compte", "/mes-commandes", "/composer",
 ]
 # Bruit sans conséquence : session absente (401), préchargements servis par le service worker.
 IGNORES = ("401", "cross-world service worker")

@@ -1,6 +1,6 @@
 <script setup lang="ts">
 useSeoMeta({ title: 'Commander', robots: 'noindex' })
-const { lignes, livraison, demande } = usePanier()
+const { lignes, livraison, demande, codePromo } = usePanier()
 const { utilisateur } = useSession()
 const { chiffrage, zones, enCours } = useChiffrage()
 const { envoyer, envoi, erreur, gardee, annulerEnvoiGarde } = useEnvoiCommande('/api/v1/commandes')
@@ -37,6 +37,8 @@ function valider() {
     livraison: { ...livraison.value },
     lignes: demande.value,
     note: note.value,
+    // Seulement un code que le serveur vient d'accepter (hors ligne : celui saisi, revérifié).
+    code_promo: (enLigne.value ? chiffrage.value?.code_promo : codePromo.value) || null,
   })
 }
 </script>
@@ -82,6 +84,7 @@ function valider() {
           Rien à payer maintenant.
         </p>
         <RecapitulatifPrix v-if="enLigne" :chiffrage="chiffrage" :en-cours="enCours" />
+        <CodePromo v-if="enLigne" :chiffrage="chiffrage" />
         <dl v-else-if="estimation" class="estimation">
           <div><dt>Articles (prix indicatifs)</dt><dd>{{ formaterFcfa(estimation.articles) }}</dd></div>
           <div v-if="estimation.frais !== null">

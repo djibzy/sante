@@ -44,6 +44,7 @@ const aLaDemande = (index: number) => !!chiffrage.value?.acompte && !!chiffrage.
         <ChoixLivraison :zones="zones" />
         <div v-if="erreur" class="alerte alerte-erreur" role="alert">{{ erreur }}</div>
         <RecapitulatifPrix :chiffrage="chiffrage" :en-cours="enCours" />
+        <CodePromo :chiffrage="chiffrage" />
         <NuxtLink
           to="/commande" class="bouton bouton-large"
           :class="{ desactive: !chiffrage?.commandable }"

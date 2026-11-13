@@ -40,6 +40,9 @@ const avecAcompte = computed(() => !regles.value || regles.value.acompte_pourcen
       Prix en francs CFA. Le prix retenu est celui recalculé au moment de la commande, frais de
       livraison de votre zone compris ; il figure dans le SMS de confirmation. Le prix
       professionnel s'applique aux soignants et structures dont le statut a été vérifié.
+      Un code promo s'applique aux articles, jamais à la livraison, selon les conditions
+      affichées avec lui (période, achat minimal, une fois par client) ; un seul code par
+      commande. Si la commande est annulée, le code peut resservir.
       [Régime de TVA à préciser.]
     </p>
 

@@ -286,29 +286,32 @@ const partage = computed(() => {
           <a v-if="partage" :href="partage" target="_blank" rel="noopener" class="bouton bouton-secondaire bouton-large">Envoyer ma tenue sur WhatsApp</a>
         </div>
 
-        <form v-if="equipe && resume.length >= 2" class="proposer carte" @submit.prevent="proposer">
-          <h2>Proposer cette tenue aux clients</h2>
-          <p class="aide">Réservé à l'équipe : la tenue apparaît dans « Idées de tenues » (page Explorer et composeur).</p>
-          <div class="champ">
-            <label for="nom-tenue">Nom</label>
-            <input id="nom-tenue" v-model="proposition.nom" required minlength="3" maxlength="80" placeholder="La tenue du bloc">
-          </div>
-          <div class="champ">
-            <label for="description-tenue">Description (facultatif)</label>
-            <input id="description-tenue" v-model="proposition.description" maxlength="300">
-          </div>
-          <div class="champ">
-            <label for="metier-tenue">Métier</label>
-            <select id="metier-tenue" v-model="proposition.metier">
-              <option value="">Tous les métiers</option>
-              <option v-for="m in metiers ?? []" :key="m.slug" :value="m.slug">{{ m.nom }}</option>
-            </select>
-          </div>
-          <button type="submit" class="bouton bouton-secondaire">Enregistrer l'idée de tenue</button>
-          <p v-if="proposee" class="alerte alerte-succes" role="status">
-            « {{ proposee.nom }} » est proposée aux clients. <NuxtLink to="/gestion/tenues">Voir les tenues proposées</NuxtLink>
-          </p>
-        </form>
+        <!-- Réservé à l'équipe : la session n'est connue que dans le navigateur. -->
+        <ClientOnly>
+          <form v-if="equipe && resume.length >= 2" class="proposer carte" @submit.prevent="proposer">
+            <h2>Proposer cette tenue aux clients</h2>
+            <p class="aide">Réservé à l'équipe : la tenue apparaît dans « Idées de tenues » (page Explorer et composeur).</p>
+            <div class="champ">
+              <label for="nom-tenue">Nom</label>
+              <input id="nom-tenue" v-model="proposition.nom" required minlength="3" maxlength="80" placeholder="La tenue du bloc">
+            </div>
+            <div class="champ">
+              <label for="description-tenue">Description (facultatif)</label>
+              <input id="description-tenue" v-model="proposition.description" maxlength="300">
+            </div>
+            <div class="champ">
+              <label for="metier-tenue">Métier</label>
+              <select id="metier-tenue" v-model="proposition.metier">
+                <option value="">Tous les métiers</option>
+                <option v-for="m in metiers ?? []" :key="m.slug" :value="m.slug">{{ m.nom }}</option>
+              </select>
+            </div>
+            <button type="submit" class="bouton bouton-secondaire">Enregistrer l'idée de tenue</button>
+            <p v-if="proposee" class="alerte alerte-succes" role="status">
+              « {{ proposee.nom }} » est proposée aux clients. <NuxtLink to="/gestion/tenues">Voir les tenues proposées</NuxtLink>
+            </p>
+          </form>
+        </ClientOnly>
       </div>
     </div>
   </section>

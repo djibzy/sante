@@ -275,6 +275,8 @@ class Commande(IdMixin, HorodatageMixin, Base):
         DateTime(timezone=True), nullable=False, default=_maintenant, server_default=func.now()
     )
     relances: Mapped[int] = mapped_column(nullable=False, default=0, server_default="0")
+    # Code de réduction appliqué à la commande (la remise est dans « remise »).
+    code_promo: Mapped[str | None] = mapped_column(String(30), index=True)
     # Empreinte SHA-256 de la clé du lien de suivi ; la clé elle-même n'est jamais stockée.
     empreinte_cle_suivi: Mapped[str] = mapped_column(String(64), unique=True, nullable=False)
     livreur_id: Mapped[UUID | None] = mapped_column(ForeignKey("livreurs.id"), index=True)
@@ -532,6 +534,40 @@ class Avis(IdMixin, HorodatageMixin, Base):
     reponse: Mapped[str | None] = mapped_column(String(1000))  # de la boutique, publiée avec
     modere_par: Mapped[UUID | None] = mapped_column(Uuid)
     modere_le: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+
+
+class CodePromo(IdMixin, HorodatageMixin, Base):
+    """Code de réduction saisi au panier : un pourcentage ou un montant en FCFA sur les articles
+    (jamais sur la livraison), valable sur une période, avec un minimum d'achat, un nombre
+    d'utilisations et, s'il le faut, une seule utilisation par numéro de téléphone. Les
+    utilisations se comptent sur les commandes non annulées qui le portent."""
+
+    __tablename__ = "codes_promo"
+    __table_args__ = (
+        CheckConstraint("nature IN ('pourcentage', 'montant')", name="nature_valide"),
+        CheckConstraint(
+            "valeur > 0 AND (nature <> 'pourcentage' OR valeur <= 90)", name="valeur_valide"
+        ),
+        CheckConstraint("minimum >= 0", name="minimum_positif"),
+        CheckConstraint(
+            "utilisations_max IS NULL OR utilisations_max > 0", name="utilisations_valides"
+        ),
+        CheckConstraint("fin IS NULL OR fin >= debut", name="periode_valide"),
+        CheckConstraint("code = upper(code)", name="code_majuscules"),
+    )
+
+    code: Mapped[str] = mapped_column(String(30), unique=True, nullable=False)
+    libelle: Mapped[str] = mapped_column(String(120), nullable=False)
+    nature: Mapped[str] = mapped_column(String(12), nullable=False)
+    valeur: Mapped[int] = mapped_column(nullable=False)  # % (au plus 90) ou FCFA
+    minimum: Mapped[int] = mapped_column(nullable=False, default=0, server_default="0")
+    debut: Mapped[date] = mapped_column(Date, nullable=False)
+    fin: Mapped[date | None] = mapped_column(Date)
+    utilisations_max: Mapped[int | None] = mapped_column()
+    une_fois_par_client: Mapped[bool] = mapped_column(
+        nullable=False, default=True, server_default=true()
+    )
+    est_actif: Mapped[bool] = mapped_column(nullable=False, default=True, server_default=true())
 
 
 class TenueProposee(IdMixin, HorodatageMixin, Base):
