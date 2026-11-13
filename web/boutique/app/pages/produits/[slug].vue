@@ -125,14 +125,18 @@ useSeoMeta({
   description: () => produit.value?.resume,
   ogTitle: () => produit.value?.nom,
   ogDescription: () => produit.value?.resume,
+  ogImage: () => (produit.value?.images[0] ? absolue(produit.value.images[0].url) : undefined),
 })
 
-// Données structurées (schema.org) : prix et note moyenne visibles dans les moteurs de recherche.
+// Une seule adresse pour les moteurs de recherche, quelle que soit la couleur choisie.
 const origine = useRequestURL().origin
+const absolue = (url: string) => (adresse(url).startsWith('http') ? adresse(url) : `${origine}${adresse(url)}`)
+useHead(() => ({ link: [{ rel: 'canonical', href: `${origine}/produits/${produit.value?.slug ?? ''}` }] }))
+
+// Données structurées (schema.org) : prix et note moyenne visibles dans les moteurs de recherche.
 useHead(() => {
   const p = produit.value
   if (!p?.vendable_en_ligne || p.prix_public === null) return {}
-  const absolue = (url: string) => (adresse(url).startsWith('http') ? adresse(url) : `${origine}${adresse(url)}`)
   const donnees: Record<string, unknown> = {
     '@context': 'https://schema.org',
     '@type': 'Product',
