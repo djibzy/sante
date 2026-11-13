@@ -37,6 +37,11 @@ def cle_valide(commande: Commande, cle: str | None) -> bool:
     return bool(cle) and hmac.compare_digest(commande.empreinte_cle_suivi, empreinte(cle or ""))
 
 
+def cle_de_paiement_valide(commande: Commande, cle: str | None) -> bool:
+    attendue = commande.empreinte_cle_paiement
+    return bool(cle and attendue) and hmac.compare_digest(attendue or "", empreinte(cle or ""))
+
+
 # Tout ce qu'affichent le suivi et la gestion, chargé explicitement (relations en lazy="raise").
 _COMPLETE = (
     selectinload(Commande.lignes),
@@ -99,6 +104,15 @@ async def charger_du_client(session: AsyncSession, client_id: UUID) -> list[Comm
         .order_by(Commande.cree_le.desc())
     )
     return list((await session.execute(requete)).scalars())
+
+
+async def charger_pour_payeur(session: AsyncSession, reference: str, cle: str | None) -> Commande:
+    """Lien de paiement partagé : même réponse qu'une référence inconnue si la clé est fausse,
+    ancienne (lien remplacé) ou si c'est celle du suivi."""
+    commande = await charger(session, reference)
+    if not cle_de_paiement_valide(commande, cle):
+        raise HTTPException(status.HTTP_404_NOT_FOUND, INTROUVABLE)
+    return commande
 
 
 async def charger_pour_compte(session: AsyncSession, reference: str, client_id: UUID) -> Commande:

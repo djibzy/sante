@@ -1,20 +1,33 @@
-"""Paiement mobile en ligne : depuis le lien de suivi ou « Mes commandes », et notifications
-de l'agrégateur. Éteint tant que BOUTIQUE_PAIEMENT_MOBILE vaut « aucun »."""
+"""Paiement mobile en ligne : depuis le lien de suivi, « Mes commandes » ou le lien de
+paiement envoyé à un proche, et notifications de l'agrégateur. Éteint tant que
+BOUTIQUE_PAIEMENT_MOBILE vaut « aucun »."""
 
 from collections.abc import AsyncIterator
+from typing import Literal
 
 import httpx
-from fastapi import APIRouter, Depends, HTTPException, Request, Response, status
+from fastapi import APIRouter, Depends, HTTPException, Query, Request, Response, status
 from fastapi.responses import RedirectResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from boutique.commandes import acces
+from boutique.avis.service import auteur_de
+from boutique.commandes import acces, acompte
+from boutique.commandes.cycle import LIBELLES, Statut
 from boutique.config import ParametresBoutique
-from boutique.models import Commande
+from boutique.models import Commande, JournalAudit
 from boutique.paiements import fournisseurs, service
 from boutique.paiements.fournisseurs import Fournisseur
-from boutique.paiements.schemas import ChoixPaiement, Disponibilite, EtatPaiement, PaiementOuvert
+from boutique.paiements.schemas import (
+    ArticleAPayer,
+    ChoixPaiement,
+    CommandeAPayer,
+    Disponibilite,
+    EtatPaiement,
+    LienDePaiement,
+    PaiementOuvert,
+)
 from boutique.routes.commandes import CLE, LIMITE_LECTURES
+from socle.audit import journaliser
 from socle.db import session_db
 from socle.limites import LimiteDebit
 from socle.security import Principal, principal_requis
@@ -50,6 +63,7 @@ async def _payer(
     commande: Commande,
     acteur: Principal | None,
     choix: ChoixPaiement | None,
+    retour: Literal["suivi", "payer"] = "suivi",
 ) -> PaiementOuvert:
     if fournisseur is None:
         raise HTTPException(status.HTTP_409_CONFLICT, ETEINT)
@@ -61,8 +75,36 @@ async def _payer(
         acteur.id if acteur else None,
         request.client.host if request.client else None,
         (choix or ChoixPaiement()).objet,
+        retour,
     )
     return PaiementOuvert(adresse=adresse)
+
+
+async def _lien(
+    request: Request, session: AsyncSession, commande: Commande, acteur: Principal | None
+) -> LienDePaiement:
+    """Nouvelle clé de paiement : le lien envoyé auparavant cesse de marcher."""
+    if not fournisseurs.est_ouvert(_parametres(request)):
+        raise HTTPException(status.HTTP_409_CONFLICT, ETEINT)
+    examen = service.examiner(commande)
+    if not examen.possible:
+        raise HTTPException(
+            status.HTTP_409_CONFLICT, examen.raison or "Cette commande ne se paie pas en ligne"
+        )
+    cle = acces.nouvelle_cle()
+    commande.empreinte_cle_paiement = acces.empreinte(cle)
+    journaliser(
+        session,
+        JournalAudit,
+        action="commande.lien_de_paiement",
+        acteur_id=acteur.id if acteur else None,
+        objet_type="commande",
+        objet_id=commande.reference,
+        adresse_ip=request.client.host if request.client else None,
+    )
+    await session.commit()
+    base = _parametres(request).url_publique.rstrip("/")
+    return LienDePaiement(adresse=f"{base}/payer/{commande.reference}?cle={cle}", cle=cle)
 
 
 async def _verifier(
@@ -171,15 +213,121 @@ async def verifier_mien(
     return await _verifier(request, session, fournisseur, commande)
 
 
+@routeur.post(
+    "/suivi/{reference}/lien-de-paiement",
+    status_code=status.HTTP_201_CREATED,
+    summary="Créer un lien pour faire payer un proche (remplace le précédent)",
+    dependencies=[LIMITE_OUVERTURES],
+)
+async def lien_suivi(
+    reference: str,
+    request: Request,
+    cle: str | None = CLE,
+    session: AsyncSession = Depends(session_db),
+) -> LienDePaiement:
+    commande = await acces.charger_pour_client(session, reference, cle)
+    return await _lien(request, session, commande, None)
+
+
+@routeur.post(
+    "/mes-commandes/{reference}/lien-de-paiement",
+    status_code=status.HTTP_201_CREATED,
+    summary="Créer un lien pour faire payer un proche (remplace le précédent)",
+    dependencies=[LIMITE_OUVERTURES],
+)
+async def lien_mien(
+    reference: str,
+    request: Request,
+    principal: Principal = Depends(principal_requis),
+    session: AsyncSession = Depends(session_db),
+) -> LienDePaiement:
+    commande = await acces.charger_pour_compte(session, reference, principal.id)
+    return await _lien(request, session, commande, principal)
+
+
+@routeur.get(
+    "/payer/{reference}",
+    summary="Commande à payer, vue par le proche qui a reçu le lien",
+    dependencies=[LIMITE_LECTURES],
+)
+async def a_payer(
+    reference: str, cle: str | None = CLE, session: AsyncSession = Depends(session_db)
+) -> CommandeAPayer:
+    commande = await acces.charger_pour_payeur(session, reference, cle)
+    return CommandeAPayer(
+        reference=commande.reference,
+        statut_libelle=LIBELLES[Statut(commande.statut)],
+        pour=auteur_de(commande.nom_client),
+        articles=[ArticleAPayer(libelle=a.libelle, quantite=a.quantite) for a in commande.lignes],
+        total=commande.total,
+        montant_paye=commande.montant_paye,
+        reste_a_payer=commande.reste_a_payer,
+        acompte_restant=acompte.restant(commande),
+    )
+
+
+@routeur.get(
+    "/payer/{reference}/paiement-mobile",
+    summary="Lien de paiement : paiement possible, et dernière tentative",
+    dependencies=[LIMITE_LECTURES],
+)
+async def etat_payeur(
+    reference: str,
+    request: Request,
+    cle: str | None = CLE,
+    session: AsyncSession = Depends(session_db),
+) -> EtatPaiement:
+    return await _etat(request, session, await acces.charger_pour_payeur(session, reference, cle))
+
+
+@routeur.post(
+    "/payer/{reference}/paiement-mobile",
+    summary="Lien de paiement : ouvrir le paiement",
+    dependencies=[LIMITE_OUVERTURES],
+)
+async def payer_payeur(
+    reference: str,
+    request: Request,
+    choix: ChoixPaiement | None = None,
+    cle: str | None = CLE,
+    session: AsyncSession = Depends(session_db),
+    fournisseur: Fournisseur | None = Depends(agregateur),
+) -> PaiementOuvert:
+    commande = await acces.charger_pour_payeur(session, reference, cle)
+    return await _payer(request, session, fournisseur, commande, None, choix, "payer")
+
+
+@routeur.post(
+    "/payer/{reference}/paiement-mobile/verification",
+    summary="Lien de paiement : relire le paiement en cours",
+    dependencies=[LIMITE_VERIFICATIONS],
+)
+async def verifier_payeur(
+    reference: str,
+    request: Request,
+    cle: str | None = CLE,
+    session: AsyncSession = Depends(session_db),
+    fournisseur: Fournisseur | None = Depends(agregateur),
+) -> EtatPaiement:
+    commande = await acces.charger_pour_payeur(session, reference, cle)
+    return await _verifier(request, session, fournisseur, commande)
+
+
 @routeur.api_route(
     "/paiements/retour/{reference}", methods=["GET", "POST"], include_in_schema=False
 )
-async def retour(reference: str, request: Request) -> RedirectResponse:
-    """L'agrégateur renvoie le client ici (parfois en POST) : on l'envoie sur son suivi."""
+async def retour(
+    reference: str,
+    request: Request,
+    vers: Literal["suivi", "payer"] = Query("suivi"),
+) -> RedirectResponse:
+    """L'agrégateur renvoie ici (parfois en POST) : le client sur son suivi, le proche sur la
+    page de paiement partagée. La clé n'est jamais passée à l'agrégateur : la page la retrouve
+    dans l'onglet."""
     numero = acces.numero(reference)  # rien d'autre qu'une référence : pas de redirection libre
     base = _parametres(request).url_publique.rstrip("/")
     return RedirectResponse(
-        f"{base}/suivi/BB-{numero}?paiement=retour", status_code=status.HTTP_303_SEE_OTHER
+        f"{base}/{vers}/BB-{numero}?paiement=retour", status_code=status.HTTP_303_SEE_OTHER
     )
 
 

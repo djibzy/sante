@@ -31,5 +31,31 @@ class Disponibilite(BaseModel):
     moyens: list[str]
 
 
+class LienDePaiement(BaseModel):
+    """Lien à envoyer à un proche : il voit le montant dû et paie, rien d'autre."""
+
+    adresse: str
+    cle: str
+
+
+class ArticleAPayer(BaseModel):
+    libelle: str
+    quantite: int
+
+
+class CommandeAPayer(BaseModel):
+    """Ce qu'un proche voit avec le lien de paiement : de quoi payer en confiance, sans le
+    téléphone, l'adresse, le texte brodé ni l'historique du client."""
+
+    reference: str
+    statut_libelle: str
+    pour: str  # prénom et initiale du nom
+    articles: list[ArticleAPayer]
+    total: int
+    montant_paye: int
+    reste_a_payer: int
+    acompte_restant: int
+
+
 class ChoixPaiement(BaseModel):
     objet: Literal["acompte", "solde"] = "solde"

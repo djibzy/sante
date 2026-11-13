@@ -3,6 +3,7 @@ avec notre clé : une notification reçue n'est qu'un signal pour aller vérifie
 
 from dataclasses import dataclass
 from typing import Literal, Protocol
+from urllib.parse import parse_qs, urlsplit
 
 import httpx
 
@@ -127,8 +128,9 @@ class CinetPay:
 
 
 class Simulation:
-    """Pour les essais : pas de page de paiement, retour immédiat au suivi de la commande, et
-    tout paiement est accepté. Jamais disponible en production."""
+    """Pour les essais : pas de page de paiement, retour immédiat au suivi de la commande (ou à
+    la page du lien de paiement d'un proche), et tout paiement est accepté. Jamais disponible
+    en production."""
 
     nom = "simulation"
 
@@ -142,7 +144,8 @@ class Simulation:
         url_retour: str,
         url_notification: str,
     ) -> str:
-        return f"/suivi/{reference}?paiement=retour"
+        vers = parse_qs(urlsplit(url_retour).query).get("vers", ["suivi"])[0]
+        return f"/{'payer' if vers == 'payer' else 'suivi'}/{reference}?paiement=retour"
 
     async def verifier(self, transaction: TransactionPaiement) -> Verification:
         return Verification(

@@ -3,7 +3,7 @@
  * comptes et l'espace de l'équipe ne sont pas à indexer.
  */
 const PRIVES = [
-  '/gestion', '/atelier', '/panier', '/commande$', '/suivi', '/mes-commandes', '/mon-compte',
+  '/gestion', '/atelier', '/panier', '/commande$', '/suivi', '/payer', '/mes-commandes', '/mon-compte',
   '/connexion', '/inscription', '/mot-de-passe-oublie', '/devis', '/hors-ligne', '/favoris',
 ]
 

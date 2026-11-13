@@ -11,6 +11,7 @@ import logging
 import secrets
 from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
+from typing import Literal
 from uuid import UUID
 
 from fastapi import HTTPException, status
@@ -146,9 +147,11 @@ async def ouvrir(
     acteur_id: UUID | None,
     adresse_ip: str | None,
     objet: str = "solde",
+    retour: Literal["suivi", "payer"] = "suivi",
 ) -> str:
     """Enregistre la tentative (acompte ou solde) et renvoie l'adresse de la page de paiement de
-    l'agrégateur."""
+    l'agrégateur. Au retour, le client revient sur son suivi, ou un proche sur la page de
+    paiement partagée."""
     examen = examiner(commande)
     if not examen.possible:
         raise HTTPException(
@@ -187,7 +190,8 @@ async def ouvrir(
             description=("Acompte commande" if objet == "acompte" else "Commande")
             + f" {commande.reference} Bibou",
             reference=commande.reference,
-            url_retour=f"{base}/api/v1/paiements/retour/{commande.reference}",
+            url_retour=f"{base}/api/v1/paiements/retour/{commande.reference}"
+            + ("?vers=payer" if retour == "payer" else ""),
             url_notification=f"{base}/api/v1/paiements/{fournisseur.nom}/notification",
         )
     except ErreurFournisseur as exc:

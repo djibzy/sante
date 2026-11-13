@@ -284,6 +284,8 @@ class Commande(IdMixin, HorodatageMixin, Base):
     )
     # Empreinte SHA-256 de la clé du lien de suivi ; la clé elle-même n'est jamais stockée.
     empreinte_cle_suivi: Mapped[str] = mapped_column(String(64), unique=True, nullable=False)
+    # Lien « payer pour un proche » : ne permet que de voir le montant dû et de payer en ligne.
+    empreinte_cle_paiement: Mapped[str | None] = mapped_column(String(64), unique=True)
     livreur_id: Mapped[UUID | None] = mapped_column(ForeignKey("livreurs.id"), index=True)
 
     zone: Mapped[ZoneLivraison | None] = relationship(lazy="raise")

@@ -24,6 +24,7 @@ ajoutant une nouvelle ligne qui la remplace, avec sa raison.
 | D18 | Découverte visuelle par la couleur : familles calculées dans l'espace OKLab, articles dessinés dans leur couleur tant qu'il n'y a pas de photo, couleur indiquée sur chaque photo | Une couleur de service se choisit d'un coup d'œil ; le catalogue reste juste sans photos ; aucune photo d'une couleur montrée pour une autre |
 | D17 | Articles faits à la demande (brodés, imprimés, personnalisés) : acompte non remboursable (50 % de leur prix, réglable), demandé à la confirmation ; la fabrication attend qu'il soit payé ; tout est rendu si la boutique annule | Un article à votre nom ne se revend pas : le tissu et le temps de l'atelier sont couverts ; les kits, assemblés à partir du stock, n'en demandent pas |
 | D19 | Un remboursement est une écriture à part (montant, moyen, référence, motif) qui baisse le montant payé de la commande ; il apparaît en négatif dans l'export des encaissements | La caisse exportée au comptable reste juste ; ce qui est dû au client (trop-perçu, annulation, part de l'acompte non gardée) se lit sur la commande et dans l'onglet « À rembourser » |
+| D20 | Le lien « faire payer un proche » porte sa propre clé (empreinte seule en base, remplacée à chaque nouveau lien) ; il ne donne que le montant dû, les articles et le paiement en ligne | Souvent un parent ou l'employeur paie : le lien de suivi, qui permet d'annuler et montre le numéro et l'adresse, n'a pas à circuler |
 
 ## Choix de mise en œuvre (novembre 2026)
 

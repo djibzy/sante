@@ -1,16 +1,20 @@
 <script setup lang="ts">
 import type { Commande } from '~/types/commandes'
-import type { EtatPaiement, PaiementOuvert } from '~/types/paiements'
+import type { EtatPaiement, LienDePaiement, PaiementOuvert } from '~/types/paiements'
 
 // Paiement du reste à payer (ou de l'acompte seul, quand il est attendu) par Orange Money ou
 // Moov Money, sur la page de l'agrégateur. Au retour (?paiement=retour), le statut est relu
 // jusqu'à la réponse de l'opérateur.
-const props = defineProps<{
-  commande: Commande
+// Depuis le suivi ou « Mes commandes », le client peut aussi envoyer un lien de paiement à un
+// proche (`partageable`) ; sur la page de ce lien (`espace` « payer »), le proche paie.
+const props = withDefaults(defineProps<{
+  commande: Pick<Commande, 'reference' | 'montant_paye'> & { statut?: Commande['statut'] }
   base: string
   requete?: Record<string, string>
   cle?: string
-}>()
+  espace?: 'suivi' | 'payer'
+  partageable?: boolean
+}>(), { requete: undefined, cle: undefined, espace: 'suivi', partageable: true })
 const emit = defineEmits<{ paye: [] }>()
 
 const route = useRoute()
@@ -53,13 +57,44 @@ async function payer(objet: 'acompte' | 'solde' = 'solde') {
     })
     // Au retour de la page de paiement, l'onglet retrouve le lien de suivi sans le donner à l'agrégateur.
     if (props.cle) {
-      try { sessionStorage.setItem(`bibou:suivi:${props.commande.reference}`, props.cle) } catch { /* navigation privée */ }
+      try { sessionStorage.setItem(`bibou:${props.espace}:${props.commande.reference}`, props.cle) } catch { /* navigation privée */ }
     }
     window.location.href = adresse
   } catch (e) {
     erreur.value = messageErreur(e)
     envoi.value = false
   }
+}
+
+// Lien pour un proche : chaque demande en crée un nouveau, qui remplace le précédent.
+const lien = ref('')
+const lienCopie = ref(false)
+const peutPartager = ref(false)
+async function creerLien() {
+  envoi.value = true
+  erreur.value = ''
+  try {
+    const cree = await appeler<LienDePaiement>(`${props.base}/lien-de-paiement`, { method: 'POST', query: props.requete })
+    lien.value = `${window.location.origin}/payer/${props.commande.reference}?cle=${cree.cle}`
+    peutPartager.value = typeof navigator.share === 'function'
+  } catch (e) {
+    erreur.value = messageErreur(e)
+  } finally {
+    envoi.value = false
+  }
+}
+const texteLien = computed(() => `Bonjour, pouvez-vous régler ma commande Bibou ${props.commande.reference} (${formaterFcfa(etat.value?.montant ?? 0)}) par Orange Money ou Moov Money ? Lien sécurisé : ${lien.value}`)
+const whatsapp = computed(() => `https://wa.me/?text=${encodeURIComponent(texteLien.value)}`)
+async function copierLien() {
+  try {
+    await navigator.clipboard.writeText(lien.value)
+    lienCopie.value = true
+  } catch {
+    lienCopie.value = false
+  }
+}
+function partager() {
+  navigator.share?.({ title: `Commande Bibou ${props.commande.reference}`, text: texteLien.value }).catch(() => {})
 }
 
 // Rien à dire (commande annulée sans paiement en ligne, par exemple) : pas de cadre vide.
@@ -110,8 +145,8 @@ watch(() => [props.commande.statut, props.commande.montant_paye], () => { lire()
       </button>
       <p class="aide">
         Par {{ etat.moyens.join(' ou ') }}, validé sur votre téléphone depuis la page sécurisée de notre
-        partenaire de paiement. L'acompte peut aussi se régler à la boutique ; le reste se paie à la
-        livraison.
+        partenaire de paiement.<template v-if="espace === 'suivi'"> L'acompte peut aussi se régler à la boutique ; le
+        reste se paie à la livraison.</template>
       </p>
     </template>
     <template v-else-if="etat.possible">
@@ -120,10 +155,26 @@ watch(() => [props.commande.statut, props.commande.montant_paye], () => { lire()
       </button>
       <p class="aide">
         Vous validez le paiement sur votre téléphone, depuis la page sécurisée de notre partenaire de
-        paiement. Vous pouvez aussi payer à la livraison.
+        paiement.<template v-if="espace === 'suivi'"> Vous pouvez aussi payer à la livraison.</template>
       </p>
     </template>
     <p v-else-if="etat.raison && etat.dernier?.statut !== 'acceptee'" class="aide">{{ etat.raison }}</p>
+    <div v-if="partageable && etat.possible" class="proche">
+      <button v-if="!lien" type="button" class="bouton bouton-discret" :disabled="envoi" @click="creerLien">
+        Faire payer par un proche
+      </button>
+      <template v-else>
+        <p class="aide">
+          Envoyez ce lien à la personne qui paie : il montre le montant et vos articles, ni votre numéro ni
+          votre adresse. Un nouveau lien remplace le précédent.
+        </p>
+        <div class="partage">
+          <a :href="whatsapp" target="_blank" rel="noopener" class="bouton bouton-secondaire">Envoyer sur WhatsApp</a>
+          <button v-if="peutPartager" type="button" class="bouton bouton-secondaire" @click="partager">Partager…</button>
+          <button type="button" class="bouton bouton-secondaire" @click="copierLien">{{ lienCopie ? 'Lien copié' : 'Copier le lien' }}</button>
+        </div>
+      </template>
+    </div>
     <p v-if="erreur" class="alerte alerte-erreur" role="alert">{{ erreur }}</p>
   </section>
 </template>
@@ -133,4 +184,6 @@ watch(() => [props.commande.statut, props.commande.montant_paye], () => { lire()
 .paiement h2 { margin: 0; font-size: 1.1rem; }
 .paiement .alerte { margin: 0; }
 .paiement .aide { margin: 0; }
+.proche { display: grid; gap: 8px; justify-items: start; padding-top: 8px; border-top: 1px solid var(--bordure); }
+.partage { display: flex; flex-wrap: wrap; gap: 8px; }
 </style>
