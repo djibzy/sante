@@ -1,6 +1,6 @@
 """Articles corrigés au téléphone avant la fabrication : taille, quantité, ajout, retrait."""
 
-from datetime import timedelta
+from datetime import date, timedelta
 from typing import Any
 
 import pytest
@@ -9,10 +9,12 @@ from httpx import AsyncClient
 from sqlalchemy import select
 
 from boutique.commandes.tarifs import aujourd_hui
-from boutique.models import JournalAudit
+from boutique.models import Commande, JournalAudit, Notification
+from boutique.notifications import messages
 
 from .aides import commander, fiche, ligne
 from .conftest import jeton
+from .test_notifications import GSM7
 
 ADMIN = jeton(["boutique:admin"])
 
@@ -22,10 +24,27 @@ def avec_acompte(app: FastAPI) -> None:
     app.state.parametres.acompte_pourcent = 50
 
 
-async def modifier(client: AsyncClient, reference: str, lignes: list[dict[str, Any]]) -> Any:
+async def modifier(
+    client: AsyncClient, reference: str, lignes: list[dict[str, Any]], **autres: Any
+) -> Any:
     return await client.put(
-        f"/api/v1/admin/commandes/{reference}/articles", json={"lignes": lignes}, headers=ADMIN
+        f"/api/v1/admin/commandes/{reference}/articles",
+        json={"lignes": lignes, **autres},
+        headers=ADMIN,
     )
+
+
+async def sms(app: FastAPI, reference: str) -> list[str]:
+    """SMS au client de la commande, dans l'ordre de dépôt (alerte de l'équipe exclue)."""
+    async with app.state.sessions() as session:
+        return list(
+            await session.scalars(
+                select(Notification.message)
+                .where(Notification.message.contains(f"commande {reference}"))
+                .where(~Notification.message.contains("nouvelle commande"))
+                .order_by(Notification.cree_le, Notification.id)
+            )
+        )
 
 
 async def statut(client: AsyncClient, reference: str, nouveau: str) -> Any:
@@ -77,6 +96,10 @@ async def test_taille_quantite_ajout_retrait(app: FastAPI, client: AsyncClient) 
             select(JournalAudit.details).where(JournalAudit.action == "commande.articles_modifies")
         )
     assert details == {"avant": 20_000, "apres": 26_000, "lignes": 2}
+    assert (await sms(app, reference))[-1] == (
+        f"Bibou : commande {reference} modifiée. Nouveau total : 26 000 FCFA, dont acompte "
+        "12 500 FCFA (non remboursable). Détail sur votre lien de suivi."
+    )
 
     # Une fois la fabrication lancée, plus de correction.
     await statut(client, reference, "confirmee")  # en attente de l'acompte
@@ -109,7 +132,7 @@ async def test_le_prix_d_origine_est_garde(client: AsyncClient) -> None:
     assert (commande["lignes"][0]["prix_unitaire"], commande["total"]) == (7_500, 22_500)
 
 
-async def test_acompte_et_code_promo_suivent(client: AsyncClient) -> None:
+async def test_acompte_et_code_promo_suivent(app: FastAPI, client: AsyncClient) -> None:
     code = await client.post(
         "/api/v1/admin/codes-promo",
         json={
@@ -149,6 +172,12 @@ async def test_acompte_et_code_promo_suivent(client: AsyncClient) -> None:
     commande = (await modifier(client, reference, [deux_kits])).json()
     assert (commande["remise"], commande["total"], commande["acompte"]) == (1_500, 13_500, 0)
     assert commande["statut"] == "confirmee"
+    assert (await sms(app, reference))[-2:] == [
+        f"Bibou : commande {reference} modifiée. Nouveau total : 13 500 FCFA. Détail sur votre "
+        "lien de suivi.",
+        f"Bibou : commande {reference} confirmée, prete vers le "
+        f"{date.fromisoformat(commande['date_promise']):%d/%m}.",
+    ]
 
     # Sous le minimum du code, la réduction tombe (commande confirmée : passer par l'annulation).
     autre = (
@@ -169,8 +198,14 @@ async def test_acompte_et_code_promo_suivent(client: AsyncClient) -> None:
             },
         )
     ).json()["commande"]["reference"]
-    seul = (await modifier(client, autre, [{"produit_id": kit["id"], "quantite": 1}])).json()
+    avant = await sms(app, autre)
+    seul = (
+        await modifier(
+            client, autre, [{"produit_id": kit["id"], "quantite": 1}], prevenir_client=False
+        )
+    ).json()
     assert (seul["remise"], seul["total"]) == (0, 7_500)
+    assert await sms(app, autre) == avant  # client prévenu de vive voix
 
 
 async def test_le_tarif_professionnel_est_repris(client: AsyncClient) -> None:
@@ -207,3 +242,11 @@ async def test_la_date_promise_suit_les_articles(client: AsyncClient) -> None:
         await modifier(client, reference, [{"produit_id": relais["id"], "quantite": 1}])
     ).json()
     assert commande["date_promise"] == str(aujourd_hui() + timedelta(days=14))
+
+
+def test_le_sms_tient_en_un_message() -> None:
+    """Pire cas : grosse commande, acompte, ou trop-perçu à rendre ; un seul SMS GSM."""
+    for total, acompte, paye in ((1_250_000, 625_000, 0), (1_250_000, 0, 9_990_000)):
+        commande = Commande(numero=10_999, total=total, acompte=acompte, montant_paye=paye)
+        texte = messages.articles_modifies(commande)
+        assert set(texte) <= GSM7 and len(texte) <= 160, (len(texte), texte)

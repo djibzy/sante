@@ -108,6 +108,19 @@ def rappel_devis(commande: Commande) -> str:
     )
 
 
+def articles_modifies(commande: Commande) -> str:
+    """Articles corrigés par l'équipe : le nouveau total et l'acompte, ou ce qui sera rendu,
+    confirmés par écrit."""
+    texte = (
+        f"Bibou : commande {commande.reference} modifiée. Nouveau total : {_fcfa(commande.total)}"
+    )
+    if commande.montant_paye > commande.total:
+        texte += f". Nous vous rendrons {_fcfa(commande.montant_paye - commande.total)} déjà payés"
+    elif commande.acompte:
+        texte += f", dont acompte {_fcfa(commande.acompte)} (non remboursable)"
+    return gsm(f"{texte}. Détail sur votre lien de suivi.")
+
+
 def paiement_recu(commande: Commande, montant: int) -> str:
     reste = commande.reste_a_payer
     suite = (

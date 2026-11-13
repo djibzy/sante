@@ -86,7 +86,7 @@ interface LigneCorrigee {
   prix_unitaire: number | null
   personnalisation: string | null
 }
-const articles = reactive({ ouvert: false, lignes: [] as LigneCorrigee[], note: '', ajout: { produit_id: '', variante_id: '', quantite: 1 } })
+const articles = reactive({ ouvert: false, lignes: [] as LigneCorrigee[], note: '', prevenir: true, ajout: { produit_id: '', variante_id: '', quantite: 1 } })
 const articlesModifiables = computed(() => ['en_attente', 'acompte_attendu'].includes(commande.value?.statut ?? ''))
 const catalogue = ref<ProduitGestion[]>([])
 // Articles vendables en ligne seulement : un article pharmaceutique passe par le pharmacien.
@@ -108,6 +108,7 @@ async function ouvrirArticles() {
     produit_id: l.produit_id, variante_id: l.variante_id, libelle: l.libelle, quantite: l.quantite,
     prix_unitaire: l.prix_unitaire, personnalisation: l.personnalisation,
   }))
+  articles.prevenir = true
   articles.ouvert = true
 }
 // Même article, même variante qu'à la commande : le serveur garde le prix d'origine ; sinon
@@ -136,6 +137,7 @@ async function enregistrerArticles() {
       libelle: l.produit_id ? null : l.libelle,
     })),
     note: articles.note,
+    prevenir_client: articles.prevenir,
   })
   if (ok) {
     articles.ouvert = false
@@ -316,6 +318,7 @@ watch(verifie, async () => {
                   Ajouter une ligne libre (retouche, transport…)
                 </button>
                 <div class="champ"><label for="note-articles">Note visible du client (facultatif)</label><input id="note-articles" v-model="articles.note" maxlength="500" placeholder="Taille L au lieu de M, à votre demande"></div>
+                <label class="case"><input v-model="articles.prevenir" type="checkbox"> Prévenir le client par SMS (nouveau total, acompte)</label>
                 <div class="actions-articles">
                   <button type="button" class="bouton" :disabled="envoi || !articles.lignes.length" @click="enregistrerArticles">Enregistrer les corrections</button>
                   <button type="button" class="bouton bouton-discret" @click="articles.ouvert = false">Abandonner</button>

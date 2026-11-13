@@ -317,6 +317,7 @@ class ModificationArticles(BaseModel):
 
     lignes: list[LigneDevis] = Field(min_length=1, max_length=80)
     note: str = Field("", max_length=500)
+    prevenir_client: bool = Field(True, description="SMS au client : nouveau total et acompte")
 
 
 class EmissionDevis(BaseModel):

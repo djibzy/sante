@@ -51,6 +51,7 @@ from boutique.models import (
     Produit,
     ZoneLivraison,
 )
+from boutique.notifications import boite, messages
 from boutique.promotions.service import montant as montant_promo
 from socle.audit import journaliser
 from socle.db import session_db
@@ -372,6 +373,8 @@ async def modifier_articles(
         objet_id=commande.reference,
         details={"avant": avant, "apres": commande.total, "lignes": len(lignes)},
     )
+    if donnees.prevenir_client:
+        boite.deposer(session, commande, messages.articles_modifies(commande))
     await operations.apres_paiement(session, commande, principal.id)  # acompte couvert ?
     await session.commit()
     return vue_gestion(await acces.charger(session, reference))
