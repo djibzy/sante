@@ -78,3 +78,60 @@ export function estNeutre(hexa: string): boolean {
   const [clarte, a, b] = oklab(hexa)
   return Math.hypot(a, b) < 0.035 || clarte < 0.33
 }
+
+/**
+ * Couleurs dominantes d'une photo, calculées dans le navigateur : la photo ne quitte pas le
+ * téléphone. Le centre compte plus que les bords (le vêtement est d'ordinaire au centre, le mur
+ * ou le sol autour) ; les teintes voisines sont regroupées. De la plus présente à la moins
+ * présente.
+ */
+export async function couleursDominantes(fichier: Blob, nombre = 4): Promise<string[]> {
+  const adresse = URL.createObjectURL(fichier)
+  try {
+    const image = await new Promise<HTMLImageElement>((resolve, reject) => {
+      const element = new Image()
+      element.onload = () => resolve(element)
+      element.onerror = () => reject(new Error('Photo illisible'))
+      element.src = adresse
+    })
+    const cote = 72
+    const toile = document.createElement('canvas')
+    toile.width = cote
+    toile.height = cote
+    const contexte = toile.getContext('2d', { willReadFrequently: true })
+    if (!contexte) throw new Error('Photo illisible')
+    const marge = 0.12 // bords de la photo laissés de côté
+    const { naturalWidth: largeur, naturalHeight: hauteur } = image
+    contexte.drawImage(image, largeur * marge, hauteur * marge, largeur * (1 - 2 * marge), hauteur * (1 - 2 * marge), 0, 0, cote, cote)
+    const { data } = contexte.getImageData(0, 0, cote, cote)
+    const cases = new Map<number, { poids: number, r: number, g: number, b: number }>()
+    for (let y = 0; y < cote; y++) {
+      for (let x = 0; x < cote; x++) {
+        const i = (y * cote + x) * 4
+        if (data[i + 3]! < 128) continue
+        const [r, g, b] = [data[i]!, data[i + 1]!, data[i + 2]!]
+        const dx = (x - cote / 2) / (cote / 2)
+        const dy = (y - cote / 2) / (cote / 2)
+        const poids = Math.exp(-(dx * dx + dy * dy) * 1.5)
+        const cle = ((r >> 4) << 8) | ((g >> 4) << 4) | (b >> 4)
+        const case_ = cases.get(cle) ?? { poids: 0, r: 0, g: 0, b: 0 }
+        case_.poids += poids
+        case_.r += r * poids
+        case_.g += g * poids
+        case_.b += b * poids
+        cases.set(cle, case_)
+      }
+    }
+    const groupes: { poids: number, hex: string }[] = []
+    const triees = [...cases.values()].sort((a, b) => b.poids - a.poids)
+    for (const c of triees) {
+      const hex = versHexa([c.r / c.poids, c.g / c.poids, c.b / c.poids])
+      const voisin = groupes.find(g => ecart(g.hex, hex) < 9)
+      if (voisin) voisin.poids += c.poids
+      else if (groupes.length < 16) groupes.push({ poids: c.poids, hex })
+    }
+    return groupes.sort((a, b) => b.poids - a.poids).slice(0, nombre).map(g => g.hex)
+  } finally {
+    URL.revokeObjectURL(adresse)
+  }
+}

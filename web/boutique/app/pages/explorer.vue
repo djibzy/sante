@@ -12,13 +12,17 @@ const route = useRoute()
 const router = useRouter()
 const adresse = useAdresseImage()
 const texte = (valeur: unknown) => (typeof valeur === 'string' && valeur ? valeur : undefined)
+// « proche » : couleur cherchée (rrggbb, sans #), venue d'une photo ou choisie à la main.
+const hexa = (valeur: unknown) => (typeof valeur === 'string' && /^[0-9a-f]{6}$/i.test(valeur) ? valeur.toLowerCase() : undefined)
 const filtres = computed(() => ({
   famille: texte(route.query.famille),
   metier: texte(route.query.metier),
   rayon: texte(route.query.rayon),
   genre: texte(route.query.genre),
+  proche: hexa(route.query.proche),
 }))
-const { data, status } = await useBoutiqueFetch<Exploration>('/api/v1/explorer', { query: filtres })
+const requete = computed(() => ({ ...filtres.value, proche: filtres.value.proche ? `#${filtres.value.proche}` : undefined }))
+const { data, status } = await useBoutiqueFetch<Exploration>('/api/v1/explorer', { query: requete })
 const { data: rayons } = await useBoutiqueFetch<Rayon[]>('/api/v1/rayons')
 const { data: metiers } = await useBoutiqueFetch<Metier[]>('/api/v1/metiers')
 const types = computed(() => (rayons.value ?? []).filter(r => r.univers === 'tenues'))
@@ -26,7 +30,7 @@ const metiersActifs = computed(() => (metiers.value ?? []).filter(m => m.nombre_
 const tuiles = computed(() => data.value?.tuiles ?? [])
 const famille = computed(() => data.value?.familles.find(f => f.code === filtres.value.famille) ?? null)
 
-function choisir(cle: 'famille' | 'metier' | 'rayon' | 'genre', valeur?: string) {
+function choisir(cle: 'famille' | 'metier' | 'rayon' | 'genre' | 'proche', valeur?: string) {
   const actuelle = filtres.value[cle]
   void router.replace({ query: { ...route.query, [cle]: valeur && valeur !== actuelle ? valeur : undefined } })
 }
@@ -35,6 +39,42 @@ function valeurDe(evenement: Event) {
 }
 const lien = (t: Tuile) => ({ path: `/produits/${t.produit_slug}`, query: { couleur: t.couleur } })
 const actifs = computed(() => Object.values(filtres.value).some(Boolean))
+
+// Recherche par la couleur d'une photo : calculée sur le téléphone, la photo n'est pas envoyée.
+const apercu = ref<string | null>(null) // la photo, affichée en petit (adresse locale)
+const couleursPhoto = ref<string[]>([])
+const analyse = ref(false)
+const erreurPhoto = ref('')
+async function analyser(evenement: Event) {
+  const champ = evenement.target as HTMLInputElement
+  const fichier = champ.files?.[0]
+  champ.value = '' // la même photo peut être reprise
+  if (!fichier) return
+  erreurPhoto.value = ''
+  analyse.value = true
+  try {
+    couleursPhoto.value = await couleursDominantes(fichier)
+    if (apercu.value) URL.revokeObjectURL(apercu.value)
+    apercu.value = URL.createObjectURL(fichier)
+    const premiere = couleursPhoto.value[0]
+    if (premiere) await router.replace({ query: { ...route.query, proche: premiere.slice(1), famille: undefined } })
+  } catch {
+    erreurPhoto.value = 'Cette photo ne peut pas être lue. Essayez une photo JPEG ou PNG.'
+  } finally {
+    analyse.value = false
+  }
+}
+function chercherCouleur(valeur: string) {
+  void router.replace({ query: { ...route.query, proche: valeur.replace('#', ''), famille: undefined } })
+}
+function oublierCouleur() {
+  if (apercu.value) URL.revokeObjectURL(apercu.value)
+  apercu.value = null
+  couleursPhoto.value = []
+  choisir('proche')
+}
+onBeforeUnmount(() => { if (apercu.value) URL.revokeObjectURL(apercu.value) })
+const proximite = (distance: number) => (distance < 6 ? 'Même couleur' : distance < 14 ? 'Très proche' : 'Proche')
 </script>
 
 <template>
@@ -61,6 +101,39 @@ const actifs = computed(() => Object.values(filtres.value).some(Boolean))
         <span class="nuance-nom">{{ f.nom }}</span>
         <span class="nuance-nombre">{{ f.nombre }}<span class="visuellement-cache"> articles</span></span>
       </button>
+    </div>
+
+    <div class="par-couleur">
+      <label class="bouton bouton-secondaire photo">
+        <input type="file" accept="image/*" class="visuellement-cache" @change="analyser">
+        <svg width="20" height="20" viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M4 8h3l2-3h6l2 3h3v11H4z" /><circle cx="12" cy="13" r="3.5" />
+        </svg>
+        {{ analyse ? 'Analyse de la photo…' : "Trouver la couleur d'une photo" }}
+      </label>
+      <label class="libre">
+        ou choisir une couleur
+        <input type="color" :value="`#${filtres.proche ?? '1f4fa8'}`" @change="chercherCouleur(($event.target as HTMLInputElement).value)">
+      </label>
+    </div>
+    <p v-if="erreurPhoto" class="alerte alerte-erreur" role="alert">{{ erreurPhoto }}</p>
+    <div v-if="filtres.proche" class="recherche-couleur carte">
+      <img v-if="apercu" :src="apercu" alt="Votre photo" class="miniature">
+      <div class="cherchee">
+        <p>
+          <span class="point grand" :style="{ background: `#${filtres.proche}` }" aria-hidden="true" />
+          Tenues de couleur proche
+        </p>
+        <div v-if="couleursPhoto.length > 1" class="autres" role="group" aria-label="Couleurs de la photo">
+          <span class="aide">Couleurs de la photo :</span>
+          <button
+            v-for="c in couleursPhoto" :key="c" type="button" class="echantillon" :style="{ background: c }"
+            :aria-pressed="c === `#${filtres.proche}`" :aria-label="`Chercher la couleur ${c}`" @click="chercherCouleur(c)"
+          />
+        </div>
+        <p v-if="apercu" class="aide">La photo reste sur votre téléphone : seule sa couleur sert à la recherche.</p>
+      </div>
+      <button type="button" class="bouton bouton-discret" @click="oublierCouleur">Effacer</button>
     </div>
 
     <div class="filtres">
@@ -96,6 +169,7 @@ const actifs = computed(() => Object.values(filtres.value).some(Boolean))
       <li v-for="t in tuiles" :key="`${t.produit_slug}-${t.couleur}`">
         <NuxtLink :to="lien(t)" class="tuile" :style="{ '--teinte': t.hex }">
           <span class="visuel">
+            <span v-if="t.distance !== null" class="proximite">{{ proximite(t.distance) }}</span>
             <img v-if="t.image" :src="adresse(t.image.url)" alt="" loading="lazy">
             <IllustrationArticle
               v-else-if="formeArticle(t.rayon_slug, t.produit_slug)"
@@ -112,7 +186,8 @@ const actifs = computed(() => Object.values(filtres.value).some(Boolean))
       </li>
     </ul>
     <div v-else-if="status !== 'pending'" class="carte vide">
-      <p>Aucune tenue dans cette couleur avec ces filtres.</p>
+      <p v-if="filtres.proche">Aucune tenue d'une couleur proche. Essayez une autre couleur de la photo, ou une autre photo.</p>
+      <p v-else>Aucune tenue dans cette couleur avec ces filtres.</p>
       <NuxtLink to="/explorer" class="bouton bouton-secondaire">Voir toutes les couleurs</NuxtLink>
     </div>
   </section>
@@ -125,7 +200,7 @@ const actifs = computed(() => Object.values(filtres.value).some(Boolean))
 /* position : les textes cachés (lecteurs d'écran) restent dans la zone qui défile. */
 .nuancier { position: relative; display: flex; gap: 8px; overflow-x: auto; padding: 4px 2px 10px; margin: 0 -2px; scrollbar-width: thin; }
 .nuance {
-  flex: none; display: grid; justify-items: center; gap: 4px; min-width: 76px; padding: 8px 6px;
+  flex: none; display: grid; justify-items: center; gap: 4px; min-width: 68px; padding: 8px 6px;
   border: 1.5px solid var(--bordure); border-radius: 14px; background: var(--surface); color: var(--texte);
   font: inherit; font-size: 0.8rem; cursor: pointer;
 }
@@ -136,6 +211,23 @@ const actifs = computed(() => Object.values(filtres.value).some(Boolean))
 .rond.tout { background: conic-gradient(#e58fa5, #e07b1f, #2e8b6e, #1aa6a6, #1f4fa8, #6b2d5c, #e58fa5); }
 .nuance-nom { font-weight: 650; line-height: 1.2; text-align: center; max-width: 92px; }
 .nuance-nombre { color: var(--texte-doux); font-size: 0.75rem; }
+.par-couleur { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 16px; margin: 4px 0 10px; }
+.photo { display: inline-flex; align-items: center; gap: 8px; cursor: pointer; }
+.photo:focus-within { outline: 3px solid var(--accent); outline-offset: 2px; }
+.libre { display: inline-flex; align-items: center; gap: 8px; font-size: 0.92rem; color: var(--texte-doux); }
+.libre input { width: 44px; height: 44px; padding: 2px; border: 1.5px solid var(--bordure); border-radius: 10px; background: var(--surface); cursor: pointer; }
+.recherche-couleur { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; padding: 10px 12px; margin-bottom: 12px; }
+.recherche-couleur > .bouton { margin-left: auto; }
+.miniature { width: 64px; height: 64px; object-fit: cover; border-radius: 10px; flex: none; }
+.cherchee { flex: 1 1 210px; display: grid; gap: 4px; min-width: 0; }
+.cherchee p { margin: 0; display: flex; align-items: center; gap: 8px; }
+.cherchee p:first-child { font-weight: 650; }
+.point.grand { width: 22px; height: 22px; }
+.autres { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
+.echantillon { width: 28px; height: 28px; border-radius: 50%; border: 0; cursor: pointer; box-shadow: inset 0 0 0 1px rgba(23, 21, 58, 0.25); }
+.echantillon[aria-pressed='true'] { box-shadow: 0 0 0 2px var(--surface), 0 0 0 4px var(--primaire); }
+.echantillon:focus-visible { outline: 3px solid var(--accent); outline-offset: 2px; }
+.proximite { position: absolute; top: 6px; left: 6px; padding: 2px 7px; border-radius: 999px; background: rgba(255, 255, 255, 0.92); color: var(--texte); font-size: 0.7rem; font-weight: 700; }
 .filtres { display: flex; flex-wrap: wrap; align-items: flex-end; gap: 10px 14px; margin: 8px 0 12px; }
 .filtre { display: grid; gap: 4px; font-size: 0.85rem; font-weight: 650; }
 .filtre select { min-height: 44px; padding: 0 0.6em; border: 1.5px solid var(--bordure); border-radius: 10px; background: var(--surface); font: inherit; font-weight: 400; }
@@ -152,7 +244,7 @@ const actifs = computed(() => Object.values(filtres.value).some(Boolean))
 .mur.attente { opacity: 0.55; }
 .tuile { display: grid; gap: 6px; color: var(--texte); text-decoration: none; }
 .visuel {
-  display: grid; place-items: center; aspect-ratio: 4 / 5; border-radius: 12px; overflow: hidden;
+  position: relative; display: grid; place-items: center; aspect-ratio: 4 / 5; border-radius: 12px; overflow: hidden;
   background: var(--fond-doux); box-shadow: inset 0 0 0 1px rgba(23, 21, 58, 0.06); transition: transform 0.15s, box-shadow 0.15s;
 }
 .visuel img { width: 100%; height: 100%; object-fit: cover; }
