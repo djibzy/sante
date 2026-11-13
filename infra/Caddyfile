@@ -12,7 +12,8 @@
 		Permissions-Policy "camera=(), microphone=(), geolocation=()"
 		# Aucune page ne peut être affichée dans un cadre d'un autre site (détournement de clic).
 		X-Frame-Options DENY
-		Content-Security-Policy "frame-ancestors 'none'; base-uri 'self'; form-action 'self'"
+		# Politique par défaut (API, fichiers) ; les pages de l'interface envoient la leur, complète.
+		?Content-Security-Policy "frame-ancestors 'none'; base-uri 'self'; form-action 'self'"
 		-Server
 	}
 	encode zstd gzip

@@ -19,7 +19,7 @@ semaine 4. Elle sera refaite avant l'ouverture au public, puis à chaque nouveau
 | Paiement en ligne | Montant fixé par le serveur (reste à payer) ; statut et montant toujours relus auprès de CinetPay avec notre clé, jamais pris dans la notification ; crédit sous verrou, une seule fois ; montant ou devise différents = « à vérifier », rien de crédité ; aucun nom ni téléphone transmis à l'agrégateur, ni la clé du lien de suivi ; 10 tentatives par commande et par heure ; mode simulation refusé en production |
 | Avis clients | Réservés aux commandes livrées (un par produit et par commande) ; publiés seulement après relecture par l'équipe, qui refuse toute information médicale ; prénom et initiale du nom, jamais le téléphone ; note du produit recomptée sous verrou |
 | Hors ligne | Le service worker ne garde que l'application, le catalogue public et les photos vues ; jamais le suivi des commandes, le compte, l'espace de l'équipe ni un envoi. Une commande préparée sans réseau reste sur le téléphone jusqu'à son envoi, puis en est effacée ; sa clé empêche tout doublon |
-| Navigateur | HTTPS automatique, HSTS, `nosniff`, Referrer-Policy, Permissions-Policy, interdiction d'affichage dans un cadre (`X-Frame-Options`, `frame-ancestors`) ; aucun `v-html` dans les interfaces |
+| Navigateur | HTTPS automatique, HSTS, `nosniff`, Referrer-Policy, Permissions-Policy, interdiction d'affichage dans un cadre (`X-Frame-Options`, `frame-ancestors`) ; aucun `v-html` dans les interfaces ; politique de sécurité du contenu (CSP) sur chaque page : scripts du site et scripts en ligne marqués d'un nonce par réponse, appels limités à l'API et au service Comptes |
 | Serveur | Seul Caddy est exposé (ports 80 et 443) ; une base et un rôle PostgreSQL par produit ; conteneurs sans droits root ; aucun secret dans le dépôt |
 | Sauvegardes | `pg_dump` de chaque base et archive des photos chaque nuit, 14 jours gardés (service `sauvegarde`) |
 | Photos | Format vérifié, image réencodée en WebP (aucune métadonnée, ni position GPS), 8 Mo et 8 photos par produit au plus |
@@ -42,8 +42,9 @@ semaine 4. Elle sera refaite avant l'ouverture au public, puis à chaque nouveau
 3. **Comptes de l'équipe** : 12 caractères exigés à chaque nouveau mot de passe (fait) ;
    second facteur (code par SMS, sur la même base que « mot de passe oublié ») au premier
    trimestre 2027.
-4. **Politique de sécurité du contenu (CSP)** complète pour l'interface Nuxt (scripts et
-   styles), avec le module `nuxt-security`, une fois les pages stabilisées.
+4. **Politique de sécurité du contenu (CSP)** : en place pour les scripts (nonce par
+   réponse, plugin Nitro `server/plugins/securite-contenu.ts`) ; les styles restent permis en
+   ligne (attributs `style` des composants) : à resserrer avec des nonces si besoin.
 5. **Durées de conservation** : appliquées chaque nuit (boutique.entretien, comptes.entretien) :
    commandes facturées anonymisées après 10 ans (obligation comptable OHADA), commandes sans
    suite après 3 ans, SMS effacés après 3 ans, avis refusés après 30 jours, tentatives de
