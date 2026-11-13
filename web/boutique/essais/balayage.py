@@ -1,7 +1,8 @@
 """Parcours de contrôle dans un vrai navigateur : chaque page s'affiche et s'hydrate sans erreur
-(exception, hydratation, politique de sécurité du contenu), et les gestes essentiels marchent
-(choisir une taille, ajouter au panier, filtrer par couleur). Les services, la boutique et un
-compte de l'équipe doivent tourner (voir .github/workflows/ci.yml).
+(exception, hydratation, politique de sécurité du contenu), passe les règles d'accessibilité
+WCAG 2.1 A et AA vérifiées par axe-core (défauts graves et critiques), et les gestes essentiels
+marchent (choisir une taille, ajouter au panier, filtrer par couleur). Les services, la
+boutique et un compte de l'équipe doivent tourner (voir .github/workflows/ci.yml).
 
     python essais/balayage.py            # BIBOU_ADRESSE=http://localhost:3000 par défaut
 """
@@ -9,8 +10,9 @@ compte de l'équipe doivent tourner (voir .github/workflows/ci.yml).
 import os
 import re
 import sys
+from pathlib import Path
 
-from playwright.sync_api import expect, sync_playwright
+from playwright.sync_api import Page, expect, sync_playwright
 
 ADRESSE = os.environ.get("BIBOU_ADRESSE", "http://localhost:3000")
 TELEPHONE = os.environ.get("BIBOU_EQUIPE_TELEPHONE", "70 00 00 01")
@@ -31,6 +33,20 @@ EQUIPE = [
 ]
 # Bruit sans conséquence : session absente (401), préchargements servis par le service worker.
 IGNORES = ("401", "cross-world service worker")
+AXE = (Path(__file__).resolve().parents[1] / "node_modules" / "axe-core" / "axe.min.js").read_text()
+REGLES = ["wcag2a", "wcag2aa", "wcag21a", "wcag21aa"]
+
+
+def accessibilite(page: Page) -> list[str]:
+    """Défauts graves ou critiques relevés par axe-core sur la page affichée."""
+    page.evaluate(AXE)
+    defauts = page.evaluate(
+        """async (regles) => (await axe.run(document, { runOnly: { type: 'tag', values: regles } }))
+          .violations.filter(v => ['serious', 'critical'].includes(v.impact))
+          .map(v => `${v.id} (${v.nodes.length}) : ${v.nodes[0].target.join(' ')}`)""",
+        REGLES,
+    )
+    return list(defauts)
 
 
 def main() -> int:
@@ -52,6 +68,7 @@ def main() -> int:
             page.goto(f"{ADRESSE}{chemin}", wait_until="networkidle")
             if page.evaluate("document.documentElement.scrollWidth") > 391:
                 erreurs.append(f"{chemin} : la page déborde de l'écran du téléphone")
+            erreurs.extend(f"{chemin} : accessibilité, {d}" for d in accessibilite(page))
 
         # Gestes essentiels : taille conseillée, ajout au panier, filtre par couleur.
         courante["chemin"] = "parcours d'achat"
@@ -77,6 +94,7 @@ def main() -> int:
         for chemin in EQUIPE:
             courante["chemin"] = chemin
             page.goto(f"{ADRESSE}{chemin}", wait_until="networkidle")
+            erreurs.extend(f"{chemin} : accessibilité, {d}" for d in accessibilite(page))
         navigateur.close()
 
     print(f"{len(PUBLIQUES) + len(EQUIPE)} pages parcourues.")

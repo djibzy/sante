@@ -15,7 +15,7 @@ const whatsapp = computed(() => `https://wa.me/${config.public.whatsapp}?text=${
       <div>
         <TrouverTaille informatif open />
         <h2>Blouses, tuniques et pantalons</h2>
-        <div class="defilement">
+        <div class="defilement" tabindex="0" role="region" aria-label="Tableau des tailles, défilable">
           <table>
             <caption class="visuellement-cache">Mesures du corps en centimètres</caption>
             <thead><tr><th scope="col">Taille</th><th scope="col">Tour de poitrine</th><th scope="col">Tour de taille</th><th scope="col">Tour de hanches</th></tr></thead>
@@ -25,7 +25,7 @@ const whatsapp = computed(() => `https://wa.me/${config.public.whatsapp}?text=${
         <p class="aide">Mesures du corps, en centimètres. Les coupes cintrées taillent plus près du corps : entre deux tailles, prenez la plus grande.</p>
         <h2>Chaussures</h2>
         <TrouverTaille pointure informatif />
-        <div class="defilement">
+        <div class="defilement" tabindex="0" role="region" aria-label="Tableau des pointures, défilable">
           <table>
             <caption class="visuellement-cache">Longueur du pied en centimètres</caption>
             <thead><tr><th scope="col">Pointure</th><th scope="col">Longueur du pied</th></tr></thead>
@@ -52,6 +52,7 @@ const whatsapp = computed(() => `https://wa.me/${config.public.whatsapp}?text=${
 .colonnes { display: grid; gap: 24px; grid-template-columns: minmax(0, 1fr); } /* les tableaux défilent dans leur cadre */
 @media (min-width: 900px) { .colonnes { grid-template-columns: minmax(0, 1fr) 340px; align-items: start; } }
 .defilement { overflow-x: auto; }
+.defilement:focus-visible { outline: 3px solid var(--accent); outline-offset: 2px; }
 table { width: 100%; border-collapse: collapse; min-width: 420px; }
 th, td { padding: 10px 12px; text-align: left; border-bottom: 1px solid var(--bordure); }
 thead th { font-size: 0.88rem; color: var(--texte-doux); }
