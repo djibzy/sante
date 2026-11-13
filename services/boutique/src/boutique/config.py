@@ -1,6 +1,6 @@
 from typing import Literal
 
-from pydantic import SecretStr, field_validator
+from pydantic import Field, SecretStr, field_validator
 from pydantic_settings import SettingsConfigDict
 
 from socle.settings import ParametresService, ParametresSms
@@ -26,6 +26,13 @@ class ParametresBoutique(ParametresService, ParametresSms):
         "l'acceptation du devis."
     )
     validite_devis_jours: int = 30
+
+    # Acompte des articles faits à la demande, en pourcentage de leur prix, arrondi à la centaine
+    # de FCFA ; 0 : pas d'acompte. Non remboursable. Sont faits à la demande les articles des
+    # postes listés (brodés, imprimés : ils ne se revendent pas) et tout article personnalisé ;
+    # les kits, assemblés à partir du stock, n'en demandent pas.
+    acompte_pourcent: int = Field(50, ge=0, le=100)
+    acompte_postes: list[str] = ["broderie", "impression"]
 
     # Demandes non traitées (commandes à confirmer, devis demandés) par numéro, sur 24 heures.
     demandes_max_par_telephone: int = 5

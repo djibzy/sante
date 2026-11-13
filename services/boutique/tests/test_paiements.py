@@ -154,6 +154,7 @@ async def test_eteint_par_defaut(client: AsyncClient) -> None:
         "disponible": False,
         "possible": False,
         "montant": total,
+        "acompte": None,
         "raison": None,
         "moyens": [],
         "dernier": None,

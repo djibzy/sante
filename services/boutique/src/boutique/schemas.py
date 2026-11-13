@@ -32,6 +32,13 @@ class MetierPublic(BaseModel):
     nombre_produits: int
 
 
+class ConditionsVente(BaseModel):
+    """Règles réglables de la boutique, citées par les conditions de vente."""
+
+    acompte_pourcent: int = Field(description="Acompte des articles faits à la demande ; 0 : aucun")
+    validite_devis_jours: int
+
+
 class Couleur(BaseModel):
     nom: str
     hex: str | None
@@ -103,6 +110,12 @@ class ProduitDetail(ProduitResume):
     entretien: str
     variantes: list[VariantePublique]
     images: list[ImagePublique]
+    acompte_pourcent: int | None = Field(
+        None, description="Acompte non remboursable des articles faits à la demande, en %"
+    )
+    acompte_toujours: bool = Field(
+        False, description="Toujours fait à la demande ; sinon, seulement s'il est personnalisé"
+    )
 
 
 class PageProduits(BaseModel):

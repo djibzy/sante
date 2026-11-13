@@ -17,7 +17,7 @@ from fastapi import HTTPException, status
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
-from boutique.commandes import acces, operations
+from boutique.commandes import acces, acompte, operations
 from boutique.commandes.cycle import Moyen, Statut
 from boutique.config import ParametresBoutique
 from boutique.models import Commande, JournalAudit, Paiement, TransactionPaiement
@@ -31,8 +31,16 @@ journal = logging.getLogger("boutique.paiements")
 MOYENS = ["Orange Money", "Moov Money"]
 # Une commande se paie en ligne une fois confirmée par l'équipe (stock, adresse, délai vérifiés
 # au téléphone) : aucun remboursement à prévoir pour une commande que l'on ne pourrait pas servir.
+# En attente de l'acompte, le client paie l'acompte ou le tout.
 PAYABLES = frozenset(
-    {Statut.CONFIRMEE, Statut.EN_PREPARATION, Statut.PRETE, Statut.EN_LIVRAISON, Statut.LIVREE}
+    {
+        Statut.ACOMPTE_ATTENDU,
+        Statut.CONFIRMEE,
+        Statut.EN_PREPARATION,
+        Statut.PRETE,
+        Statut.EN_LIVRAISON,
+        Statut.LIVREE,
+    }
 )
 MULTIPLE = 5  # montants en francs CFA : multiples de 5 chez l'agrégateur
 EN_COURS = timedelta(minutes=30)  # au-delà, une tentative sans réponse n'est plus affichée
@@ -60,9 +68,22 @@ def examiner(commande: Commande) -> Examen:
         return Examen(False)  # annulée, devis refusé : rien à proposer
     if commande.reste_a_payer == 0:
         return Examen(False, "Cette commande est entièrement payée. Merci !")
-    if commande.reste_a_payer % MULTIPLE:
+    if not montants(commande):
         return Examen(False, "Ce montant ne se paie pas en ligne : réglez-le à la livraison.")
     return Examen(True)
+
+
+def montants(commande: Commande) -> dict[str, int]:
+    """Ce qui se paie en ligne : l'acompte quand il est attendu, et le solde (le reste à payer),
+    s'ils sont des multiples de 5 FCFA."""
+    choix: dict[str, int] = {}
+    du = acompte.restant(commande)
+    attendu = commande.statut == Statut.ACOMPTE_ATTENDU
+    if attendu and 0 < du < commande.reste_a_payer and du % MULTIPLE == 0:
+        choix["acompte"] = du
+    if commande.reste_a_payer and commande.reste_a_payer % MULTIPLE == 0:
+        choix["solde"] = commande.reste_a_payer
+    return choix
 
 
 def moyen_de(operateur: str | None) -> Moyen:
@@ -110,6 +131,7 @@ async def etat(
         disponible=ouvert,
         possible=ouvert and examen.possible,
         montant=commande.reste_a_payer,
+        acompte=montants(commande).get("acompte") if examen.possible else None,
         raison=examen.raison if ouvert else None,
         moyens=MOYENS if ouvert else [],
         dernier=_vue(derniere, maintenant or datetime.now(UTC)),
@@ -123,13 +145,18 @@ async def ouvrir(
     commande: Commande,
     acteur_id: UUID | None,
     adresse_ip: str | None,
+    objet: str = "solde",
 ) -> str:
-    """Enregistre la tentative et renvoie l'adresse de la page de paiement de l'agrégateur."""
+    """Enregistre la tentative (acompte ou solde) et renvoie l'adresse de la page de paiement de
+    l'agrégateur."""
     examen = examiner(commande)
     if not examen.possible:
         raise HTTPException(
             status.HTTP_409_CONFLICT, examen.raison or "Cette commande ne se paie pas en ligne"
         )
+    choix = montants(commande)
+    if objet not in choix:
+        raise HTTPException(status.HTTP_409_CONFLICT, "Ce montant ne se paie pas en ligne")
     depuis = datetime.now(UTC) - timedelta(hours=1)
     recentes = await session.scalar(
         select(func.count())
@@ -147,7 +174,7 @@ async def ouvrir(
         commande_id=commande.id,
         fournisseur=fournisseur.nom,
         transaction_id=f"BB{commande.numero}T{secrets.token_hex(8)}",
-        montant=commande.reste_a_payer,
+        montant=choix[objet],
         statut="initiee",
     )
     session.add(transaction)
@@ -157,7 +184,8 @@ async def ouvrir(
         adresse = await fournisseur.initier(
             transaction_id=transaction.transaction_id,
             montant=transaction.montant,
-            description=f"Commande {commande.reference} Bibou",
+            description=("Acompte commande" if objet == "acompte" else "Commande")
+            + f" {commande.reference} Bibou",
             reference=commande.reference,
             url_retour=f"{base}/api/v1/paiements/retour/{commande.reference}",
             url_notification=f"{base}/api/v1/paiements/{fournisseur.nom}/notification",
@@ -177,7 +205,11 @@ async def ouvrir(
         acteur_id=acteur_id,
         objet_type="commande",
         objet_id=commande.reference,
-        details={"montant": transaction.montant, "transaction": transaction.transaction_id},
+        details={
+            "montant": transaction.montant,
+            "objet": objet,
+            "transaction": transaction.transaction_id,
+        },
         adresse_ip=adresse_ip,
     )
     await session.commit()
@@ -287,7 +319,9 @@ async def appliquer(
     if note:
         note = f"{note} : à rembourser."
         operations.evenement(commande, statut, None, note, visible_client=False)
-    boite.deposer(session, commande, messages.paiement_recu(commande, transaction.montant))
+    # Acompte couvert : la fabrication démarre, et le SMS de confirmation dit l'acompte reçu.
+    if not await operations.apres_paiement(session, commande, None):
+        boite.deposer(session, commande, messages.paiement_recu(commande, transaction.montant))
 
 
 async def verifier_commande(

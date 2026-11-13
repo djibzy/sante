@@ -81,6 +81,7 @@ p { margin: 0 0 1em; }
 .pastille-accent { background: var(--accent-clair); color: var(--accent-texte); }
 .pastille-succes { background: var(--succes-clair); color: var(--succes); }
 .pastille-danger { background: var(--danger-clair); color: var(--danger); }
+.pastille-attente { background: var(--fond-doux); color: var(--texte); box-shadow: inset 0 0 0 1px var(--texte-doux); }
 
 .alerte { padding: 0.8em 1em; border-radius: 10px; margin-bottom: 1rem; }
 .alerte-erreur { background: var(--danger-clair); color: var(--danger); }

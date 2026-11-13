@@ -2,8 +2,9 @@
 import type { Commande } from '~/types/commandes'
 import type { EtatPaiement, PaiementOuvert } from '~/types/paiements'
 
-// Paiement du reste à payer par Orange Money ou Moov Money, sur la page de l'agrégateur.
-// Au retour (?paiement=retour), le statut est relu jusqu'à la réponse de l'opérateur.
+// Paiement du reste à payer (ou de l'acompte seul, quand il est attendu) par Orange Money ou
+// Moov Money, sur la page de l'agrégateur. Au retour (?paiement=retour), le statut est relu
+// jusqu'à la réponse de l'opérateur.
 const props = defineProps<{
   commande: Commande
   base: string
@@ -43,11 +44,13 @@ async function attendreConfirmation(reste = RELECTURES) {
   }
 }
 
-async function payer() {
+async function payer(objet: 'acompte' | 'solde' = 'solde') {
   envoi.value = true
   erreur.value = ''
   try {
-    const { adresse } = await appeler<PaiementOuvert>(`${props.base}/paiement-mobile`, { method: 'POST', query: props.requete })
+    const { adresse } = await appeler<PaiementOuvert>(`${props.base}/paiement-mobile`, {
+      method: 'POST', query: props.requete, body: { objet },
+    })
     // Au retour de la page de paiement, l'onglet retrouve le lien de suivi sans le donner à l'agrégateur.
     if (props.cle) {
       try { sessionStorage.setItem(`bibou:suivi:${props.commande.reference}`, props.cle) } catch { /* navigation privée */ }
@@ -92,8 +95,21 @@ watch(() => [props.commande.statut, props.commande.montant_paye], () => { lire()
       v-else-if="etat.dernier?.statut === 'en_cours'" type="button" class="bouton bouton-secondaire"
       @click="attendreConfirmation()"
     >Vérifier le paiement</button>
-    <template v-if="etat.possible">
-      <button type="button" class="bouton bouton-large" :disabled="envoi" @click="payer">
+    <template v-if="etat.possible && etat.acompte">
+      <button type="button" class="bouton bouton-large" :disabled="envoi" @click="payer('acompte')">
+        {{ envoi ? 'Ouverture du paiement…' : `Payer l'acompte : ${formaterFcfa(etat.acompte)}` }}
+      </button>
+      <button type="button" class="bouton bouton-secondaire bouton-large" :disabled="envoi" @click="payer('solde')">
+        Tout payer : {{ formaterFcfa(etat.montant) }}
+      </button>
+      <p class="aide">
+        Par {{ etat.moyens.join(' ou ') }}, validé sur votre téléphone depuis la page sécurisée de notre
+        partenaire de paiement. L'acompte peut aussi se régler à la boutique ; le reste se paie à la
+        livraison.
+      </p>
+    </template>
+    <template v-else-if="etat.possible">
+      <button type="button" class="bouton bouton-large" :disabled="envoi" @click="payer('solde')">
         {{ envoi ? 'Ouverture du paiement…' : `Payer ${formaterFcfa(etat.montant)} par ${etat.moyens.join(' ou ')}` }}
       </button>
       <p class="aide">

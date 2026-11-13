@@ -29,6 +29,7 @@ routeur = APIRouter(prefix="/api/v1/mes-donnees", tags=["mes données"])
 EN_COURS = frozenset(
     {
         Statut.EN_ATTENTE,
+        Statut.ACOMPTE_ATTENDU,
         Statut.DEVIS_DEMANDE,
         Statut.DEVIS_ENVOYE,
         Statut.CONFIRMEE,

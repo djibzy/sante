@@ -1,5 +1,6 @@
 """Mise en forme des commandes pour le client et pour l'équipe."""
 
+from boutique.commandes import acompte
 from boutique.commandes.cycle import ANNULABLES_PAR_CLIENT, LIBELLES, PASSAGES, Statut
 from boutique.commandes.schemas import (
     CommandeClient,
@@ -51,6 +52,9 @@ def vue_client(commande: Commande) -> CommandeClient:
         frais_livraison=commande.frais_livraison,
         remise=commande.remise,
         reste_a_payer=commande.reste_a_payer,
+        acompte=commande.acompte,
+        acompte_restant=acompte.restant(commande),
+        acompte_garde=commande.acompte_garde,
         devis_valable_jusqu_au=commande.devis_valable_jusqu_au,
         devis_disponible=commande.devis_emis_le is not None,
         facture=commande.facture.reference if commande.facture else None,

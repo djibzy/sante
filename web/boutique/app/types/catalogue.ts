@@ -77,6 +77,8 @@ export interface Variante {
 }
 
 export interface ProduitDetail extends ProduitResume {
+  acompte_pourcent: number | null // fait à la demande : acompte non remboursable, en %
+  acompte_toujours: boolean // sinon, seulement s'il est personnalisé
   description: string
   manches: 'courtes' | 'longues' | null
   matiere: string

@@ -80,6 +80,7 @@ const alertes = computed(() => {
   if (!a) return []
   return [
     { titre: 'À confirmer', nombre: a.a_traiter, lien: '/gestion?onglet=a-traiter' },
+    { titre: 'Acomptes attendus', nombre: a.acomptes_attendus, lien: '/gestion?onglet=acomptes' },
     { titre: 'En retard', nombre: a.en_retard, lien: '/gestion?onglet=en-cours' },
     { titre: 'Stock bas', nombre: a.stock_bas, lien: '/gestion/stock' },
     { titre: 'Avis à relire', nombre: relire, lien: '/gestion/avis' },

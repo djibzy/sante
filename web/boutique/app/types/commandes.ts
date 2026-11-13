@@ -1,6 +1,6 @@
 export type Statut =
-  | 'devis_demande' | 'devis_envoye' | 'devis_refuse' | 'en_attente' | 'confirmee'
-  | 'en_preparation' | 'prete' | 'en_livraison' | 'livree' | 'annulee'
+  | 'devis_demande' | 'devis_envoye' | 'devis_refuse' | 'en_attente' | 'acompte_attendu'
+  | 'confirmee' | 'en_preparation' | 'prete' | 'en_livraison' | 'livree' | 'annulee'
 
 export type ModeLivraison = 'retrait' | 'livraison'
 
@@ -14,6 +14,7 @@ export interface Zone {
 
 export interface LigneChiffree {
   produit_id: string
+  a_la_demande: boolean // brodé, imprimé ou personnalisé : compte dans l'acompte
   variante_id: string | null
   produit_slug: string | null
   libelle: string
@@ -30,6 +31,7 @@ export interface Chiffrage {
   sous_total: number
   frais_livraison: number
   total: number
+  acompte: number // à régler une fois la commande confirmée, non remboursable
   date_estimee: string
   commandable: boolean
 }
@@ -72,6 +74,9 @@ export interface Commande {
   total: number
   montant_paye: number
   reste_a_payer: number
+  acompte: number // articles faits à la demande, non remboursable
+  acompte_restant: number
+  acompte_garde: number // annulée par le client : acompte gardé
   date_promise: string | null
   devis_valable_jusqu_au: string | null
   devis_disponible: boolean
@@ -135,6 +140,7 @@ export interface CommandeGestion extends Commande {
 /** Couleur de pastille : ce qui attend l'équipe, ce qui avance, ce qui est terminé. */
 export function classeStatut(statut: Statut): string {
   if (statut === 'en_attente' || statut === 'devis_demande') return 'pastille pastille-accent'
+  if (statut === 'acompte_attendu') return 'pastille pastille-attente'
   if (statut === 'livree') return 'pastille pastille-succes'
   if (statut === 'annulee' || statut === 'devis_refuse') return 'pastille pastille-danger'
   return 'pastille'

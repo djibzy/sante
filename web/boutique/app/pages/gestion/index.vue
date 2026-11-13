@@ -5,6 +5,7 @@ import { classeStatut } from '~/types/commandes'
 useSeoMeta({ title: 'Commandes', robots: 'noindex' })
 const ONGLETS: { cle: string; titre: string; statuts: Statut[] }[] = [
   { cle: 'a-traiter', titre: 'À traiter', statuts: ['en_attente', 'devis_demande'] },
+  { cle: 'acomptes', titre: 'Acompte attendu', statuts: ['acompte_attendu'] },
   { cle: 'en-cours', titre: 'En cours', statuts: ['confirmee', 'en_preparation', 'prete', 'en_livraison'] },
   { cle: 'devis', titre: 'Devis envoyés', statuts: ['devis_envoye'] },
   { cle: 'terminees', titre: 'Terminées', statuts: ['livree', 'annulee', 'devis_refuse'] },

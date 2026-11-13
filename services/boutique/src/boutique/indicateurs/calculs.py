@@ -43,17 +43,21 @@ def _bornes(du: date, au: date) -> tuple[datetime, datetime]:
     )
 
 
-def _etape(statut: Statut) -> Subquery:
-    """Première date à laquelle chaque commande est passée par ce statut."""
+def _etape(*statuts: Statut) -> Subquery:
+    """Première date à laquelle chaque commande est passée par l'un de ces statuts."""
     return (
         select(
             EvenementCommande.commande_id.label("commande_id"),
             func.min(EvenementCommande.cree_le).label("le"),
         )
-        .where(EvenementCommande.statut == statut)
+        .where(EvenementCommande.statut.in_(statuts))
         .group_by(EvenementCommande.commande_id)
         .subquery()
     )
+
+
+# Confirmée par l'équipe : directement, ou d'abord « en attente de l'acompte ».
+CONFIRMATION = (Statut.CONFIRMEE, Statut.ACOMPTE_ATTENDU)
 
 
 def _issue_d_un_devis() -> Exists:
@@ -121,7 +125,7 @@ async def _ventes(session: AsyncSession, debut: datetime, fin: datetime) -> Vent
 
 
 async def _devis(session: AsyncSession, debut: datetime, fin: datetime) -> Devis:
-    confirmee = _etape(Statut.CONFIRMEE)
+    confirmee = _etape(*CONFIRMATION)
     acceptes = await session.scalar(
         select(func.count())
         .select_from(Commande)
@@ -140,7 +144,7 @@ async def _devis(session: AsyncSession, debut: datetime, fin: datetime) -> Devis
 
 
 async def _delais(session: AsyncSession, debut: datetime, fin: datetime) -> Delais:
-    confirmee, livree = _etape(Statut.CONFIRMEE), _etape(Statut.LIVREE)
+    confirmee, livree = _etape(*CONFIRMATION), _etape(Statut.LIVREE)
     secondes = func.extract("epoch", confirmee.c.le - Commande.cree_le)
     confirmation = await session.scalar(
         select(func.avg(secondes))
@@ -254,8 +258,12 @@ async def _alertes(session: AsyncSession, aujourd_hui: date) -> Alertes:
         .select_from(TransactionPaiement)
         .where(TransactionPaiement.statut == "anomalie")
     )
+    acomptes = await session.scalar(
+        select(func.count()).select_from(Commande).where(Commande.statut == Statut.ACOMPTE_ATTENDU)
+    )
     return Alertes(
         a_traiter=int(a_traiter or 0),
+        acomptes_attendus=int(acomptes or 0),
         en_retard=int(en_retard or 0),
         stock_bas=sum(1 for ligne in await lignes_de_stock(session) if ligne.alerte),
         sms_en_echec=int(echecs or 0),

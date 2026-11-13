@@ -16,6 +16,7 @@ class EtatPaiement(BaseModel):
     disponible: bool  # la boutique a ouvert le paiement en ligne
     possible: bool  # cette commande peut être payée en ligne maintenant
     montant: int  # ce que le client paierait : le reste à payer
+    acompte: int | None = None  # en attente de l'acompte : payer l'acompte seulement
     raison: str | None  # pourquoi ce n'est pas possible, à afficher au client
     moyens: list[str]
     dernier: DernierPaiement | None
@@ -28,3 +29,7 @@ class PaiementOuvert(BaseModel):
 class Disponibilite(BaseModel):
     disponible: bool
     moyens: list[str]
+
+
+class ChoixPaiement(BaseModel):
+    objet: Literal["acompte", "solde"] = "solde"

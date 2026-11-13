@@ -9,7 +9,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from boutique.atelier import delais
-from boutique.commandes import acces, operations
+from boutique.commandes import acces, acompte, operations
 from boutique.commandes.cycle import ANNULABLES_PAR_CLIENT, Statut
 from boutique.commandes.pdf import reponse_devis, reponse_facture
 from boutique.commandes.schemas import (
@@ -66,6 +66,7 @@ async def zones(session: AsyncSession = Depends(session_db)) -> list[ZonePubliqu
 )
 async def chiffrer(
     demande: DemandeChiffrage,
+    request: Request,
     principal: Principal | None = Depends(principal_optionnel),
     session: AsyncSession = Depends(session_db),
 ) -> Chiffrage:
@@ -77,10 +78,14 @@ async def chiffrer(
         zone = zone if zone is not None and zone.est_active else None
     sous_total = sum(ligne.montant for ligne in lignes)
     frais = frais_de_livraison(demande.livraison.mode, zone)
+    regle: ParametresBoutique = request.app.state.parametres
     return Chiffrage(
         lignes=[
             LigneChiffree(
                 produit_id=ligne.produit_id,
+                a_la_demande=acompte.a_la_demande(
+                    ligne.poste, ligne.personnalisation, regle.acompte_postes
+                ),
                 variante_id=ligne.variante_id,
                 produit_slug=ligne.produit_slug,
                 libelle=ligne.libelle,
@@ -97,6 +102,7 @@ async def chiffrer(
         sous_total=sous_total,
         frais_livraison=frais,
         total=sous_total + frais,
+        acompte=acompte.pour_panier(lignes, sous_total + frais, regle),
         date_estimee=await delais.estimer(
             session,
             [delais.article(ligne) for ligne in lignes if ligne.commandable],

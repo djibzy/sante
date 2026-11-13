@@ -61,6 +61,7 @@ class DemandeChiffrage(BaseModel):
 
 class LigneChiffree(BaseModel):
     produit_id: UUID
+    a_la_demande: bool = Field(description="Fait à la demande (brodé, imprimé, personnalisé)")
     variante_id: UUID | None
     produit_slug: str | None
     libelle: str
@@ -78,6 +79,7 @@ class Chiffrage(BaseModel):
     sous_total: int
     frais_livraison: int
     total: int
+    acompte: int = Field(description="À régler une fois la commande confirmée (non remboursable)")
     date_estimee: date
     commandable: bool
 
@@ -156,6 +158,9 @@ class CommandeClient(BaseModel):
     total: int
     montant_paye: int
     reste_a_payer: int
+    acompte: int = Field(description="Acompte des articles faits à la demande, non remboursable")
+    acompte_restant: int = Field(description="Part de l'acompte encore à payer")
+    acompte_garde: int = Field(description="Commande annulée par le client : acompte gardé")
     date_promise: date | None
     devis_valable_jusqu_au: date | None
     devis_disponible: bool
@@ -231,6 +236,11 @@ class ChangementStatut(BaseModel):
     visible_client: bool = True
     date_promise: date | None = None
     livreur_id: UUID | None = Field(None, description="Livreur, au départ en livraison")
+    garder_acompte: bool = Field(
+        True,
+        description="Annulation demandée par le client : l'acompte payé reste acquis. Faux : "
+        "annulation de la boutique, tout est rendu.",
+    )
 
 
 class LivreurVue(BaseModel):

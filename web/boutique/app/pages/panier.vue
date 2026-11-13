@@ -8,6 +8,7 @@ onMounted(() => { monte.value = true })
 // Les remarques du serveur (article retiré, taille à choisir…) suivent l'ordre des lignes.
 const remarque = (index: number) => chiffrage.value?.lignes[index]?.motif ?? null
 const montant = (index: number) => chiffrage.value?.lignes[index]?.montant
+const aLaDemande = (index: number) => !!chiffrage.value?.acompte && !!chiffrage.value.lignes[index]?.a_la_demande
 </script>
 
 <template>
@@ -26,6 +27,7 @@ const montant = (index: number) => chiffrage.value?.lignes[index]?.montant
             <NuxtLink :to="`/produits/${ligne.slug}`" class="nom">{{ ligne.nom }}</NuxtLink>
             <span v-if="ligne.variante" class="aide">{{ ligne.variante }}</span>
             <span v-if="ligne.personnalisation" class="aide">Texte : « {{ ligne.personnalisation }} »</span>
+            <span v-if="aLaDemande(index)" class="aide">Fait à la demande : compte dans l'acompte</span>
             <span v-if="remarque(index)" class="alerte alerte-erreur remarque">{{ remarque(index) }}</span>
           </div>
           <div class="quantite" role="group" :aria-label="`Quantité de ${ligne.nom}`">

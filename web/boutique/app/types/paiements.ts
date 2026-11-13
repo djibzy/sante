@@ -9,6 +9,7 @@ export interface EtatPaiement {
   disponible: boolean
   possible: boolean
   montant: number
+  acompte: number | null // en attente de l'acompte : il peut se payer seul
   raison: string | null
   moyens: string[]
   dernier: DernierPaiement | null

@@ -8,7 +8,7 @@ cours, les valeurs possibles et leur nombre de produits.
 from collections import Counter
 from typing import Any, Literal
 
-from fastapi import APIRouter, Depends, HTTPException, Query, Response, status
+from fastapi import APIRouter, Depends, HTTPException, Query, Request, Response, status
 from sqlalchemy import and_, func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import contains_eager, selectinload
@@ -17,6 +17,7 @@ from boutique.catalogue_pdf import catalogue_pdf
 from boutique.metiers import GENRES, METIERS
 from boutique.models import Produit, Rayon, Variante
 from boutique.schemas import (
+    ConditionsVente,
     Facette,
     Facettes,
     Genre,
@@ -78,6 +79,15 @@ async def metiers(session: AsyncSession = Depends(session_db)) -> list[MetierPub
         MetierPublic(slug=slug, nom=nom, nombre_produits=compte[slug])
         for slug, nom in METIERS.items()
     ]
+
+
+@routeur.get("/conditions-de-vente", summary="Règles citées par les conditions de vente")
+async def conditions_de_vente(request: Request) -> ConditionsVente:
+    parametres = request.app.state.parametres
+    return ConditionsVente(
+        acompte_pourcent=parametres.acompte_pourcent,
+        validite_devis_jours=parametres.validite_devis_jours,
+    )
 
 
 def _filtres_de_base(rayon: str | None, q: str | None, univers: str | None = None) -> list[Any]:
@@ -229,7 +239,9 @@ async def catalogue_imprimable(session: AsyncSession = Depends(session_db)) -> R
 
 
 @routeur.get("/produits/{slug}", summary="Fiche produit")
-async def produit(slug: str, session: AsyncSession = Depends(session_db)) -> ProduitDetail:
+async def produit(
+    slug: str, request: Request, session: AsyncSession = Depends(session_db)
+) -> ProduitDetail:
     requete = (
         select(Produit)
         .join(Produit.rayon)
@@ -243,4 +255,4 @@ async def produit(slug: str, session: AsyncSession = Depends(session_db)) -> Pro
     trouve = (await session.execute(requete)).scalar_one_or_none()
     if trouve is None:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "Produit introuvable")
-    return vers_detail(trouve)
+    return vers_detail(trouve, request.app.state.parametres)

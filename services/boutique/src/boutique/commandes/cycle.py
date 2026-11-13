@@ -12,6 +12,8 @@ class Statut(StrEnum):
     DEVIS_ENVOYE = "devis_envoye"
     DEVIS_REFUSE = "devis_refuse"
     EN_ATTENTE = "en_attente"
+    # Articles faits à la demande : la fabrication attend l'acompte (voir commandes.acompte).
+    ACOMPTE_ATTENDU = "acompte_attendu"
     CONFIRMEE = "confirmee"
     EN_PREPARATION = "en_preparation"
     PRETE = "prete"
@@ -25,6 +27,7 @@ LIBELLES: dict[Statut, str] = {
     Statut.DEVIS_ENVOYE: "Devis envoyé",
     Statut.DEVIS_REFUSE: "Devis refusé",
     Statut.EN_ATTENTE: "Reçue, à confirmer",
+    Statut.ACOMPTE_ATTENDU: "En attente de l'acompte",
     Statut.CONFIRMEE: "Confirmée",
     Statut.EN_PREPARATION: "En préparation",
     Statut.PRETE: "Prête",
@@ -37,7 +40,10 @@ PASSAGES: dict[Statut, frozenset[Statut]] = {
     Statut.DEVIS_DEMANDE: frozenset({Statut.DEVIS_ENVOYE, Statut.ANNULEE}),
     Statut.DEVIS_ENVOYE: frozenset({Statut.CONFIRMEE, Statut.DEVIS_REFUSE, Statut.ANNULEE}),
     Statut.DEVIS_REFUSE: frozenset(),
+    # Confirmer une commande qui demande un acompte la met « en attente de l'acompte » ; elle est
+    # confirmée quand il est payé, ou plus tôt si l'équipe lance la fabrication sans l'attendre.
     Statut.EN_ATTENTE: frozenset({Statut.CONFIRMEE, Statut.ANNULEE}),
+    Statut.ACOMPTE_ATTENDU: frozenset({Statut.CONFIRMEE, Statut.ANNULEE}),
     Statut.CONFIRMEE: frozenset({Statut.EN_PREPARATION, Statut.PRETE, Statut.ANNULEE}),
     Statut.EN_PREPARATION: frozenset({Statut.PRETE, Statut.ANNULEE}),
     Statut.PRETE: frozenset({Statut.EN_LIVRAISON, Statut.LIVREE, Statut.ANNULEE}),
@@ -48,7 +54,9 @@ PASSAGES: dict[Statut, frozenset[Statut]] = {
 }
 
 # Statuts que le client peut encore annuler lui-même, depuis son lien de suivi.
-ANNULABLES_PAR_CLIENT = frozenset({Statut.DEVIS_DEMANDE, Statut.DEVIS_ENVOYE, Statut.EN_ATTENTE})
+ANNULABLES_PAR_CLIENT = frozenset(
+    {Statut.DEVIS_DEMANDE, Statut.DEVIS_ENVOYE, Statut.EN_ATTENTE, Statut.ACOMPTE_ATTENDU}
+)
 # Demandes pas encore traitées par l'équipe : limitées par numéro de téléphone.
 EN_ATTENTE_DE_L_EQUIPE = frozenset({Statut.DEVIS_DEMANDE, Statut.EN_ATTENTE})
 

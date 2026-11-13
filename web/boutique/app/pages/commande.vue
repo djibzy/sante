@@ -16,7 +16,11 @@ const estimation = computed(() => {
   const frais = livraison.value.mode === 'retrait' ? 0 : zone?.frais ?? null
   return { articles, frais, total: frais === null ? null : articles + frais }
 })
-const peutEnvoyer = computed(() => (enLigne.value ? !!chiffrage.value?.commandable : lignes.value.length > 0))
+const acompteAccepte = ref(false)
+const acompte = computed(() => (enLigne.value ? chiffrage.value?.acompte ?? 0 : 0))
+const peutEnvoyer = computed(() => (enLigne.value
+  ? !!chiffrage.value?.commandable && (!acompte.value || acompteAccepte.value)
+  : lignes.value.length > 0))
 const monte = ref(false)
 const client = reactive({ nom: '', telephone: '' })
 const note = ref('')
@@ -68,7 +72,12 @@ function valider() {
 
       <aside class="carte bloc">
         <h2>Paiement</h2>
-        <p>
+        <p v-if="acompte">
+          Rien à payer maintenant. Après notre appel, un acompte de {{ formaterFcfa(acompte) }} lance
+          la fabrication de vos articles faits à la demande : en ligne (Orange Money, Moov Money) ou à
+          la boutique. Le reste à la livraison ou au retrait.
+        </p>
+        <p v-else>
           À la livraison ou au retrait, en espèces ou par transfert Orange Money ou Moov Money.
           Rien à payer maintenant.
         </p>
@@ -79,7 +88,7 @@ function valider() {
             <dt>Livraison</dt><dd>{{ estimation.frais ? formaterFcfa(estimation.frais) : 'Gratuit' }}</dd>
           </div>
           <div v-if="estimation.total !== null" class="total"><dt>Total indicatif</dt><dd>{{ formaterFcfa(estimation.total) }}</dd></div>
-          <p class="aide">Hors ligne : le total exact et la date vous sont confirmés par SMS à l'envoi.</p>
+          <p class="aide">Hors ligne : le total exact, l'acompte éventuel et la date vous sont confirmés par SMS à l'envoi.</p>
         </dl>
         <div v-if="erreur" class="alerte alerte-erreur" role="alert">{{ erreur }}</div>
         <div v-if="gardee" class="alerte alerte-info" role="status">
@@ -89,9 +98,18 @@ function valider() {
           </p>
           <button type="button" class="bouton bouton-discret" @click="annulerEnvoiGarde">Annuler l'envoi</button>
         </div>
-        <button v-else type="submit" class="bouton bouton-large" :disabled="envoi || !peutEnvoyer">
-          {{ envoi ? 'Envoi…' : enLigne ? 'Confirmer la commande' : 'Commander dès le retour du réseau' }}
-        </button>
+        <template v-else>
+          <label v-if="acompte" class="case">
+            <input v-model="acompteAccepte" type="checkbox" required>
+            <span>
+              J'ai compris : l'acompte de {{ formaterFcfa(acompte) }} n'est pas remboursable si j'annule
+              ma commande. <NuxtLink to="/conditions#acompte" target="_blank">Conditions</NuxtLink>
+            </span>
+          </label>
+          <button type="submit" class="bouton bouton-large" :disabled="envoi || !peutEnvoyer">
+            {{ envoi ? 'Envoi…' : enLigne ? 'Confirmer la commande' : 'Commander dès le retour du réseau' }}
+          </button>
+        </template>
       </aside>
     </form>
   </section>
@@ -114,4 +132,6 @@ function valider() {
 .bloc h2 { margin: 0 0 12px; font-size: 1.15rem; }
 aside.bloc { gap: 12px; }
 aside p { margin: 0; }
+.case { display: flex; align-items: flex-start; gap: 10px; font-size: 0.95rem; }
+.case input { flex: none; width: 20px; height: 20px; margin-top: 2px; accent-color: var(--primaire); }
 </style>

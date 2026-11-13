@@ -40,6 +40,7 @@ SANS_SUITE = (
     Statut.DEVIS_DEMANDE,
     Statut.DEVIS_ENVOYE,
     Statut.EN_ATTENTE,
+    Statut.ACOMPTE_ATTENDU,
 )
 ANS = timedelta(days=365)
 

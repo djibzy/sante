@@ -12,7 +12,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from boutique.atelier import delais, fabrication, stock
 from boutique.atelier.etats import EtatOrdre
-from boutique.commandes import acces, factures
+from boutique.commandes import acces, acompte, factures
 from boutique.commandes.cycle import EN_ATTENTE_DE_L_EQUIPE, ModeLivraison, ModePaiement, Statut
 from boutique.commandes.schemas import Coordonnees, LigneDemandee, Livraison
 from boutique.commandes.tarifs import (
@@ -129,13 +129,24 @@ async def appliquer_statut(
     acteur_id: UUID | None,
     note: str = "",
     visible_client: bool = True,
-) -> None:
-    """Change le statut et ses effets : ordres de fabrication à la confirmation, stock prélevé
-    quand la commande est prête, facture à la livraison, ordres annulés et stock rendu à
-    l'annulation."""
+    garder_acompte: bool = True,
+) -> Statut:
+    """Change le statut et ses effets, et renvoie le statut appliqué : ordres de fabrication à
+    la confirmation (ou d'abord l'attente de l'acompte, s'il en faut un), stock prélevé quand
+    la commande est prête, facture à la livraison, ordres annulés, stock rendu et acompte gardé
+    à l'annulation (sauf annulation de la boutique : `garder_acompte` faux, tout est rendu)."""
+    depart = Statut(commande.statut)
+    if (
+        statut == Statut.CONFIRMEE
+        and depart in (Statut.EN_ATTENTE, Statut.DEVIS_ENVOYE)
+        and acompte.restant(commande) > 0
+    ):
+        statut = Statut.ACOMPTE_ATTENDU
     produits = await produits_de(session, commande)
-    if statut == Statut.CONFIRMEE:
-        if commande.date_promise is None:
+    if statut == Statut.ACOMPTE_ATTENDU:
+        commande.date_promise = None  # la fabrication démarre à l'acompte : date fixée alors
+    elif statut == Statut.CONFIRMEE:
+        if commande.date_promise is None:  # en attente de l'acompte, la date était effacée
             commande.date_promise = await estimer_date(session, commande, produits)
         await fabrication.creer_ordres(session, commande, produits)
     elif statut == Statut.PRETE:
@@ -143,11 +154,42 @@ async def appliquer_statut(
     elif statut == Statut.ANNULEE:
         await fabrication.annuler_ordres(session, commande.id)
         await stock.restituer(session, commande, acteur_id)
+        commande.acompte_garde = acompte.a_garder(commande) if garder_acompte else 0
     elif statut == Statut.LIVREE:
         await factures.emettre(session, commande, acteur_id)
+    if statut == Statut.CONFIRMEE and depart == Statut.ACOMPTE_ATTENDU and not note:
+        note = "Fabrication lancée sans attendre l'acompte"
     evenement(commande, statut, acteur_id, note, visible_client)
+    if statut == Statut.ANNULEE and commande.montant_paye > 0:
+        rendre = _fcfa(acompte.a_rendre(commande))
+        evenement(
+            commande,
+            statut,
+            acteur_id,
+            f"Acompte gardé (non remboursable) : {_fcfa(commande.acompte_garde)}. "
+            f"À rendre au client : {rendre}."
+            if commande.acompte_garde
+            else f"À rendre au client : {rendre}.",
+            visible_client=False,
+        )
     if visible_client:
         boite.apres_changement(session, commande, statut)
+    return statut
+
+
+async def apres_paiement(session: AsyncSession, commande: Commande, acteur_id: UUID | None) -> bool:
+    """Un paiement vient d'être enregistré : si l'acompte est couvert, la fabrication démarre.
+    Renvoie vrai quand la commande vient d'être confirmée (le SMS de confirmation part)."""
+    if commande.statut != Statut.ACOMPTE_ATTENDU or acompte.restant(commande) > 0:
+        return False
+    await appliquer_statut(
+        session, commande, Statut.CONFIRMEE, acteur_id, "Acompte reçu : fabrication lancée"
+    )
+    return True
+
+
+def _fcfa(montant: int) -> str:
+    return f"{montant:,}".replace(",", " ") + " FCFA"
 
 
 async def apres_changement_ordre(
@@ -243,6 +285,7 @@ async def creer(
         frais_livraison=frais,
         remise=0,
         total=sous_total + frais,
+        acompte=acompte.pour_panier(tarifees, sous_total + frais, parametres),
         date_promise=await delais.estimer(
             session,
             [delais.article(ligne) for ligne in tarifees],

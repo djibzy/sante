@@ -4,6 +4,7 @@ Les SMS restent dans l'alphabet GSM (160 caractères par message) : les lettres 
 pas (ê, ô, î, ç…) sont remplacées, sans quoi chaque SMS coûterait deux à trois fois plus.
 """
 
+from boutique.commandes import acompte
 from boutique.commandes.cycle import ModeLivraison, Statut
 from boutique.models import Commande
 from socle.telephones import afficher_telephone
@@ -49,7 +50,14 @@ def changement(commande: Commande, statut: Statut) -> str | None:
             f"Bibou : votre devis {ref} est prêt ({_fcfa(commande.total)}). Ouvrez le lien "
             "reçu lors de votre demande pour le consulter et l'accepter."
         ),
-        Statut.CONFIRMEE: f"Bibou : commande {ref} confirmée"
+        Statut.ACOMPTE_ATTENDU: f"Bibou : commande {ref} confirmée. Acompte à régler pour lancer "
+        f"la fabrication : {_fcfa(acompte.restant(commande))} (non remboursable), en ligne ou à "
+        "la boutique.",
+        Statut.CONFIRMEE: (
+            f"Bibou : acompte reçu, la fabrication de la commande {ref} commence"
+            if commande.acompte and commande.montant_paye >= commande.acompte
+            else f"Bibou : commande {ref} confirmée"
+        )
         + (f", prête vers le {date}." if date else "."),
         Statut.PRETE: f"Bibou : commande {ref} prête. Venez la retirer à la boutique. "
         f"A payer : {reste}."
@@ -64,10 +72,23 @@ def changement(commande: Commande, statut: Statut) -> str | None:
         + f". A payer : {reste}.",
         Statut.LIVREE: f"Bibou : commande {ref} remise. Merci de votre confiance ! "
         "Donnez votre avis depuis votre lien de suivi.",
-        Statut.ANNULEE: f"Bibou : commande {ref} annulée. Une question ? Appelez-nous.",
+        Statut.ANNULEE: _annulation(commande),
     }
     texte = textes.get(statut)
     return gsm(texte) if texte else None
+
+
+def _annulation(commande: Commande) -> str:
+    texte = f"Bibou : commande {commande.reference} annulée."
+    if commande.acompte_garde:
+        texte += (
+            f" L'acompte de {_fcfa(commande.acompte_garde)} reste acquis (article fait à la "
+            "demande)."
+        )
+    rendre = acompte.a_rendre(commande)
+    return texte + (
+        f" Nous vous rendons {_fcfa(rendre)}." if rendre else " Une question ? Appelez-nous."
+    )
 
 
 def paiement_recu(commande: Commande, montant: int) -> str:

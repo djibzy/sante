@@ -17,7 +17,10 @@ export interface TableauDeBord {
   delais: { confirmation_heures: number | null, livraison_jours: number | null, a_l_heure: number | null }
   clients: { clients: number, nouveaux: number, avis_publies: number, note_moyenne: number | null, avis_a_relire: number }
   meilleures_ventes: { produit_slug: string | null, libelle: string, quantite: number, montant: number }[]
-  alertes: { a_traiter: number, en_retard: number, stock_bas: number, sms_en_echec: number, paiements_a_verifier: number }
+  alertes: {
+    a_traiter: number, acomptes_attendus: number, en_retard: number, stock_bas: number,
+    sms_en_echec: number, paiements_a_verifier: number,
+  }
   pas: 'jour' | 'semaine'
   serie: { debut: string, chiffre_affaires: number, commandes: number }[]
 }

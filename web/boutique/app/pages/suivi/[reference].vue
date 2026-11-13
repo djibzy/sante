@@ -102,6 +102,10 @@ onMounted(charger)
         <h1 v-if="commande.est_devis">Demande de devis {{ commande.reference }} envoyée</h1>
         <h1 v-else>Merci, commande {{ commande.reference }} enregistrée</h1>
         <p v-if="commande.est_devis">Nous préparons votre devis et vous appelons au {{ formaterTelephone(commande.telephone) }}.</p>
+        <p v-else-if="commande.acompte">
+          Nous vous appelons au {{ formaterTelephone(commande.telephone) }} pour la confirmer. Ensuite, un acompte de
+          {{ formaterFcfa(commande.acompte) }} (non remboursable) lance la fabrication de vos articles faits à la demande.
+        </p>
         <p v-else>Nous vous appelons au {{ formaterTelephone(commande.telephone) }} pour la confirmer. Rien à payer avant la livraison.</p>
         <template v-if="cle">
           <p class="aide">Ce lien permet de suivre votre commande. Gardez-le, ou envoyez-le-vous sur WhatsApp.</p>
@@ -118,6 +122,11 @@ onMounted(charger)
       </div>
       <p v-if="commande.date_promise && !['livree', 'annulee'].includes(commande.statut)" class="promesse">
         {{ commande.mode_livraison === 'livraison' ? 'Livraison prévue' : 'Prête' }} vers le {{ formaterDate(commande.date_promise) }}
+      </p>
+      <p v-if="commande.statut === 'acompte_attendu'" class="alerte alerte-info">
+        Acompte à régler : <strong>{{ formaterFcfa(commande.acompte_restant) }}</strong>. La fabrication commence dès sa
+        réception : payez-le en ligne ou à la boutique. Il n'est pas remboursable si vous annulez ensuite.
+        <NuxtLink to="/conditions#acompte">Conditions</NuxtLink>
       </p>
       <div v-if="erreur" class="alerte alerte-erreur" role="alert">{{ erreur }}</div>
 
@@ -151,6 +160,10 @@ onMounted(charger)
             </button>
             <div v-else class="alerte alerte-info">
               <p>Confirmer l'annulation de {{ commande.reference }} ?</p>
+              <p v-if="commande.acompte && commande.montant_paye">
+                Les {{ formaterFcfa(Math.min(commande.montant_paye, commande.acompte)) }} déjà payés sont l'acompte d'un
+                article fait à la demande : ils ne vous seront pas rendus.
+              </p>
               <div class="partage">
                 <button type="button" class="bouton" :disabled="action !== null" @click="agir('annulation')">Oui, annuler</button>
                 <button type="button" class="bouton bouton-secondaire" @click="confirmerAnnulation = false">Non</button>

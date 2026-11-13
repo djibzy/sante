@@ -82,6 +82,10 @@ marchand CinetPay n'est pas ouvert : le client paie à la livraison. Pour l'ouvr
 puis faire un premier paiement réel de 100 FCFA. En local, `simulation` accepte tout paiement
 sans argent réel (refusé en production).
 
+Les articles faits à la demande (postes `broderie` et `impression` de l'atelier, ou tout article
+personnalisé) demandent un acompte non remboursable de `BOUTIQUE_ACOMPTE_POURCENT` % de leur
+prix (50 par défaut, 0 pour n'en demander aucun) ; la page des conditions de vente cite ce taux.
+
 ## État d'avancement
 
 - [x] Socle, comptes, organisations, catalogue, interface de consultation, déploiement
@@ -97,4 +101,5 @@ sans argent réel (refusé en production).
 - [x] Durées de conservation appliquées chaque nuit (anonymisation, effacement), alertes SMS à l'équipe
 - [x] Droits des personnes : téléchargement de ses données et suppression du compte
 - [x] Projets de conditions de vente, politique de confidentialité et mentions légales (à faire valider)
+- [x] Acompte non remboursable des articles faits à la demande : demandé à la confirmation, payé en ligne ou à la boutique, il lance la fabrication (clause à faire valider : acompte ou arrhes)
 - [ ] Pharmacien partenaire (janvier 2027)

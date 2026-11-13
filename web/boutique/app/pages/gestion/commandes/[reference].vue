@@ -18,10 +18,17 @@ const MOYENS: Record<Paiement['moyen'], string> = {
 // « Paiement mobile » : réservé aux paiements faits en ligne par le client.
 const MOYENS_EQUIPE = Object.fromEntries(Object.entries(MOYENS).filter(([cle]) => cle !== 'mobile_money'))
 
+// Confirmer une commande avec des articles faits à la demande la met en attente de l'acompte.
+const acompteDemande = computed(() => {
+  const c = commande.value
+  return !!c && c.acompte_restant > 0 && ['en_attente', 'devis_envoye'].includes(c.statut)
+})
+
 function libelleAction(statut: Statut): string {
   const c = commande.value
+  const confirmer = c?.statut === 'devis_envoye' ? 'Le client accepte le devis' : 'Confirmer la commande'
   const actions: Partial<Record<Statut, string>> = {
-    confirmee: c?.statut === 'devis_envoye' ? 'Le client accepte le devis' : 'Confirmer la commande',
+    confirmee: c?.statut === 'acompte_attendu' ? "Lancer sans attendre l'acompte" : confirmer,
     en_preparation: 'Mettre en préparation',
     prete: c?.statut === 'en_livraison' ? 'Livraison manquée : revient en boutique' : 'Marquer prête',
     en_livraison: 'Remettre au livreur',
@@ -34,7 +41,15 @@ function libelleAction(statut: Statut): string {
 
 const passages = computed(() => (commande.value?.passages_possibles ?? []).filter(s =>
   s !== 'devis_envoye' && !(s === 'en_livraison' && commande.value?.mode_livraison === 'retrait')))
-const etape = reactive({ note: '', visible_client: true, date_promise: '', livreur_id: '' })
+const etape = reactive({ note: '', visible_client: true, date_promise: '', livreur_id: '', garder_acompte: true })
+// Annulation après un paiement : le client garde son droit au remboursement de ce qui dépasse
+// l'acompte, et de tout si l'annulation vient de la boutique.
+const retenue = computed(() => {
+  const c = commande.value
+  if (!c?.acompte || !c.montant_paye) return null
+  const garde = Math.min(c.montant_paye, c.acompte)
+  return { garde, rendre: c.montant_paye - garde, paye: c.montant_paye }
+})
 const livreurs = ref<Livreur[]>([])
 const peutFacturer = computed(() => {
   const c = commande.value
@@ -62,8 +77,9 @@ const totalDevis = computed(() =>
 
 function preparer(c: CommandeGestion) {
   commande.value = c
-  encaissement.montant = c.reste_a_payer
+  encaissement.montant = c.statut === 'acompte_attendu' ? c.acompte_restant : c.reste_a_payer
   etape.date_promise = c.date_promise ?? ''
+  etape.garder_acompte = true
   devis.lignes = c.lignes.map(l => ({
     produit_id: l.produit_id, variante_id: l.variante_id, libelle: l.libelle,
     quantite: l.quantite, prix_unitaire: l.prix_unitaire, personnalisation: l.personnalisation,
@@ -94,6 +110,7 @@ async function avancer(statut: Statut) {
   const ok = await executer('/statut', 'POST', {
     statut, note: etape.note, visible_client: etape.visible_client, date_promise: etape.date_promise || null,
     livreur_id: statut === 'en_livraison' ? etape.livreur_id : null,
+    garder_acompte: etape.garder_acompte,
   })
   if (ok) etape.note = ''
 }
@@ -217,10 +234,28 @@ watch(verifie, async () => {
                 </select>
                 <span v-if="!livreurs.length" class="aide">Ajoutez d'abord un livreur dans Livraisons.</span>
               </div>
-              <div v-if="passages.includes('confirmee')" class="champ">
+              <p v-if="acompteDemande" class="aide">
+                Articles faits à la demande : la commande attendra l'acompte de {{ formaterFcfa(commande.acompte_restant) }}
+                (SMS au client). La date est fixée à sa réception.
+              </p>
+              <div v-else-if="passages.includes('confirmee')" class="champ">
                 <label for="date-promise">Date promise</label>
                 <input id="date-promise" v-model="etape.date_promise" type="date">
               </div>
+              <fieldset v-if="passages.includes('annulee') && retenue" class="retenue">
+                <legend>En cas d'annulation</legend>
+                <label class="case">
+                  <input v-model="etape.garder_acompte" type="radio" name="retenue" :value="true">
+                  <span>
+                    À la demande du client : l'acompte de {{ formaterFcfa(retenue.garde) }} est gardé<template v-if="retenue.rendre">,
+                      {{ formaterFcfa(retenue.rendre) }} à lui rendre</template>
+                  </span>
+                </label>
+                <label class="case">
+                  <input v-model="etape.garder_acompte" type="radio" name="retenue" :value="false">
+                  <span>Par la boutique : tout lui rendre ({{ formaterFcfa(retenue.paye) }})</span>
+                </label>
+              </fieldset>
               <div class="actions">
                 <button
                   v-for="s in passages" :key="s" type="button" :disabled="envoi"
@@ -233,6 +268,11 @@ watch(verifie, async () => {
             <div class="carte bloc">
               <h2>Paiement</h2>
               <p>Payé : <strong>{{ formaterFcfa(commande.montant_paye) }}</strong> sur {{ formaterFcfa(commande.total) }}</p>
+              <p v-if="commande.acompte" class="aide">
+                Acompte (non remboursable) : {{ formaterFcfa(commande.acompte) }}<template v-if="commande.statut === 'acompte_attendu'">,
+                  reste {{ formaterFcfa(commande.acompte_restant) }} à recevoir pour lancer la fabrication</template><template
+                  v-else-if="commande.acompte_garde">, {{ formaterFcfa(commande.acompte_garde) }} gardé à l'annulation</template>.
+              </p>
               <ul v-if="commande.paiements.length" class="paiements">
                 <li v-for="p in commande.paiements" :key="p.id">
                   {{ formaterFcfa(p.montant) }}, {{ MOYENS[p.moyen] }}<span v-if="!p.encaisse_par">, payé en ligne</span><span v-if="p.reference"> ({{ p.reference }})</span>
@@ -283,7 +323,10 @@ watch(verifie, async () => {
 .actions { display: flex; flex-wrap: wrap; gap: 8px; }
 .note-client { padding: 10px 12px; border-radius: 10px; background: var(--fond-doux); }
 .case { display: flex; align-items: center; gap: 8px; }
-.case input { width: 20px; height: 20px; accent-color: var(--primaire); }
+.case input { flex: none; width: 20px; height: 20px; accent-color: var(--primaire); }
+.retenue { border: 1px solid var(--bordure); border-radius: 10px; padding: 8px 12px 12px; display: grid; gap: 8px; }
+.retenue legend { font-weight: 650; padding: 0 4px; }
+.retenue .case { align-items: flex-start; }
 .table-devis { display: grid; gap: 8px; }
 .ligne-devis {
   display: grid; grid-template-columns: 1fr auto auto; gap: 6px 10px; align-items: center;

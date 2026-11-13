@@ -1,5 +1,6 @@
 """Mise en forme des produits pour l'API publique (prix masqués pour le pharmaceutique)."""
 
+from boutique.config import ParametresBoutique
 from boutique.models import Produit
 from boutique.schemas import Couleur, ImagePublique, ProduitDetail, ProduitResume, VariantePublique
 
@@ -59,7 +60,7 @@ def vers_resume(produit: Produit) -> ProduitResume:
     )
 
 
-def vers_detail(produit: Produit) -> ProduitDetail:
+def vers_detail(produit: Produit, regle: ParametresBoutique | None = None) -> ProduitDetail:
     variantes = [
         VariantePublique(
             id=v.id,
@@ -73,6 +74,11 @@ def vers_detail(produit: Produit) -> ProduitDetail:
         for v in produit.variantes
         if v.est_active
     ]
+    # Fait à la demande : toujours (poste de l'atelier soumis à l'acompte), ou s'il est
+    # personnalisé. Sinon, rien à dire de l'acompte sur la fiche.
+    toujours = regle is not None and produit.poste_atelier in regle.acompte_postes
+    concerne = regle is not None and regle.acompte_pourcent > 0
+    concerne = concerne and (toujours or produit.personnalisable)
     return ProduitDetail(
         **vers_resume(produit).model_dump(),
         description=produit.description,
@@ -83,4 +89,6 @@ def vers_detail(produit: Produit) -> ProduitDetail:
         images=[
             ImagePublique(url=i.url, texte_alternatif=i.texte_alternatif) for i in produit.images
         ],
+        acompte_pourcent=regle.acompte_pourcent if regle and concerne else None,
+        acompte_toujours=concerne and toujours,
     )

@@ -13,7 +13,7 @@ from boutique.config import ParametresBoutique
 from boutique.models import Commande
 from boutique.paiements import fournisseurs, service
 from boutique.paiements.fournisseurs import Fournisseur
-from boutique.paiements.schemas import Disponibilite, EtatPaiement, PaiementOuvert
+from boutique.paiements.schemas import ChoixPaiement, Disponibilite, EtatPaiement, PaiementOuvert
 from boutique.routes.commandes import CLE, LIMITE_LECTURES
 from socle.db import session_db
 from socle.limites import LimiteDebit
@@ -49,6 +49,7 @@ async def _payer(
     fournisseur: Fournisseur | None,
     commande: Commande,
     acteur: Principal | None,
+    choix: ChoixPaiement | None,
 ) -> PaiementOuvert:
     if fournisseur is None:
         raise HTTPException(status.HTTP_409_CONFLICT, ETEINT)
@@ -59,6 +60,7 @@ async def _payer(
         commande,
         acteur.id if acteur else None,
         request.client.host if request.client else None,
+        (choix or ChoixPaiement()).objet,
     )
     return PaiementOuvert(adresse=adresse)
 
@@ -100,12 +102,13 @@ async def etat_suivi(
 async def payer_suivi(
     reference: str,
     request: Request,
+    choix: ChoixPaiement | None = None,
     cle: str | None = CLE,
     session: AsyncSession = Depends(session_db),
     fournisseur: Fournisseur | None = Depends(agregateur),
 ) -> PaiementOuvert:
     commande = await acces.charger_pour_client(session, reference, cle)
-    return await _payer(request, session, fournisseur, commande, None)
+    return await _payer(request, session, fournisseur, commande, None, choix)
 
 
 @routeur.post(
@@ -143,12 +146,13 @@ async def etat_mien(
 async def payer_mien(
     reference: str,
     request: Request,
+    choix: ChoixPaiement | None = None,
     principal: Principal = Depends(principal_requis),
     session: AsyncSession = Depends(session_db),
     fournisseur: Fournisseur | None = Depends(agregateur),
 ) -> PaiementOuvert:
     commande = await acces.charger_pour_compte(session, reference, principal.id)
-    return await _payer(request, session, fournisseur, commande, principal)
+    return await _payer(request, session, fournisseur, commande, principal, choix)
 
 
 @routeur.post(

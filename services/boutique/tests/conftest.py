@@ -80,6 +80,8 @@ async def app() -> AsyncIterator[FastAPI]:
         db_pool=False,
         jwt_cle_publique=CLE_PUBLIQUE,
         dossier_medias=tempfile.mkdtemp(prefix="medias-"),
+        # Sans acompte par défaut : les tests de l'acompte l'activent (test_acompte.py).
+        acompte_pourcent=0,
     )
     application = creer_app(parametres)
     yield application

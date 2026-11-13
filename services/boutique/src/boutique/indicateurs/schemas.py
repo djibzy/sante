@@ -47,6 +47,7 @@ class VenteProduit(BaseModel):
 
 class Alertes(BaseModel):
     a_traiter: int = Field(description="Commandes à confirmer et devis demandés")
+    acomptes_attendus: int = Field(description="Confirmées, fabrication en attente de l'acompte")
     en_retard: int = Field(description="Date promise dépassée, pas encore remises")
     stock_bas: int
     sms_en_echec: int

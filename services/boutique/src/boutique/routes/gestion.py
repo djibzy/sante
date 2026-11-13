@@ -9,7 +9,7 @@ from sqlalchemy import ColumnElement, func, or_, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from boutique.commandes import acces, factures, operations
+from boutique.commandes import acces, acompte, factures, operations
 from boutique.commandes.cycle import ModeLivraison, Statut, passage_autorise
 from boutique.commandes.pdf import reponse_devis, reponse_facture
 from boutique.commandes.schemas import (
@@ -140,8 +140,14 @@ async def changer_statut(
         commande.livreur = livreur
     if donnees.date_promise is not None:
         commande.date_promise = donnees.date_promise
-    await operations.appliquer_statut(
-        session, commande, arrivee, principal.id, donnees.note.strip(), donnees.visible_client
+    applique = await operations.appliquer_statut(
+        session,
+        commande,
+        arrivee,
+        principal.id,
+        donnees.note.strip(),
+        donnees.visible_client,
+        donnees.garder_acompte,
     )
     journaliser(
         session,
@@ -150,7 +156,7 @@ async def changer_statut(
         acteur_id=principal.id,
         objet_type="commande",
         objet_id=commande.reference,
-        details={"de": depart.value, "vers": arrivee.value},
+        details={"de": depart.value, "vers": applique.value},
     )
     await session.commit()
     return vue_gestion(await acces.charger(session, reference))
@@ -189,6 +195,7 @@ async def encaisser(
         objet_id=commande.reference,
         details={"montant": donnees.montant, "moyen": donnees.moyen.value},
     )
+    await operations.apres_paiement(session, commande, principal.id)  # acompte couvert ?
     await session.commit()
     return vue_gestion(await acces.charger(session, reference))
 
@@ -260,6 +267,7 @@ async def emettre_devis(
     commande.frais_livraison = frais
     commande.remise = donnees.remise
     commande.total = sous_total + frais - donnees.remise
+    commande.acompte = acompte.pour_lignes(lignes, produits, commande.total, _parametres(request))
     commande.devis_emis_le = datetime.now(UTC)
     commande.devis_valable_jusqu_au = aujourd_hui() + timedelta(days=validite)
     await operations.appliquer_statut(

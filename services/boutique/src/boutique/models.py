@@ -234,6 +234,10 @@ class Commande(IdMixin, HorodatageMixin, Base):
         ),
         CheckConstraint("total = sous_total + frais_livraison - remise", name="total_coherent"),
         CheckConstraint("total >= 0", name="total_positif"),
+        CheckConstraint("acompte >= 0 AND acompte <= total", name="acompte_valide"),
+        CheckConstraint(
+            "acompte_garde >= 0 AND acompte_garde <= acompte", name="acompte_garde_valide"
+        ),
     )
 
     numero: Mapped[int] = mapped_column(Integer, Identity(start=1001), unique=True, nullable=False)
@@ -253,6 +257,11 @@ class Commande(IdMixin, HorodatageMixin, Base):
     remise: Mapped[int] = mapped_column(nullable=False, default=0, server_default="0")
     total: Mapped[int] = mapped_column(nullable=False)
     montant_paye: Mapped[int] = mapped_column(nullable=False, default=0, server_default="0")
+    # Acompte des articles faits à la demande, fixé à la commande (ou au devis) : il lance la
+    # fabrication et reste acquis si le client annule ensuite.
+    acompte: Mapped[int] = mapped_column(nullable=False, default=0, server_default="0")
+    # Part de l'acompte gardée quand le client annule (non remboursable) ; le reste lui est rendu.
+    acompte_garde: Mapped[int] = mapped_column(nullable=False, default=0, server_default="0")
     date_promise: Mapped[date | None] = mapped_column(Date)
     devis_emis_le: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     devis_valable_jusqu_au: Mapped[date | None] = mapped_column(Date)
