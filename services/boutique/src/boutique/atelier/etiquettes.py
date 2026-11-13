@@ -33,9 +33,21 @@ class Etiquette:
     date_promise: date | None
 
 
+def _morceaux(pdf: FPDF, mot: str, largeur: float) -> list[str]:
+    """Un mot plus large que l'étiquette (nom composé sans espace) est coupé où il faut."""
+    morceaux, courant = [], ""
+    for lettre in mot:
+        if courant and pdf.get_string_width(courant + lettre) > largeur:
+            morceaux.append(courant)
+            courant = ""
+        courant += lettre
+    return [*morceaux, courant] if courant else morceaux
+
+
 def _couper(pdf: FPDF, texte: str, largeur: float, lignes_max: int) -> list[str]:
     """Coupe aux espaces pour tenir dans la largeur ; « … » si le texte dépasse."""
-    mots, lignes, courante = texte.split(), [], ""
+    mots = [m for mot in texte.split() for m in _morceaux(pdf, mot, largeur)]
+    lignes, courante = [], ""
     for mot in mots:
         essai = f"{courante} {mot}".strip()
         if pdf.get_string_width(essai) <= largeur or not courante:
