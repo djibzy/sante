@@ -248,7 +248,12 @@ useHead(() => {
           <p v-if="acompte" class="acompte">
             {{ acompte }} <NuxtLink to="/conditions#acompte">Conditions</NuxtLink>
           </p>
-          <NuxtLink v-if="composer" :to="composer" class="lien-composer">Composer une tenue avec cet article</NuxtLink>
+          <div class="liens-plus">
+            <NuxtLink v-if="composer" :to="composer">Composer une tenue avec cet article</NuxtLink>
+            <NuxtLink v-if="produit.personnalisable" :to="{ path: '/commande-equipe', query: { produit: produit.slug, couleur: couleur ?? undefined } }">
+              Commander pour une équipe (un nom par personne)
+            </NuxtLink>
+          </div>
           <ul class="garanties">
             <li>{{ delai }}</li>
             <li>Paiement à la livraison, en espèces ou par transfert Orange Money ou Moov Money.</li>
@@ -336,7 +341,7 @@ useHead(() => {
 .achat .champ { margin: 0; }
 .quantite input { width: 92px; }
 .achat .bouton { flex: 1; }
-.lien-composer { display: inline-block; margin-top: 12px; font-weight: 650; }
+.liens-plus { display: grid; justify-items: start; gap: 6px; margin-top: 12px; font-weight: 650; }
 .acompte { margin: 12px 0 0; padding: 10px 12px; border-radius: 10px; background: var(--accent-clair); color: var(--accent-texte); font-size: 0.95rem; }
 .acompte a { color: inherit; font-weight: 650; }
 .garanties { margin: 12px 0; padding-left: 1.1em; display: grid; gap: 6px; color: var(--texte-doux); font-size: 0.95rem; }

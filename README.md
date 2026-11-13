@@ -105,5 +105,6 @@ prix (50 par défaut, 0 pour n'en demander aucun) ; la page des conditions de ve
 - [x] Recherche par la couleur d'une photo (calculée sur le téléphone, la photo n'est pas envoyée) ou d'une couleur choisie
 - [x] Idées de tenues composées par l'équipe (« la tenue du bloc »…), sur la page Explorer et dans le composeur, gérées dans « Tenues proposées »
 - [x] « Composer ma tenue » : haut, pantalon, blouse, chaussures et calot sur un mannequin, couleurs assorties, toute la tenue au panier, partage par WhatsApp
+- [x] Commande pour une équipe : le même article brodé au nom de chacun (liste saisie ou collée depuis un tableur), puis commande ou devis
 - [x] Acompte non remboursable des articles faits à la demande : demandé à la confirmation, payé en ligne ou à la boutique, il lance la fabrication (clause à faire valider : acompte ou arrhes)
 - [ ] Pharmacien partenaire (janvier 2027)
