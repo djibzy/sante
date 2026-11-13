@@ -14,7 +14,14 @@ from typing import Any
 from sqlalchemy import select
 
 from boutique.config import ParametresBoutique
-from boutique.models import CATEGORIE_PHARMACEUTIQUE, Produit, Rayon, Variante, ZoneLivraison
+from boutique.models import (
+    CATEGORIE_PHARMACEUTIQUE,
+    Produit,
+    Rayon,
+    TenueProposee,
+    Variante,
+    ZoneLivraison,
+)
 from socle.db import creer_moteur, fabrique_sessions
 
 TAILLES = ("XS", "S", "M", "L", "XL", "XXL")
@@ -354,6 +361,25 @@ ZONES: list[dict[str, Any]] = [
 ]
 
 
+# Idées de tenues (page « Explorer », composeur) : nom, description, métier, pièces.
+TENUES: list[tuple[str, str, str, list[tuple[str, str, str | None]]]] = [
+    ("La tenue du bloc", "Tunique et pantalon vert bloc, calot en wax pour égayer la garde.",
+     "medecin", [("haut", "tunique-col-v", "Vert bloc"), ("bas", "pantalon-unisexe", "Vert bloc"),
+                 ("chaussures", "sabots-de-travail", None), ("calot", "calot-wax", "Wax bleu")]),
+    ("La tenue de la maternité", "Tunique rose de sage-femme, pantalon blanc, blouse cintrée.",
+     "sage-femme", [("haut", "tunique-sage-femme", "Rose"),
+                    ("bas", "pantalon-stretch-femme", "Blanc"),
+                    ("dessus", "blouse-femme-cintree", "Blanc")]),
+    ("La tenue des urgences", "Bleu marine de la tête aux pieds : sobre, rassurant, pratique.",
+     "infirmier", [("haut", "tunique-stretch-femme", "Bleu marine"),
+                   ("bas", "pantalon-stretch-femme", "Bleu marine"),
+                   ("chaussures", "baskets-soignant", "Noir")]),
+    ("La tenue de l'officine", "Polo brodé, pantalon gris ardoise, blouse de pharmacie vert d'eau.",
+     "pharmacie", [("haut", "polo-brode", "Blanc"), ("bas", "pantalon-cargo-homme", "Gris ardoise"),
+                   ("dessus", "blouse-pharmacie-zippee", "Vert d'eau")]),
+]  # fmt: skip
+
+
 async def charger(database_url: str | None = None) -> tuple[int, int]:
     """Ajoute les rayons, produits et zones manquants ; renvoie le nombre de rayons et de
     produits créés."""
@@ -411,6 +437,25 @@ async def charger(database_url: str | None = None) -> tuple[int, int]:
 
         zones = set((await session.execute(select(ZoneLivraison.slug))).scalars())
         session.add_all(ZoneLivraison(**z) for z in ZONES if z["slug"] not in zones)
+        await session.flush()
+
+        if await session.scalar(select(TenueProposee.id).limit(1)) is None:
+            ids = {
+                slug: id_ for slug, id_ in await session.execute(select(Produit.slug, Produit.id))
+            }
+            for position, (nom, description, metier, pieces) in enumerate(TENUES):
+                session.add(
+                    TenueProposee(
+                        nom=nom,
+                        description=description,
+                        metier=metier,
+                        position=position,
+                        pieces=[
+                            {"piece": place, "produit_id": str(ids[slug]), "couleur": couleur}
+                            for place, slug, couleur in pieces
+                        ],
+                    )
+                )
         await session.commit()
     await moteur.dispose()
     return rayons_crees, produits_crees

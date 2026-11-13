@@ -127,3 +127,16 @@ export const PIECE_DE_FORME: Record<string, string> = {
   sabot: 'chaussures',
   calot: 'calot',
 }
+
+/** Pièces d'une tenue proposée, prêtes pour le mannequin et pour l'adresse du composeur. */
+export function habiller(pieces: { piece: string, produit_slug: string, rayon_slug: string, couleur: string | null, hex: string | null, personnalisable?: boolean }[]) {
+  const habits: Record<string, PieceHabillee> = {}
+  const requete: Record<string, string> = {}
+  for (const p of pieces) {
+    const forme = formeArticle(p.rayon_slug, p.produit_slug)
+    if (forme) habits[p.piece] = { forme, hex: p.hex ?? '#f1f0f6', couleur: p.couleur, brode: p.personnalisable }
+    requete[p.piece] = p.produit_slug
+    if (p.couleur) requete[`${p.piece}_couleur`] = p.couleur
+  }
+  return { habits, requete }
+}

@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import type { Metier, Rayon } from '~/types/catalogue'
 import type { Exploration, Tuile } from '~/types/explorer'
+import type { TenueProposee } from '~/types/tenues'
 
 // Découverte visuelle : toutes les tenues en mur de couleurs, du blanc aux neutres. Les
 // filtres sont dans l'adresse : une recherche se partage par WhatsApp.
@@ -23,6 +24,10 @@ const filtres = computed(() => ({
 }))
 const requete = computed(() => ({ ...filtres.value, proche: filtres.value.proche ? `#${filtres.value.proche}` : undefined }))
 const { data, status } = await useBoutiqueFetch<Exploration>('/api/v1/explorer', { query: requete })
+const { data: idees } = await useBoutiqueFetch<TenueProposee[]>('/api/v1/tenues-proposees', {
+  query: computed(() => ({ metier: filtres.value.metier })),
+})
+const montrerIdees = computed(() => !filtres.value.proche && !filtres.value.famille && !!idees.value?.length)
 const { data: rayons } = await useBoutiqueFetch<Rayon[]>('/api/v1/rayons')
 const { data: metiers } = await useBoutiqueFetch<Metier[]>('/api/v1/metiers')
 const types = computed(() => (rayons.value ?? []).filter(r => r.univers === 'tenues'))
@@ -86,6 +91,13 @@ const proximite = (distance: number) => (distance < 6 ? 'Même couleur' : distan
         Ou <NuxtLink to="/composer">composez votre tenue</NuxtLink> sur le mannequin.
       </p>
     </header>
+
+    <section v-if="montrerIdees" class="idees" aria-labelledby="titre-idees">
+      <h2 id="titre-idees">Idées de tenues</h2>
+      <div class="rangee-idees">
+        <CarteTenue v-for="t in idees" :key="t.id" :tenue="t" />
+      </div>
+    </section>
 
     <div class="nuancier" role="group" aria-label="Familles de couleurs">
       <button type="button" class="nuance" :aria-pressed="!filtres.famille" @click="choisir('famille')">
@@ -211,6 +223,9 @@ const proximite = (distance: number) => (distance < 6 ? 'Même couleur' : distan
 .rond.tout { background: conic-gradient(#e58fa5, #e07b1f, #2e8b6e, #1aa6a6, #1f4fa8, #6b2d5c, #e58fa5); }
 .nuance-nom { font-weight: 650; line-height: 1.2; text-align: center; max-width: 92px; }
 .nuance-nombre { color: var(--texte-doux); font-size: 0.75rem; }
+.idees { margin: 4px 0 18px; }
+.idees h2 { font-size: 1.15rem; margin: 0 0 10px; }
+.rangee-idees { position: relative; display: flex; gap: 14px; overflow-x: auto; padding-bottom: 8px; scrollbar-width: thin; }
 .par-couleur { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 16px; margin: 4px 0 10px; }
 .photo { display: inline-flex; align-items: center; gap: 8px; cursor: pointer; }
 .photo:focus-within { outline: 3px solid var(--accent); outline-offset: 2px; }

@@ -26,7 +26,7 @@ from sqlalchemy import (
     false,
     true,
 )
-from sqlalchemy.dialects.postgresql import ARRAY
+from sqlalchemy.dialects.postgresql import ARRAY, JSONB
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
 
 from boutique.atelier.etats import EtatOrdre, MotifStock
@@ -525,6 +525,24 @@ class Avis(IdMixin, HorodatageMixin, Base):
     reponse: Mapped[str | None] = mapped_column(String(1000))  # de la boutique, publiée avec
     modere_par: Mapped[UUID | None] = mapped_column(Uuid)
     modere_le: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+
+
+class TenueProposee(IdMixin, HorodatageMixin, Base):
+    """Tenue composée par l'équipe dans « Composer ma tenue » et proposée aux clients (« la
+    tenue du bloc », « la tenue de la maternité ») : une pièce par place, chacune dans sa
+    couleur. Les pièces devenues indisponibles sont ignorées à l'affichage."""
+
+    __tablename__ = "tenues_proposees"
+
+    nom: Mapped[str] = mapped_column(String(80), nullable=False)
+    description: Mapped[str] = mapped_column(
+        String(300), nullable=False, default="", server_default=""
+    )
+    metier: Mapped[str | None] = mapped_column(String(30))
+    # [{"piece": "haut", "produit_id": "…", "couleur": "Vert bloc"}, …]
+    pieces: Mapped[list[dict[str, str | None]]] = mapped_column(JSONB, nullable=False)
+    position: Mapped[int] = mapped_column(nullable=False, default=0, server_default="0")
+    est_active: Mapped[bool] = mapped_column(nullable=False, default=True, server_default=true())
 
 
 class JournalAudit(JournalAuditMixin, Base):

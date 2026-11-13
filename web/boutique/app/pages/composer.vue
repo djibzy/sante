@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import type { Couleur, PageProduits, ProduitDetail, ProduitResume } from '~/types/catalogue'
+import type { TenueGestion, TenueProposee } from '~/types/tenues'
 import type { PieceHabillee } from '~/utils/formes'
 
 // Cabine d'essayage : chaque pièce et sa couleur habillent le mannequin, puis toute la tenue
@@ -27,6 +28,12 @@ const { ajouter } = usePanier()
 // Toutes les tenues tiennent dans une page (une soixantaine d'articles au plus pour l'instant).
 const { data: page } = await useBoutiqueFetch<PageProduits>('/api/v1/produits', { query: { univers: 'tenues', par_page: 60 } })
 const produits = computed(() => (page.value?.elements ?? []).filter(p => p.vendable_en_ligne))
+const { data: idees } = await useBoutiqueFetch<TenueProposee[]>('/api/v1/tenues-proposees')
+function partirDe(idee: TenueProposee) {
+  ajoute.value = false
+  for (const cle of Object.keys(tailles) as Cle[]) tailles[cle] = ''
+  void router.replace({ query: habiller(idee.pieces).requete })
+}
 const forme = (p: ProduitResume) => formeArticle(p.rayon_slug, p.slug)
 const articles = (r: Rubrique) => produits.value.filter(p => r.formes.includes(forme(p) ?? ''))
 
@@ -144,6 +151,34 @@ async function ajouterTenue() {
   }
 }
 
+// L'équipe enregistre la tenue composée comme idée proposée aux clients.
+const { autorise: equipe } = useEquipe()
+const proposition = reactive({ nom: '', description: '', metier: '' })
+const proposee = ref<TenueGestion | null>(null)
+const { data: metiers } = await useBoutiqueFetch<{ slug: string, nom: string }[]>('/api/v1/metiers')
+async function proposer() {
+  erreur.value = ''
+  proposee.value = null
+  try {
+    proposee.value = await appeler<TenueGestion>('/api/v1/admin/tenues-proposees', {
+      method: 'POST',
+      body: {
+        nom: proposition.nom,
+        description: proposition.description,
+        metier: proposition.metier || null,
+        pieces: RUBRIQUES.flatMap(r => {
+          const choisi = choisis.value[r.cle]
+          return choisi ? [{ piece: r.cle, produit_id: choisi.produit.id, couleur: choisi.couleur?.nom ?? null }] : []
+        }),
+      },
+    })
+    proposition.nom = ''
+    proposition.description = ''
+  } catch (e) {
+    erreur.value = messageErreur(e)
+  }
+}
+
 const partage = computed(() => {
   if (!import.meta.client || !resume.value.length) return ''
   const adresse = new URL('/composer', window.location.origin)
@@ -158,6 +193,16 @@ const partage = computed(() => {
       <h1>Composer ma tenue</h1>
       <p>Choisissez chaque pièce et sa couleur : le mannequin s'habille au fur et à mesure. Puis ajoutez toute la tenue au panier.</p>
     </header>
+
+    <div v-if="idees?.length" class="idees" role="group" aria-label="Idées de tenues">
+      <span class="etiquette">Partir d'une idée :</span>
+      <button v-for="i in idees" :key="i.id" type="button" class="idee" @click="partirDe(i)">
+        <span class="points" aria-hidden="true">
+          <span v-for="p in i.pieces" :key="p.piece" class="point" :style="{ background: p.hex ?? BLANC }" />
+        </span>
+        {{ i.nom }}
+      </button>
+    </div>
 
     <div class="colonnes">
       <div class="apercu carte">
@@ -236,6 +281,30 @@ const partage = computed(() => {
           </p>
           <a v-if="partage" :href="partage" target="_blank" rel="noopener" class="bouton bouton-secondaire bouton-large">Envoyer ma tenue sur WhatsApp</a>
         </div>
+
+        <form v-if="equipe && resume.length >= 2" class="proposer carte" @submit.prevent="proposer">
+          <h2>Proposer cette tenue aux clients</h2>
+          <p class="aide">Réservé à l'équipe : la tenue apparaît dans « Idées de tenues » (page Explorer et composeur).</p>
+          <div class="champ">
+            <label for="nom-tenue">Nom</label>
+            <input id="nom-tenue" v-model="proposition.nom" required minlength="3" maxlength="80" placeholder="La tenue du bloc">
+          </div>
+          <div class="champ">
+            <label for="description-tenue">Description (facultatif)</label>
+            <input id="description-tenue" v-model="proposition.description" maxlength="300">
+          </div>
+          <div class="champ">
+            <label for="metier-tenue">Métier</label>
+            <select id="metier-tenue" v-model="proposition.metier">
+              <option value="">Tous les métiers</option>
+              <option v-for="m in metiers ?? []" :key="m.slug" :value="m.slug">{{ m.nom }}</option>
+            </select>
+          </div>
+          <button type="submit" class="bouton bouton-secondaire">Enregistrer l'idée de tenue</button>
+          <p v-if="proposee" class="alerte alerte-succes" role="status">
+            « {{ proposee.nom }} » est proposée aux clients. <NuxtLink to="/gestion/tenues">Voir les tenues proposées</NuxtLink>
+          </p>
+        </form>
       </div>
     </div>
   </section>
@@ -285,6 +354,19 @@ const partage = computed(() => {
 .etiquette { font-size: 0.85rem; font-weight: 650; margin-right: 4px; }
 .taille { min-width: 46px; justify-content: center; }
 .broderie { padding: 14px; margin: 0; }
+.idees { position: relative; display: flex; gap: 8px; align-items: center; overflow-x: auto; padding: 2px 2px 10px; margin-bottom: 4px; scrollbar-width: thin; }
+.idees .etiquette { flex: none; }
+.idee {
+  flex: none; display: inline-flex; align-items: center; gap: 8px; min-height: 40px; padding: 0 12px; border: 1.5px solid var(--bordure);
+  border-radius: 999px; background: var(--surface); color: var(--texte); font: inherit; font-size: 0.88rem; font-weight: 600; cursor: pointer;
+}
+.idee:hover { border-color: var(--primaire); }
+.idee:focus-visible { outline: 3px solid var(--accent); outline-offset: 2px; }
+.points { display: inline-flex; gap: 3px; }
+.idee .point { width: 12px; height: 12px; }
+.proposer { padding: 14px; display: grid; gap: 4px; }
+.proposer h2 { margin: 0; font-size: 1.05rem; }
+.proposer .bouton { justify-self: start; }
 .fin { padding: 14px; display: grid; gap: 10px; }
 .fin p { margin: 0; }
 .total-fin { font-size: 1.05rem; }

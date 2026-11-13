@@ -63,6 +63,7 @@ async function adresses(): Promise<string[]> {
     url('/api/v1/rayons'), url('/api/v1/metiers'), url('/api/v1/zones-livraison'),
     url('/api/v1/explorer'), url('/api/v1/explorer', { familles_seulement: true }),
     url('/api/v1/produits', { univers: 'tenues', par_page: 60 }), // « Composer ma tenue »
+    url('/api/v1/tenues-proposees'),
     ...Array.from({ length: pages }, (_, i) => url('/api/v1/produits', { page: i + 1, par_page: 60 })),
     url('/api/v1/produits', { nouveau: true, tri: 'nouveautes', par_page: 4 }),
     url('/api/v1/produits', { collection: 'Essentielle', par_page: 4 }),
