@@ -34,9 +34,11 @@ class ParametresBoutique(ParametresService, ParametresSms):
     acompte_pourcent: int = Field(50, ge=0, le=100)
     acompte_postes: list[str] = ["broderie", "impression"]
     # Rappels SMS, envoyés entre 9 h et 19 h (heure de Bamako) : acompte attendu depuis 2 puis
-    # 7 jours ; devis sans réponse qui expire dans 3 jours ou moins.
+    # 7 jours ; devis sans réponse qui expire dans 3 jours ou moins ; commande prête, pas encore
+    # retirée à la boutique, depuis 3 puis 7 jours.
     relances_acompte_jours: list[int] = [2, 7]
     relance_devis_jours: int = 3
+    relances_retrait_jours: list[int] = [3, 7]
 
     # Demandes non traitées (commandes à confirmer, devis demandés) par numéro, sur 24 heures.
     demandes_max_par_telephone: int = 5

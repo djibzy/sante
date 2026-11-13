@@ -1,4 +1,5 @@
-"""Rappels SMS : acompte attendu (deux paliers), devis bientôt expiré, en journée seulement."""
+"""Rappels SMS : acompte attendu (deux paliers), devis bientôt expiré, commande prête pas
+retirée (deux paliers), en journée seulement."""
 
 from datetime import UTC, datetime, timedelta
 from typing import Any
@@ -11,7 +12,7 @@ from sqlalchemy import select, text
 from boutique.models import JournalAudit, Notification
 from boutique.relances import relancer
 
-from .aides import commander, ligne
+from .aides import commander, ligne, zone
 from .conftest import jeton
 from .test_notifications import GSM7
 
@@ -133,3 +134,39 @@ async def test_rappel_du_devis(app: FastAPI, client: AsyncClient) -> None:
     assert accepte.json()["statut"] == "acompte_attendu"
     await vieillir(app, reference, 3)
     assert (await relancer(app.state.sessions, parametres, MIDI)).acomptes == 1
+
+
+async def test_rappels_de_retrait(app: FastAPI, client: AsyncClient) -> None:
+    kit = [await ligne(client, "kit-hygiene")]  # 7 500 FCFA, sans acompte
+    reference = (await commander(client, kit))["commande"]["reference"]
+    livraison = {"mode": "livraison", "zone_id": await zone(client), "adresse": "Rue 300, porte 12"}
+    a_livrer = (await commander(client, kit, telephone="66 12 34 57", livraison=livraison))[
+        "commande"
+    ]["reference"]
+    for etape in ("confirmee", "en_preparation", "prete"):
+        await statut(client, reference, etape)
+        await statut(client, a_livrer, etape)
+    parametres = app.state.parametres
+
+    assert (await relancer(app.state.sessions, parametres, MIDI)).retraits == 0  # trop tôt
+    await vieillir(app, reference, 4)
+    await vieillir(app, a_livrer, 4)  # en attente du livreur : pas de rappel de retrait
+    assert (await relancer(app.state.sessions, parametres, MIDI)).retraits == 1
+    assert (await relancer(app.state.sessions, parametres, MIDI)).retraits == 0
+    depuis = (MIDI - timedelta(days=4)).strftime("%d/%m")
+    rappel = (await sms(app))[-1]
+    assert rappel == (
+        f"Bibou : votre commande {reference} vous attend à la boutique depuis le {depuis}. "
+        "Reste à payer : 7 500 FCFA. Un empechement ? Appelez-nous."
+    )
+    assert set(rappel) <= GSM7 and len(rappel) <= 160
+
+    await vieillir(app, reference, 8)  # second palier, puis plus rien
+    assert (await relancer(app.state.sessions, parametres, MIDI)).retraits == 1
+    assert (await relancer(app.state.sessions, parametres, MIDI)).retraits == 0
+    commande = (await client.get(f"/api/v1/admin/commandes/{reference}", headers=ADMIN)).json()
+    notes = [e["note"] for e in commande["historique_complet"] if not e["visible_client"]]
+    assert notes[-2:] == [
+        "Rappel SMS : commande à retirer (1)",
+        "Rappel SMS : commande à retirer (2)",
+    ]

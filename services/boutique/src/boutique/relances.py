@@ -1,6 +1,7 @@
 """Rappels SMS : acompte attendu depuis quelques jours (la fabrication ne démarre qu'à sa
-réception), devis sans réponse qui va expirer. Un rappel par étape au plus, envoyé en
-journée (heure de Bamako, GMT) ; l'équipe le voit dans l'historique de la commande.
+réception), devis sans réponse qui va expirer, commande prête que personne ne vient retirer.
+Un rappel par palier au plus, envoyé en journée (heure de Bamako, GMT) ; l'équipe le voit
+dans l'historique de la commande.
 """
 
 from dataclasses import dataclass
@@ -11,7 +12,7 @@ from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 from sqlalchemy.orm import selectinload
 
 from boutique.commandes import acompte
-from boutique.commandes.cycle import Statut
+from boutique.commandes.cycle import ModeLivraison, Statut
 from boutique.commandes.operations import evenement
 from boutique.config import ParametresBoutique
 from boutique.models import Commande, JournalAudit
@@ -25,6 +26,7 @@ HEURES_D_ENVOI = range(9, 19)  # Bamako est à l'heure GMT toute l'année
 class Bilan:
     acomptes: int = 0
     devis: int = 0
+    retraits: int = 0
 
 
 def _rappeler(session: AsyncSession, commande: Commande, texte: str, note: str) -> None:
@@ -94,5 +96,28 @@ async def relancer(
                 "Rappel SMS : devis bientôt expiré",
             )
             bilan.devis += 1
+
+        # Prête à la boutique, pas retirée : l'argent et la place restent immobilisés.
+        paliers = sorted(parametres.relances_retrait_jours)
+        pretes = await session.scalars(
+            select(Commande)
+            .where(
+                Commande.statut == Statut.PRETE,
+                Commande.mode_livraison == ModeLivraison.RETRAIT,
+                Commande.relances < len(paliers),
+            )
+            .options(selectinload(Commande.evenements))
+            .with_for_update(skip_locked=True, of=Commande)
+        )
+        for commande in pretes:
+            if commande.statut_le > maintenant - timedelta(days=paliers[commande.relances]):
+                continue
+            _rappeler(
+                session,
+                commande,
+                messages.rappel_retrait(commande),
+                f"Rappel SMS : commande à retirer ({commande.relances + 1})",
+            )
+            bilan.retraits += 1
         await session.commit()
     return bilan

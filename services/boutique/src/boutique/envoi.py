@@ -96,7 +96,7 @@ async def boucle(parametres: ParametresBoutique, pause: float = 5.0) -> None:
                 prochain_relances = time.monotonic() + RELANCES_SECONDES
                 try:
                     rappels = await relancer(sessions, parametres)
-                    if rappels.acomptes or rappels.devis:
+                    if rappels.acomptes or rappels.devis or rappels.retraits:
                         journal.info("Rappels envoyés", extra=vars(rappels))
                 except Exception:  # noqa: BLE001 - base indisponible : dans une heure
                     journal.exception("Rappels interrompus")

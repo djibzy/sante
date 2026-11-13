@@ -108,6 +108,16 @@ def rappel_devis(commande: Commande) -> str:
     )
 
 
+def rappel_retrait(commande: Commande) -> str:
+    reste = commande.reste_a_payer
+    return gsm(
+        f"Bibou : votre commande {commande.reference} vous attend à la boutique depuis le "
+        f"{commande.statut_le:%d/%m}."
+        + (f" Reste à payer : {_fcfa(reste)}." if reste else " Elle est payée.")
+        + " Un empêchement ? Appelez-nous."
+    )
+
+
 def articles_modifies(commande: Commande) -> str:
     """Articles corrigés par l'équipe : le nouveau total et l'acompte, ou ce qui sera rendu,
     confirmés par écrit."""
