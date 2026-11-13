@@ -37,7 +37,9 @@ EQUIPE = [
     "/mon-compte", "/mes-commandes", "/composer",
 ]
 # Bruit sans conséquence : session absente (401), préchargements servis par le service worker.
-IGNORES = ("401", "cross-world service worker")
+# 401 : pages de l'équipe avant connexion. NUXT_E5002 : le manifeste de l'application, demandé
+# en arrière-plan, interrompu quand le test passe aussitôt à la page suivante (sans effet).
+IGNORES = ("401", "cross-world service worker", "NUXT_E5002")
 AXE = (Path(__file__).resolve().parents[1] / "node_modules" / "axe-core" / "axe.min.js").read_text()
 REGLES = ["wcag2a", "wcag2aa", "wcag21a", "wcag21aa"]
 
