@@ -208,7 +208,11 @@ async def encaisser(
         objet_id=commande.reference,
         details={"montant": donnees.montant, "moyen": donnees.moyen.value},
     )
-    await operations.apres_paiement(session, commande, principal.id)  # acompte couvert ?
+    # Reçu par SMS, preuve écrite pour l'argent remis en main propre ; quand l'acompte lance la
+    # fabrication, le SMS de confirmation le dit déjà.
+    if not await operations.apres_paiement(session, commande, principal.id):
+        moyen = MOYENS.get(donnees.moyen, donnees.moyen)
+        boite.deposer(session, commande, messages.paiement_recu(commande, donnees.montant, moyen))
     await session.commit()
     return vue_gestion(await acces.charger(session, reference))
 

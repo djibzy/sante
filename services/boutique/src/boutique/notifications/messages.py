@@ -138,13 +138,16 @@ def remboursement(commande: Commande, montant: int, moyen: str) -> str:
     )
 
 
-def paiement_recu(commande: Commande, montant: int) -> str:
+def paiement_recu(commande: Commande, montant: int, moyen: str | None = None) -> str:
+    """Reçu écrit : en ligne, ou remis en main propre (espèces, transfert) à l'équipe."""
     reste = commande.reste_a_payer
     suite = (
         "Commande entièrement payée, merci !" if reste == 0 else f"Reste à payer : {_fcfa(reste)}."
     )
+    par = f" ({moyen})" if moyen else ""
     return gsm(
-        f"Bibou : paiement de {_fcfa(montant)} reçu pour la commande {commande.reference}. {suite}"
+        f"Bibou : paiement de {_fcfa(montant)}{par} reçu pour la commande {commande.reference}. "
+        f"{suite}"
     )
 
 

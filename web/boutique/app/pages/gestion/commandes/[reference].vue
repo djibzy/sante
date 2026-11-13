@@ -468,6 +468,7 @@ watch(verifie, async () => {
                 </div>
                 <div class="champ"><label for="ref-paiement">N° de transaction (facultatif)</label><input id="ref-paiement" v-model="encaissement.reference" maxlength="80"></div>
                 <button type="submit" class="bouton bouton-large" :disabled="envoi">Enregistrer l'encaissement</button>
+                <p class="aide">Le client reçoit aussitôt un reçu par SMS.</p>
               </form>
             </div>
 

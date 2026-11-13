@@ -7,7 +7,7 @@ from httpx import AsyncClient
 from pypdf import PdfReader
 from sqlalchemy import select, update
 
-from boutique.models import Commande, JournalAudit
+from boutique.models import Commande, JournalAudit, Notification
 
 from .aides import ADRESSE, commander, ligne, zone
 from .conftest import jeton
@@ -265,3 +265,30 @@ async def test_zones_de_livraison(client: AsyncClient) -> None:
     assert "segou" not in [z["slug"] for z in (await client.get("/api/v1/zones-livraison")).json()]
     toutes = (await client.get("/api/v1/admin/zones-livraison", headers=ADMIN)).json()
     assert "segou" in [z["slug"] for z in toutes]
+
+
+async def test_recu_par_sms_de_l_argent_remis(app: FastAPI, client: AsyncClient) -> None:
+    kit = await ligne(client, "kit-hygiene", quantite=2)  # 15 000 FCFA, sans acompte
+    reference = (await commander(client, [kit]))["commande"]["reference"]
+    await statut(client, reference, "confirmee")
+    for montant, moyen in ((5_000, "orange_money"), (10_000, "especes")):
+        reponse = await client.post(
+            f"/api/v1/admin/commandes/{reference}/paiements",
+            json={"montant": montant, "moyen": moyen},
+            headers=ADMIN,
+        )
+        assert reponse.status_code == 200, reponse.text
+    async with app.state.sessions() as session:
+        recus = list(
+            await session.scalars(
+                select(Notification.message)
+                .where(Notification.message.contains("paiement de"))
+                .order_by(Notification.cree_le, Notification.id)
+            )
+        )
+    assert recus == [
+        f"Bibou : paiement de 5 000 FCFA (Orange Money) recu pour la commande {reference}. "
+        "Reste à payer : 10 000 FCFA.",
+        f"Bibou : paiement de 10 000 FCFA (espèces) recu pour la commande {reference}. "
+        "Commande entièrement payée, merci !",
+    ]

@@ -141,6 +141,9 @@ async def test_la_fabrication_attend_l_acompte(app: FastAPI, client: AsyncClient
     assert (await sms(app))[1:] == [
         f"Bibou : commande {reference} confirmée. Acompte à régler pour lancer la fabrication : "
         "6 300 FCFA (non remboursable), en ligne ou à la boutique.",
+        # Reçu écrit de l'argent remis à la boutique ; le second versement lance la fabrication.
+        f"Bibou : paiement de 3 000 FCFA (espèces) recu pour la commande {reference}. "
+        "Reste à payer : 9 500 FCFA.",
         f"Bibou : acompte recu, la fabrication de la commande {reference} commence, prete vers "
         f"le {prete_vers}.",
     ]
