@@ -28,6 +28,7 @@ onBeforeUnmount(() => window.removeEventListener('keydown', fermer))
 
 const LIENS = [
   { nom: 'Nouveautés', lien: '/nouveautes' },
+  { nom: 'Par couleur', lien: '/explorer' },
   { nom: 'Promotions', lien: '/promotions' },
   { nom: 'Kits et matériel', lien: '/univers/equipement' },
   { nom: 'Campagnes', lien: '/rayons/campagnes' },
@@ -87,6 +88,7 @@ const LIENS = [
         </div>
         <div>
           <p class="titre-colonne">À découvrir</p>
+          <NuxtLink to="/explorer">Explorer par couleur</NuxtLink>
           <NuxtLink to="/nouveautes">Nouveautés</NuxtLink>
           <NuxtLink to="/collection/Wax">La collection wax</NuxtLink>
           <NuxtLink to="/guide-des-tailles">Guide des tailles</NuxtLink>

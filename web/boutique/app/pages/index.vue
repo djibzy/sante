@@ -1,11 +1,14 @@
 <script setup lang="ts">
 import type { Metier, PageProduits, Rayon } from '~/types/catalogue'
+import type { Exploration } from '~/types/explorer'
 
 useSeoMeta({ title: 'Tenues médicales brodées à votre nom', description: 'Blouses, tuniques, pantalons et accessoires pour tous les métiers de la santé, fabriqués et brodés à Bamako. Paiement à la livraison.' })
 const { data: rayons } = await useBoutiqueFetch<Rayon[]>('/api/v1/rayons')
 const { data: metiers } = await useBoutiqueFetch<Metier[]>('/api/v1/metiers')
 const { data: nouveautes } = await useBoutiqueFetch<PageProduits>('/api/v1/produits', { query: { nouveau: true, tri: 'nouveautes', par_page: 4 } })
 const { data: essentiels } = await useBoutiqueFetch<PageProduits>('/api/v1/produits', { query: { collection: 'Essentielle', par_page: 4 } })
+const { data: nuancier } = await useBoutiqueFetch<Exploration>('/api/v1/explorer', { query: { familles_seulement: true } })
+const familles = computed(() => (nuancier.value?.familles ?? []).filter(f => f.nombre))
 const tenues = computed(() => (rayons.value ?? []).filter(r => r.univers === 'tenues'))
 const compteSupprime = useRoute().query.compte === 'supprime'
 const AUTRES = [
@@ -41,6 +44,21 @@ const AUTRES = [
     <section id="metiers" class="conteneur section">
       <div class="titre-section"><h2>Par métier</h2></div>
       <MetiersTuiles :metiers="metiers ?? []" />
+    </section>
+
+    <section v-if="familles.length" class="conteneur section">
+      <div class="titre-section">
+        <h2>Par couleur</h2>
+        <NuxtLink to="/explorer">Explorer toutes les couleurs</NuxtLink>
+      </div>
+      <ul class="couleurs-accueil">
+        <li v-for="f in familles" :key="f.code">
+          <NuxtLink :to="{ path: '/explorer', query: { famille: f.code } }">
+            <span class="disque" :style="{ background: f.hex }" aria-hidden="true" />
+            <span>{{ f.nom }}</span>
+          </NuxtLink>
+        </li>
+      </ul>
     </section>
 
     <section class="conteneur section">
@@ -113,6 +131,10 @@ const AUTRES = [
 @media (min-width: 820px) { .papillon { display: block; } }
 .sourire { display: block; width: 100%; height: clamp(28px, 6vw, 64px); margin-top: -1px; }
 .section { margin-top: 36px; }
+.couleurs-accueil { list-style: none; margin: 0; padding: 0; display: grid; gap: 10px; grid-template-columns: repeat(auto-fill, minmax(96px, 1fr)); }
+.couleurs-accueil a { display: grid; justify-items: center; gap: 6px; padding: 10px 4px; border-radius: 14px; color: var(--texte); text-decoration: none; font-size: 0.85rem; font-weight: 650; text-align: center; line-height: 1.25; }
+.couleurs-accueil a:hover, .couleurs-accueil a:focus-visible { background: var(--fond-doux); }
+.disque { width: 56px; height: 56px; border-radius: 50%; box-shadow: inset 0 0 0 1px rgba(23, 21, 58, 0.2), 0 2px 6px rgba(23, 21, 58, 0.12); }
 .titre-section { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; margin-bottom: 14px; }
 .titre-section h2 { margin: 0; }
 .titre-section a { font-weight: 650; }

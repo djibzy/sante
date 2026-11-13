@@ -26,20 +26,25 @@ const vide = () => ({
 })
 const fiche = reactive(vide())
 const nouvelleCouleur = reactive({ couleur: '', hex: '#1f4fa8', tailles: 'XS, S, M, L, XL, XXL', prix: null as number | null })
-const photos = ref<{ url: string; texte_alternatif: string }[]>([])
+const photos = ref<{ url: string; texte_alternatif: string; couleur: string | null }[]>([])
 const adresse = useAdresseImage()
-const envoiPhoto = reactive({ fichier: null as File | null, texte: '' })
+const envoiPhoto = reactive({ fichier: null as File | null, texte: '', couleur: '' })
+// Couleur de l'article sur la photo : la fiche montre la bonne photo quand le client choisit
+// une couleur, et la page « Explorer » l'utilise pour cette couleur.
+const couleursDuProduit = computed(() => [...new Set((produit.value?.variantes ?? []).map(v => v.couleur).filter((c): c is string => !!c))])
 
 async function envoyerPhoto() {
   if (!envoiPhoto.fichier) return
   const donnees = new FormData()
   donnees.append('fichier', envoiPhoto.fichier)
   donnees.append('texte_alternatif', envoiPhoto.texte || fiche.nom)
+  if (envoiPhoto.couleur) donnees.append('couleur', envoiPhoto.couleur)
   const resultat = await executer(() => appeler<ProduitGestion>(`/api/v1/admin/produits/${id.value}/photos`, { method: 'POST', body: donnees }), 'Photo ajoutée.')
   if (resultat) {
     remplir(resultat)
     envoiPhoto.fichier = null
     envoiPhoto.texte = ''
+    envoiPhoto.couleur = ''
   }
 }
 
@@ -48,7 +53,7 @@ function remplir(p: ProduitGestion) {
   Object.assign(fiche, {
     ...p, poste_atelier: p.poste_atelier ?? '', genre: p.genre ?? '', manches: p.manches ?? '', collection: p.collection ?? '',
   })
-  photos.value = p.images.map(i => ({ ...i }))
+  photos.value = p.images.map(i => ({ ...i, couleur: i.couleur ?? null }))
 }
 
 function corps() {
@@ -261,6 +266,13 @@ watch(verifie, async () => {
             <label for="texte-photo">Ce qu'on voit sur la photo</label>
             <input id="texte-photo" v-model="envoiPhoto.texte" maxlength="200" placeholder="Tunique bleu roi, de face">
           </div>
+          <div v-if="couleursDuProduit.length" class="champ">
+            <label for="couleur-photo">Couleur de l'article sur la photo</label>
+            <select id="couleur-photo" v-model="envoiPhoto.couleur">
+              <option value="">Toutes / non précisée</option>
+              <option v-for="c in couleursDuProduit" :key="c" :value="c">{{ c }}</option>
+            </select>
+          </div>
           <button type="submit" class="bouton" :disabled="envoi || !envoiPhoto.fichier">Envoyer la photo</button>
         </form>
         <p class="aide">La photo est réduite et nettoyée de ses informations (position, téléphone). Vous pouvez aussi indiquer l'adresse d'une photo déjà en ligne.</p>
@@ -268,10 +280,14 @@ watch(verifie, async () => {
           <img v-if="photo.url" :src="adresse(photo.url)" alt="" width="56" height="70">
           <input v-model="photo.url" :aria-label="`Adresse de la photo ${i + 1}`" placeholder="https://…">
           <input v-model="photo.texte_alternatif" :aria-label="`Description de la photo ${i + 1}`" placeholder="Blouse blanche, de face">
+          <select v-if="couleursDuProduit.length" v-model="photo.couleur" :aria-label="`Couleur de l'article sur la photo ${i + 1}`">
+            <option :value="null">Toutes couleurs</option>
+            <option v-for="c in couleursDuProduit" :key="c" :value="c">{{ c }}</option>
+          </select>
           <button type="button" class="bouton bouton-discret" @click="photos.splice(i, 1)">Retirer</button>
         </div>
         <div class="actions">
-          <button type="button" class="bouton bouton-secondaire" @click="photos.push({ url: '', texte_alternatif: '' })">Ajouter une photo</button>
+          <button type="button" class="bouton bouton-secondaire" @click="photos.push({ url: '', texte_alternatif: '', couleur: null })">Ajouter une photo</button>
           <button type="button" class="bouton" :disabled="envoi" @click="enregistrerPhotos">Enregistrer les photos</button>
         </div>
       </div>
@@ -301,7 +317,9 @@ watch(verifie, async () => {
 .ajout-couleur { display: grid; gap: 0 12px; grid-template-columns: repeat(auto-fit, minmax(min(100%, 170px), 1fr)); align-items: end; }
 .ajout-couleur input[type='color'] { padding: 4px; width: 64px; }
 .ajout-couleur .bouton { margin-bottom: 1rem; }
-.photo { display: grid; grid-template-columns: 56px minmax(0, 2fr) minmax(0, 2fr) auto; gap: 8px; align-items: center; }
+.photo { display: grid; grid-template-columns: 56px minmax(0, 2fr) minmax(0, 2fr) minmax(0, 1fr) auto; gap: 8px; align-items: center; }
+.photo select { min-height: 40px; padding: 0 6px; border: 1.5px solid var(--bordure); border-radius: 8px; font: inherit; min-width: 0; }
+@media (max-width: 640px) { .photo { grid-template-columns: 56px minmax(0, 1fr); } .photo > :not(img) { grid-column: 2; } }
 .photo img { object-fit: cover; border-radius: 6px; background: var(--fond-doux); }
 .photo input { min-height: 40px; padding: 0 8px; border: 1.5px solid var(--bordure); border-radius: 8px; font: inherit; min-width: 0; }
 .actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 8px; }

@@ -8,6 +8,8 @@ const remise = computed(() => {
   const { prix_public: prix, prix_avant_promo: avant } = props.produit
   return prix && avant ? Math.round((1 - prix / avant) * 100) : null
 })
+const forme = computed(() => formeArticle(props.produit.rayon_slug, props.produit.slug))
+const teinte = computed(() => props.produit.couleurs.find(c => c.hex)?.hex ?? null)
 const delai = computed(() => {
   const p = props.produit
   if (!p.vendable_en_ligne) return 'Par notre pharmacien partenaire'
@@ -21,6 +23,10 @@ const delai = computed(() => {
   <NuxtLink :to="`/produits/${produit.slug}`" class="lien">
     <div class="visuel">
       <img v-if="produit.image && !photoAbsente" :src="adresse(produit.image.url)" :alt="produit.image.texte_alternatif" loading="lazy" @error="photoAbsente = true">
+      <IllustrationArticle
+        v-else-if="forme && teinte" :forme="forme" :hex="teinte"
+        :couleur="produit.couleurs.find(c => c.hex === teinte)?.nom" :brode="produit.personnalisable" fond
+      />
       <ChartePictogramme v-else :type="produit.rayon_slug" :taille="96" :teinte="produit.couleurs[0]?.hex" />
       <span class="badges">
         <span v-if="produit.est_nouveau" class="badge">Nouveau</span>

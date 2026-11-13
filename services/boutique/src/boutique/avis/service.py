@@ -25,7 +25,7 @@ from boutique.avis.schemas import (
 )
 from boutique.commandes.cycle import Statut
 from boutique.models import CATEGORIE_LIBRE, Avis, Commande, JournalAudit, Produit
-from boutique.schemas import ImagePublique
+from boutique.vues import vue_image
 from socle.audit import journaliser
 from socle.security import Principal
 
@@ -83,11 +83,7 @@ async def de_la_commande(session: AsyncSession, commande: Commande) -> AvisComma
                 produit_id=p.id,
                 slug=p.slug,
                 nom=p.nom,
-                image=ImagePublique(
-                    url=p.images[0].url, texte_alternatif=p.images[0].texte_alternatif
-                )
-                if p.images
-                else None,
+                image=vue_image(p.images[0]) if p.images else None,
                 avis=_vue_client(deja.get(p.id)),
             )
             for p in produits

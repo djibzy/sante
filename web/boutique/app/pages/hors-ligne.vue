@@ -61,6 +61,7 @@ async function adresses(): Promise<string[]> {
   const univers = [...new Set(rayons.value.map(r => r.univers))]
   return [
     url('/api/v1/rayons'), url('/api/v1/metiers'), url('/api/v1/zones-livraison'),
+    url('/api/v1/explorer'), url('/api/v1/explorer', { familles_seulement: true }),
     ...Array.from({ length: pages }, (_, i) => url('/api/v1/produits', { page: i + 1, par_page: 60 })),
     url('/api/v1/produits', { nouveau: true, tri: 'nouveautes', par_page: 4 }),
     url('/api/v1/produits', { collection: 'Essentielle', par_page: 4 }),

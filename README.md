@@ -101,5 +101,6 @@ prix (50 par défaut, 0 pour n'en demander aucun) ; la page des conditions de ve
 - [x] Durées de conservation appliquées chaque nuit (anonymisation, effacement), alertes SMS à l'équipe
 - [x] Droits des personnes : téléchargement de ses données et suppression du compte
 - [x] Projets de conditions de vente, politique de confidentialité et mentions légales (à faire valider)
+- [x] Découverte visuelle : page « Explorer par couleur » (mur de couleurs, familles, métier, type, coupe), articles dessinés dans leur vraie couleur en attendant les photos, photo qui suit la couleur choisie
 - [x] Acompte non remboursable des articles faits à la demande : demandé à la confirmation, payé en ligne ou à la boutique, il lance la fabrication (clause à faire valider : acompte ou arrhes)
 - [ ] Pharmacien partenaire (janvier 2027)

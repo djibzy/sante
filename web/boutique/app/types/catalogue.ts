@@ -38,6 +38,7 @@ export interface Facettes {
 export interface Image {
   url: string
   texte_alternatif: string
+  couleur?: string | null // couleur de l'article sur la photo
 }
 
 export interface ProduitResume {

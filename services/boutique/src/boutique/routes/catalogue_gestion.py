@@ -23,13 +23,13 @@ from boutique import photos
 from boutique.config import ROLE_ADMIN_BOUTIQUE, ParametresBoutique
 from boutique.models import ImageProduit, JournalAudit, Produit, Rayon, Variante
 from boutique.schemas import (
-    ImagePublique,
     ImagesProduit,
     ModificationVariante,
     ProduitGestion,
     RayonGestion,
     VarianteGestion,
 )
+from boutique.vues import vue_image
 from socle.audit import journaliser
 from socle.db import session_db
 from socle.security import Principal, exiger_role
@@ -64,9 +64,7 @@ def _vue(produit: Produit) -> ProduitGestion:
         prix_avant_promo=produit.prix_avant_promo,
         est_actif=produit.est_actif,
         variantes=[VarianteGestion.model_validate(v) for v in produit.variantes],
-        images=[
-            ImagePublique(url=i.url, texte_alternatif=i.texte_alternatif) for i in produit.images
-        ],
+        images=[vue_image(i) for i in produit.images],
     )
 
 
@@ -152,6 +150,17 @@ async def modifier_variante(
     return _vue(await _produit(session, produit_id))
 
 
+def _couleur_de_photo(produit: Produit, couleur: str | None) -> str | None:
+    """Couleur de l'article sur la photo : une couleur de ses variantes, ou aucune."""
+    if couleur is None or not couleur.strip():
+        return None
+    if couleur.strip() not in {v.couleur for v in produit.variantes if v.couleur}:
+        raise HTTPException(
+            status.HTTP_422_UNPROCESSABLE_CONTENT, f"{produit.nom} n'existe pas en « {couleur} »"
+        )
+    return couleur.strip()
+
+
 @routeur.put("/produits/{produit_id}/images", summary="Photos du produit, dans l'ordre")
 async def remplacer_images(
     produit_id: UUID,
@@ -161,7 +170,12 @@ async def remplacer_images(
 ) -> ProduitGestion:
     produit = await _produit(session, produit_id)
     produit.images = [
-        ImageProduit(url=image.url, texte_alternatif=image.texte_alternatif, position=i)
+        ImageProduit(
+            url=image.url,
+            texte_alternatif=image.texte_alternatif,
+            couleur=_couleur_de_photo(produit, image.couleur),
+            position=i,
+        )
         for i, image in enumerate(donnees.images)
     ]
     journaliser(
@@ -187,11 +201,13 @@ async def envoyer_photo(
     request: Request,
     fichier: UploadFile = File(...),
     texte_alternatif: str = Form(..., min_length=3, max_length=200),
+    couleur: str | None = Form(None, max_length=40),
     principal: Principal = Depends(equipe),
     session: AsyncSession = Depends(session_db),
 ) -> ProduitGestion:
     parametres: ParametresBoutique = request.app.state.parametres
     produit = await _produit(session, produit_id)
+    couleur_photo = _couleur_de_photo(produit, couleur)
     if len(produit.images) >= 8:
         raise HTTPException(status.HTTP_409_CONFLICT, "Huit photos au plus par produit")
     contenu = await fichier.read(parametres.taille_max_photo + 1)
@@ -208,7 +224,10 @@ async def envoyer_photo(
         raise HTTPException(status.HTTP_422_UNPROCESSABLE_CONTENT, str(exc)) from exc
     produit.images.append(
         ImageProduit(
-            url=adresse, texte_alternatif=texte_alternatif.strip(), position=len(produit.images)
+            url=adresse,
+            texte_alternatif=texte_alternatif.strip(),
+            couleur=couleur_photo,
+            position=len(produit.images),
         )
     )
     journaliser(

@@ -181,6 +181,9 @@ class ImageProduit(IdMixin, Base):
     url: Mapped[str] = mapped_column(String(500), nullable=False)
     texte_alternatif: Mapped[str] = mapped_column(String(200), nullable=False)
     position: Mapped[int] = mapped_column(nullable=False, default=0, server_default="0")
+    # Couleur de l'article sur la photo (nom d'une couleur de ses variantes) : la photo suit
+    # la couleur choisie sur la fiche, et illustre cette couleur sur la page « Explorer ».
+    couleur: Mapped[str | None] = mapped_column(String(40))
 
 
 class ZoneLivraison(IdMixin, HorodatageMixin, Base):

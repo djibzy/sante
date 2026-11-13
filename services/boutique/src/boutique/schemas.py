@@ -65,6 +65,34 @@ class Facettes(BaseModel):
 class ImagePublique(BaseModel):
     url: str
     texte_alternatif: str
+    couleur: str | None = Field(None, description="Couleur de l'article sur la photo")
+
+
+class FamilleCouleur(BaseModel):
+    code: str
+    nom: str
+    hex: str
+    nombre: int = Field(description="Articles de cette famille, avec les autres filtres")
+
+
+class Tuile(BaseModel):
+    """Un article dans une de ses couleurs : une case du mur de couleurs."""
+
+    produit_slug: str
+    nom: str
+    rayon_slug: str
+    genre: Genre | None
+    couleur: str
+    hex: str
+    famille: str
+    prix: int | None
+    image: ImagePublique | None = Field(description="Photo de l'article dans cette couleur")
+    distance: float | None = Field(None, description="Écart avec la couleur cherchée, 0 à 100")
+
+
+class Exploration(BaseModel):
+    familles: list[FamilleCouleur]
+    tuiles: list[Tuile]
 
 
 class VariantePublique(BaseModel):
@@ -266,6 +294,7 @@ class ModificationVariante(BaseModel):
 class NouvelleImage(BaseModel):
     url: str = Field(max_length=500, pattern=r"^(https://|/)[^\s<>\"']+$")
     texte_alternatif: str = Field(min_length=3, max_length=200)
+    couleur: str | None = Field(None, max_length=40, description="Une couleur des variantes")
 
 
 class ImagesProduit(BaseModel):

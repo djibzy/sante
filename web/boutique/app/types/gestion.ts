@@ -35,7 +35,7 @@ export interface ProduitGestion {
   prix_avant_promo: number | null
   est_actif: boolean
   variantes: VarianteGestion[]
-  images: { url: string; texte_alternatif: string }[]
+  images: { url: string; texte_alternatif: string; couleur?: string | null }[]
 }
 
 export interface RayonGestion {

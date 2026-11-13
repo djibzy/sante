@@ -1,7 +1,7 @@
 """Mise en forme des produits pour l'API publique (prix masqués pour le pharmaceutique)."""
 
 from boutique.config import ParametresBoutique
-from boutique.models import Produit
+from boutique.models import ImageProduit, Produit
 from boutique.schemas import Couleur, ImagePublique, ProduitDetail, ProduitResume, VariantePublique
 
 ORDRE_TAILLES = ["XXS", "XS", "S", "M", "L", "XL", "XXL", "XXXL", "4XL"]
@@ -19,6 +19,12 @@ def rang_taille(taille: str) -> tuple[int, float, str]:
 
 def _prix_visible(produit: Produit, prix: int | None) -> int | None:
     return prix if produit.vendable_en_ligne else None
+
+
+def vue_image(image: ImageProduit) -> ImagePublique:
+    return ImagePublique(
+        url=image.url, texte_alternatif=image.texte_alternatif, couleur=image.couleur
+    )
 
 
 def vers_resume(produit: Produit) -> ProduitResume:
@@ -42,9 +48,7 @@ def vers_resume(produit: Produit) -> ProduitResume:
         prix_public=_prix_visible(produit, produit.prix_public),
         prix_pro=_prix_visible(produit, produit.prix_pro),
         prix_avant_promo=_prix_visible(produit, produit.prix_avant_promo),
-        image=ImagePublique(url=image.url, texte_alternatif=image.texte_alternatif)
-        if image
-        else None,
+        image=vue_image(image) if image else None,
         genre=produit.genre,
         metiers=produit.metiers,
         collection=produit.collection,
@@ -86,9 +90,7 @@ def vers_detail(produit: Produit, regle: ParametresBoutique | None = None) -> Pr
         matiere=produit.matiere,
         entretien=produit.entretien,
         variantes=variantes,
-        images=[
-            ImagePublique(url=i.url, texte_alternatif=i.texte_alternatif) for i in produit.images
-        ],
+        images=[vue_image(i) for i in produit.images],
         acompte_pourcent=regle.acompte_pourcent if regle and concerne else None,
         acompte_toujours=concerne and toujours,
     )

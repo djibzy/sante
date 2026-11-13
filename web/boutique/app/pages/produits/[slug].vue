@@ -22,8 +22,12 @@ const { data: avis } = await useBoutiqueFetch<PageAvis>(
   () => `/api/v1/produits/${String(route.params.slug)}/avis`, { query: { par_page: 5 } },
 )
 
-// Choix en deux temps, comme en boutique : la couleur, puis la taille.
-const couleur = ref<string | null>(produit.value.couleurs[0]?.nom ?? null)
+// Choix en deux temps, comme en boutique : la couleur, puis la taille. La couleur peut venir
+// de la page « Explorer » (?couleur=…).
+const demandee = typeof route.query.couleur === 'string' ? route.query.couleur : null
+const couleur = ref<string | null>(
+  produit.value.couleurs.find(c => c.nom === demandee)?.nom ?? produit.value.couleurs[0]?.nom ?? null,
+)
 const taille = ref<string | null>(null)
 const variante = computed(() => produit.value?.variantes.find(v =>
   (v.couleur ?? null) === (produit.value!.couleurs.length ? couleur.value : null)
@@ -42,9 +46,21 @@ const ajoute = ref(false)
 const erreur = ref('')
 const { ajouter } = usePanier()
 const adresse = useAdresseImage()
-const photo = ref(0)
-const photoAbsente = ref(false) // hors ligne, photo pas encore vue : le pictogramme la remplace
+// La photo suit la couleur choisie, quand l'équipe a indiqué la couleur de ses photos. Sans
+// photo de cette couleur, l'article est dessiné dans sa couleur (photo = -1) plutôt que montré
+// dans une autre ; les vignettes restent là pour voir les autres photos.
+const photoDeLaCouleur = (nom: string | null) => produit.value?.images.findIndex(i => !!nom && i.couleur === nom) ?? -1
+function photoPour(nom: string | null): number {
+  const indice = photoDeLaCouleur(nom)
+  if (indice >= 0) return indice
+  const premiere = produit.value?.images[0]
+  return premiere?.couleur && premiere.couleur !== nom ? -1 : 0
+}
+const photo = ref(photoPour(couleur.value))
+const photoAbsente = ref(false) // hors ligne, photo pas encore vue : le dessin la remplace
 watch(photo, () => { photoAbsente.value = false })
+watch(couleur, (nom) => { photo.value = photoPour(nom) })
+const forme = computed(() => formeArticle(produit.value!.rayon_slug, produit.value!.slug))
 
 function ajouterAuPanier() {
   const p = produit.value!
@@ -144,6 +160,10 @@ useHead(() => {
           v-if="produit.images[photo] && !photoAbsente" :src="adresse(produit.images[photo]!.url)" :alt="produit.images[photo]!.texte_alternatif"
           @error="photoAbsente = true"
         >
+        <IllustrationArticle
+          v-else-if="forme && teinte" :forme="forme" :hex="teinte" :couleur="couleur"
+          :brode="produit.personnalisable" fond :libelle="`${produit.nom}, ${couleur}`"
+        />
         <ChartePictogramme v-else :type="produit.rayon_slug" :taille="150" :teinte="teinte" />
         <span class="badges">
           <span v-if="produit.est_nouveau" class="badge">Nouveau</span>
