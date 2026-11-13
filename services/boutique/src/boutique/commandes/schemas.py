@@ -316,6 +316,25 @@ class NouveauPaiement(BaseModel):
         return moyen
 
 
+class AutreCommande(BaseModel):
+    reference: str
+    cree_le: datetime
+    statut: Statut
+    statut_libelle: str
+    total: int
+
+
+class ClientDeLaCommande(BaseModel):
+    """Le même numéro dans les autres commandes : l'équipe sait à qui elle parle."""
+
+    autres_commandes: int
+    remises: int
+    annulees: int
+    depense: int = Field(description="Total des commandes remises, FCFA")
+    client_depuis: datetime | None
+    dernieres: list[AutreCommande]
+
+
 class LigneARecommander(BaseModel):
     """Ligne prête pour le panier de l'appareil (mêmes champs que lui)."""
 

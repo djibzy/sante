@@ -10,11 +10,13 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from boutique.commandes import acces, acompte, factures, operations, remboursements
-from boutique.commandes.cycle import ModeLivraison, Statut, passage_autorise
+from boutique.commandes.cycle import LIBELLES, ModeLivraison, Statut, passage_autorise
 from boutique.commandes.pdf import MOYENS, reponse_devis, reponse_facture
 from boutique.commandes.schemas import (
     ArretLivraison,
+    AutreCommande,
     ChangementStatut,
+    ClientDeLaCommande,
     CommandeGestion,
     CreationLivreur,
     CreationZone,
@@ -209,6 +211,50 @@ async def encaisser(
     await operations.apres_paiement(session, commande, principal.id)  # acompte couvert ?
     await session.commit()
     return vue_gestion(await acces.charger(session, reference))
+
+
+@routeur.get(
+    "/commandes/{reference}/client",
+    summary="Le client de la commande : ses autres commandes, au même numéro",
+)
+async def client_de_la_commande(
+    reference: str,
+    principal: Principal = Depends(equipe),
+    session: AsyncSession = Depends(session_db),
+) -> ClientDeLaCommande:
+    commande = await acces.charger(session, reference)
+    meme_client = (Commande.telephone == commande.telephone, Commande.id != commande.id)
+    nombre, remises, annulees, depense, depuis = (
+        await session.execute(
+            select(
+                func.count(),
+                func.count().filter(Commande.statut == Statut.LIVREE),
+                func.count().filter(Commande.statut == Statut.ANNULEE),
+                func.coalesce(func.sum(Commande.total).filter(Commande.statut == Statut.LIVREE), 0),
+                func.min(Commande.cree_le),
+            ).where(*meme_client)
+        )
+    ).one()
+    dernieres = await session.scalars(
+        select(Commande).where(*meme_client).order_by(Commande.cree_le.desc()).limit(5)
+    )
+    return ClientDeLaCommande(
+        autres_commandes=nombre,
+        remises=remises,
+        annulees=annulees,
+        depense=int(depense),
+        client_depuis=depuis,
+        dernieres=[
+            AutreCommande(
+                reference=c.reference,
+                cree_le=c.cree_le,
+                statut=Statut(c.statut),
+                statut_libelle=LIBELLES[Statut(c.statut)],
+                total=c.total,
+            )
+            for c in dernieres
+        ],
+    )
 
 
 @routeur.post(

@@ -42,6 +42,16 @@ export interface Chiffrage {
   commandable: boolean
 }
 
+/** Le même numéro dans les autres commandes, pour l'équipe qui appelle le client. */
+export interface ClientDeLaCommande {
+  autres_commandes: number
+  remises: number
+  annulees: number
+  depense: number
+  client_depuis: string | null
+  dernieres: { reference: string, cree_le: string, statut: Statut, statut_libelle: string, total: number }[]
+}
+
 /** « Commander à nouveau » : lignes prêtes pour le panier, et ce qui ne revient pas (raison). */
 export interface ARecommander {
   lignes: LignePanier[]

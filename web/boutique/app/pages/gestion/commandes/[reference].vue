@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type { CommandeGestion, Livreur, Paiement, Statut } from '~/types/commandes'
+import type { ClientDeLaCommande, CommandeGestion, Livreur, Paiement, Statut } from '~/types/commandes'
 import type { ProduitGestion } from '~/types/gestion'
 import { classeStatut } from '~/types/commandes'
 
@@ -227,11 +227,16 @@ async function facturer() {
   await executer('/facture', 'POST', {})
 }
 
+// Le même numéro dans les autres commandes : cliente fidèle, commandes souvent annulées…
+const client = ref<ClientDeLaCommande | null>(null)
+const moisAnnee = (iso: string) => new Date(iso).toLocaleDateString('fr-FR', { month: 'long', year: 'numeric', timeZone: 'UTC' })
+
 watch(verifie, async () => {
   if (!autorise.value) return
   try {
     livreurs.value = (await appeler<Livreur[]>('/api/v1/admin/livreurs')).filter(l => l.est_actif)
     preparer(await appeler<CommandeGestion>(base))
+    client.value = await appeler<ClientDeLaCommande>(`${base}/client`)
   } catch (e) {
     erreur.value = messageErreur(e)
   }
@@ -264,6 +269,25 @@ watch(verifie, async () => {
                 <a :href="lienWhatsapp" target="_blank" rel="noopener" class="bouton bouton-secondaire">WhatsApp</a>
               </div>
               <p v-if="commande.note_client" class="note-client">« {{ commande.note_client }} »</p>
+              <div v-if="client" class="historique-client">
+                <p v-if="!client.autres_commandes" class="aide">Première commande à ce numéro.</p>
+                <template v-else>
+                  <p>
+                    <strong>{{ client.autres_commandes }} autre{{ client.autres_commandes > 1 ? 's' : '' }} commande{{ client.autres_commandes > 1 ? 's' : '' }}</strong>
+                    à ce numéro<template v-if="client.client_depuis"> depuis {{ moisAnnee(client.client_depuis) }}</template> :
+                    {{ client.remises }} remise{{ client.remises > 1 ? 's' : '' }}<template v-if="client.depense"> ({{ formaterFcfa(client.depense) }})</template><template v-if="client.annulees">,
+                      {{ client.annulees }} annulée{{ client.annulees > 1 ? 's' : '' }}</template>.
+                  </p>
+                  <ul>
+                    <li v-for="c in client.dernieres" :key="c.reference">
+                      <NuxtLink :to="`/gestion/commandes/${c.reference}`">{{ c.reference }}</NuxtLink>
+                      <span class="aide">{{ formaterDate(c.cree_le) }}</span>
+                      <span :class="classeStatut(c.statut)">{{ c.statut_libelle }}</span>
+                      <span class="total-autre">{{ formaterFcfa(c.total) }}</span>
+                    </li>
+                  </ul>
+                </template>
+              </div>
             </div>
 
             <div v-if="devisModifiable" class="carte bloc">
@@ -470,6 +494,11 @@ watch(verifie, async () => {
 .bloc h2 { margin: 0; font-size: 1.1rem; }
 .bloc p { margin: 0; }
 .contact { display: grid; }
+.historique-client { display: grid; gap: 6px; padding-top: 10px; border-top: 1px solid var(--bordure); }
+.historique-client p { margin: 0; }
+.historique-client ul { list-style: none; margin: 0; padding: 0; display: grid; gap: 4px; }
+.historique-client li { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 10px; font-size: 0.92rem; }
+.total-autre { margin-left: auto; font-weight: 650; white-space: nowrap; }
 .actions { display: flex; flex-wrap: wrap; gap: 8px; }
 .note-client { padding: 10px 12px; border-radius: 10px; background: var(--fond-doux); }
 .case { display: flex; align-items: center; gap: 8px; }
