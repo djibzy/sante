@@ -49,7 +49,7 @@ const whatsapp = computed(() => `https://wa.me/${config.public.whatsapp}?text=${
 </template>
 
 <style scoped>
-.colonnes { display: grid; gap: 24px; }
+.colonnes { display: grid; gap: 24px; grid-template-columns: minmax(0, 1fr); } /* les tableaux défilent dans leur cadre */
 @media (min-width: 900px) { .colonnes { grid-template-columns: minmax(0, 1fr) 340px; align-items: start; } }
 .defilement { overflow-x: auto; }
 table { width: 100%; border-collapse: collapse; min-width: 420px; }

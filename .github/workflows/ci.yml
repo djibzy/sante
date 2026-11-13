@@ -55,6 +55,70 @@ jobs:
       - run: npm ci
       - run: npm run build
 
+  parcours:
+    name: Parcours dans le navigateur
+    needs: [python, web]
+    runs-on: ubuntu-24.04
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_PASSWORD: postgres
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd pg_isready --health-interval 5s --health-timeout 5s --health-retries 10
+    env:
+      COMPTES_DATABASE_URL: postgresql+asyncpg://postgres:postgres@localhost:5432/comptes
+      BOUTIQUE_DATABASE_URL: postgresql+asyncpg://postgres:postgres@localhost:5432/boutique
+      COMPTES_COOKIE_SECURISE: "false"
+      COMPTES_CORS_ORIGINES: '["http://localhost:3000"]'
+      BOUTIQUE_CORS_ORIGINES: '["http://localhost:3000"]'
+      BOUTIQUE_PAIEMENT_MOBILE: simulation
+      NUXT_PUBLIC_WHATSAPP: "22376000000"
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v6
+        with:
+          enable-cache: true
+      - run: uv sync --frozen
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: web/boutique/package-lock.json
+      - name: Interface construite
+        working-directory: web/boutique
+        run: npm ci && npm run build
+      - name: Bases, clés de signature, migrations, données de démonstration
+        run: |
+          PGPASSWORD=postgres psql -h localhost -U postgres -c "CREATE DATABASE comptes" -c "CREATE DATABASE boutique"
+          uv run python essais/cles_ci.py >> "$GITHUB_ENV"
+          (cd services/comptes && uv run alembic upgrade head)
+          (cd services/boutique && uv run alembic upgrade head)
+          uv run python -m boutique.donnees_demo
+      - name: Services et interface lancés
+        run: |
+          nohup uv run uvicorn comptes.main:creer_app --factory --port 8001 > comptes.log 2>&1 &
+          nohup uv run uvicorn boutique.main:creer_app --factory --port 8002 > boutique.log 2>&1 &
+          (cd web/boutique && nohup node .output/server/index.mjs > ../../web.log 2>&1 &)
+          for _ in $(seq 60); do
+            curl -sf localhost:8001/sante > /dev/null && curl -sf localhost:8002/sante > /dev/null \
+              && curl -sf localhost:3000/ > /dev/null && break
+            sleep 1
+          done
+      - name: Compte de l'équipe
+        run: |
+          curl -sf -X POST localhost:8001/api/v1/auth/inscription -H 'Content-Type: application/json' \
+            -d '{"telephone": "70 00 00 01", "nom": "Équipe Bibou", "mot_de_passe": "bibou-equipe-2026", "accepte_conditions": true}' > /dev/null
+          uv run python -m comptes.outils attribuer-role --telephone "70 00 00 01" --role boutique:admin
+      - name: Navigateur
+        run: uvx --from playwright==1.49.1 playwright install --with-deps chromium
+      - name: Balayage des pages et gestes essentiels
+        run: uv run --with playwright==1.49.1 python web/boutique/essais/balayage.py
+      - name: Journaux des services
+        if: failure()
+        run: tail -n 80 comptes.log boutique.log web.log
+
   images:
     name: Images Docker
     needs: [python, web]
