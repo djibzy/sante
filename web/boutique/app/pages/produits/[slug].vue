@@ -68,6 +68,30 @@ const composer = computed(() => {
   return { path: '/composer', query: { [piece]: produit.value!.slug, [`${piece}_couleur`]: couleur.value ?? undefined } }
 })
 
+// Taille habituelle, par rayon (blouses, pantalons, chaussures…), gardée sur ce téléphone :
+// proposée d'office la fois suivante, si elle existe dans cet article et cette couleur.
+const CLE_TAILLES = 'bibou-tailles'
+const habituelle = ref<string | null>(null)
+function taillesRetenues(): Record<string, string> {
+  try {
+    return JSON.parse(localStorage.getItem(CLE_TAILLES) ?? '{}') as Record<string, string>
+  } catch {
+    return {}
+  }
+}
+function retenirTaille(rayon: string, choisie: string) {
+  try {
+    localStorage.setItem(CLE_TAILLES, JSON.stringify({ ...taillesRetenues(), [rayon]: choisie }))
+  } catch { /* navigation privée : rien de grave */ }
+}
+onMounted(() => {
+  const retenue = taillesRetenues()[produit.value!.rayon_slug]
+  if (retenue && !taille.value && produit.value!.tailles.includes(retenue) && tailleDisponible(retenue)) {
+    taille.value = retenue
+    habituelle.value = retenue
+  }
+})
+
 function ajouterAuPanier() {
   const p = produit.value!
   if (p.variantes.length && !variante.value) {
@@ -85,6 +109,7 @@ function ajouterAuPanier() {
     rayon_slug: p.rayon_slug,
     prix_indicatif: prix.value,
   })
+  if (taille.value) retenirTaille(p.rayon_slug, taille.value)
   ajoute.value = true
 }
 watch([couleur, taille, quantite, personnalisation], () => {
@@ -232,6 +257,7 @@ useHead(() => {
                 {{ t }}
               </label>
             </div>
+            <p v-if="habituelle && taille === habituelle" class="aide habituelle">Votre taille habituelle dans ce rayon, choisie d'office.</p>
           </fieldset>
           <TrouverTaille
             v-if="produit.tailles.length" :pointure="produit.rayon_slug === 'chaussures'"
@@ -310,6 +336,7 @@ useHead(() => {
 </template>
 
 <style scoped>
+.habituelle { margin: 6px 0 0; }
 .fiche { padding-top: 20px; }
 .fil { margin-bottom: 16px; color: var(--texte-doux); font-size: 0.92rem; }
 .fil a { color: inherit; }

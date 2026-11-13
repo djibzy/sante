@@ -119,6 +119,7 @@ boutique depuis 3 puis 7 jours (`BOUTIQUE_RELANCES_RETRAIT_JOURS`).
 - [x] Page d'une commande (équipe) : les autres commandes du même numéro (remises, annulées, montant, depuis quand)
 - [x] Reçu par SMS de chaque paiement enregistré par l'équipe (espèces, transfert, chèque), preuve écrite pour l'argent remis en main propre
 - [x] Atelier : étiquettes de fabrication en PDF (huit par page A4), une par pièce de la file, taille et couleur sur leur ligne, texte à broder ou à imprimer en entier
+- [x] Taille habituelle retenue par rayon sur le téléphone, proposée d'office sur les autres articles du rayon
 - [x] Rappels SMS automatiques : acompte attendu, devis bientôt expiré, commande prête pas retirée
 - [x] Taille conseillée d'après ses mesures (fiche produit et guide des tailles) ; plan du site et robots.txt
 - [x] Commande pour une équipe : le même article brodé au nom de chacun (liste saisie ou collée depuis un tableur), puis commande ou devis
