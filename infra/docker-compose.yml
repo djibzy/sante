@@ -120,7 +120,9 @@ services:
   # Sauvegarde de chaque base, chaque nuit, gardée 14 jours dans le volume « sauvegardes ».
   # À recopier régulièrement hors du serveur (voir docs/securite.md).
   sauvegarde:
-    image: postgres:16
+    build:
+      context: .
+      dockerfile: sauvegarde.Dockerfile
     restart: unless-stopped
     environment:
       PGHOST: postgres
@@ -128,8 +130,19 @@ services:
       PGPASSWORD: ${POSTGRES_PASSWORD:?}
       BASES: comptes boutique
       JOURS_CONSERVES: 14
+      # Copie chiffrée hors du serveur (vide : sauvegardes seulement sur le serveur).
+      COPIE_DISTANTE: ${SAUVEGARDE_COPIE_DISTANTE:-}
+      AGE_DESTINATAIRE: ${SAUVEGARDE_CLE_PUBLIQUE:-}
+      JOURS_DISTANTS: 90
+      RCLONE_CONFIG_DISTANT_TYPE: s3
+      RCLONE_CONFIG_DISTANT_PROVIDER: ${S3_FOURNISSEUR:-Other}
+      RCLONE_CONFIG_DISTANT_ENDPOINT: ${S3_POINT_ACCES:-}
+      RCLONE_CONFIG_DISTANT_REGION: ${S3_REGION:-}
+      RCLONE_CONFIG_DISTANT_ACCESS_KEY_ID: ${S3_CLE:-}
+      RCLONE_CONFIG_DISTANT_SECRET_ACCESS_KEY: ${S3_SECRET:-}
     volumes:
       - ./sauvegarde.sh:/sauvegarde.sh:ro
+      - ./essai-restauration.sh:/essai-restauration.sh:ro
       - sauvegardes:/sauvegardes
       - medias:/medias:ro
     entrypoint: ["sh", "/sauvegarde.sh"]

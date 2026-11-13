@@ -21,7 +21,7 @@ semaine 4. Elle sera refaite avant l'ouverture au public, puis à chaque nouveau
 | Hors ligne | Le service worker ne garde que l'application, le catalogue public et les photos vues ; jamais le suivi des commandes, le compte, l'espace de l'équipe ni un envoi. Une commande préparée sans réseau reste sur le téléphone jusqu'à son envoi, puis en est effacée ; sa clé empêche tout doublon |
 | Navigateur | HTTPS automatique, HSTS, `nosniff`, Referrer-Policy, Permissions-Policy, interdiction d'affichage dans un cadre (`X-Frame-Options`, `frame-ancestors`) ; aucun `v-html` dans les interfaces ; politique de sécurité du contenu (CSP) sur chaque page : scripts du site et scripts en ligne marqués d'un nonce par réponse, appels limités à l'API et au service Comptes |
 | Serveur | Seul Caddy est exposé (ports 80 et 443) ; une base et un rôle PostgreSQL par produit ; conteneurs sans droits root ; aucun secret dans le dépôt |
-| Sauvegardes | `pg_dump` de chaque base et archive des photos chaque nuit, 14 jours gardés (service `sauvegarde`) |
+| Sauvegardes | `pg_dump` de chaque base et archive des photos chaque nuit, 14 jours gardés (service `sauvegarde`) ; copie chiffrée (age) hors du serveur avec rclone, 90 jours, dès qu'un stockage est renseigné ; essai de restauration outillé |
 | Photos | Format vérifié, image réencodée en WebP (aucune métadonnée, ni position GPS), 8 Mo et 8 photos par produit au plus |
 | Intégration continue | Style, types, tests sur une vraie base PostgreSQL, construction des images ; audit des dépendances (informatif) |
 
@@ -35,8 +35,9 @@ semaine 4. Elle sera refaite avant l'ouverture au public, puis à chaque nouveau
 
 ## Reste à faire, par priorité
 
-1. **Avant l'ouverture** : recopier les sauvegardes hors du serveur (stockage S3 ou disque
-   chiffré), et faire un essai de restauration (`pg_restore --dbname=boutique fichier.dump`).
+1. **Avant l'ouverture** : renseigner la copie chiffrée hors du serveur (`SAUVEGARDE_*` et
+   `S3_*` dans `.env`, clé « age » créée hors du serveur), puis lancer l'essai de restauration
+   chaque mois (outils prêts, voir « Exploitation »).
 2. **Avant l'ouverture** : renseigner les mentions légales (RCCM, NIF, régime de TVA) avec le
    comptable ; déclarer le traitement des données clients à l'APDP (loi n° 2013-015).
 3. **Comptes de l'équipe** : 12 caractères exigés à chaque nouveau mot de passe (fait) ;
@@ -60,6 +61,12 @@ semaine 4. Elle sera refaite avant l'ouverture au public, puis à chaque nouveau
 
 - Donner un rôle : `docker compose exec comptes python -m comptes.outils attribuer-role
   --telephone "76…" --role boutique:admin` (retirer : `retirer-role`).
+- Sauvegarde immédiate : `docker compose exec sauvegarde env UNE_FOIS=1 sh /sauvegarde.sh`.
+- Essai de restauration (chaque mois) : `docker compose exec sauvegarde sh
+  /essai-restauration.sh` restaure la dernière sauvegarde de chaque base dans une base
+  temporaire, compte tables et lignes, relit l'archive des photos, puis efface la base d'essai.
 - Restaurer une base : arrêter le service concerné, puis `docker compose exec sauvegarde
   pg_restore --clean --dbname=boutique /sauvegardes/boutique-AAAA-MM-JJ.dump`.
+- Restaurer depuis la copie distante : `rclone copy distant:… .`, puis
+  `age --decrypt -i cle-privee.txt -o boutique.dump boutique-AAAA-MM-JJ.dump.age`.
 - Les journaux des services sont en JSON sur la sortie standard (`docker compose logs`).
