@@ -24,6 +24,7 @@ from sqlalchemy import (
     UniqueConstraint,
     Uuid,
     false,
+    func,
     true,
 )
 from sqlalchemy.dialects.postgresql import ARRAY, JSONB
@@ -268,6 +269,12 @@ class Commande(IdMixin, HorodatageMixin, Base):
     date_promise: Mapped[date | None] = mapped_column(Date)
     devis_emis_le: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     devis_valable_jusqu_au: Mapped[date | None] = mapped_column(Date)
+    # Depuis quand la commande est dans son statut, et combien de rappels SMS ont suivi (remis à
+    # zéro à chaque changement de statut) : acompte attendu, devis bientôt expiré.
+    statut_le: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, default=_maintenant, server_default=func.now()
+    )
+    relances: Mapped[int] = mapped_column(nullable=False, default=0, server_default="0")
     # Empreinte SHA-256 de la clé du lien de suivi ; la clé elle-même n'est jamais stockée.
     empreinte_cle_suivi: Mapped[str] = mapped_column(String(64), unique=True, nullable=False)
     livreur_id: Mapped[UUID | None] = mapped_column(ForeignKey("livreurs.id"), index=True)

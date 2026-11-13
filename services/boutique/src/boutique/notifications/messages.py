@@ -91,6 +91,23 @@ def _annulation(commande: Commande) -> str:
     )
 
 
+def rappel_acompte(commande: Commande, du: int) -> str:
+    return gsm(
+        f"Bibou : rappel, l'acompte de {_fcfa(du)} de la commande {commande.reference} est "
+        "attendu pour lancer la fabrication. En ligne depuis votre lien de suivi, ou à la boutique."
+    )
+
+
+def rappel_devis(commande: Commande) -> str:
+    fin = (
+        commande.devis_valable_jusqu_au.strftime("%d/%m") if commande.devis_valable_jusqu_au else ""
+    )
+    return gsm(
+        f"Bibou : votre devis {commande.reference} ({_fcfa(commande.total)}) est valable jusqu'au "
+        f"{fin}. Acceptez-le depuis le lien reçu, ou appelez-nous."
+    )
+
+
 def paiement_recu(commande: Commande, montant: int) -> str:
     reste = commande.reste_a_payer
     suite = (

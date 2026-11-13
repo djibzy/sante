@@ -1,5 +1,6 @@
 """Processus d'envoi des SMS : lit la boîte d'envoi et expédie, avec reprises espacées. Il
-relit aussi, toutes les 5 minutes, les paiements en ligne restés sans réponse, et applique
+relit aussi, toutes les 5 minutes, les paiements en ligne restés sans réponse, prépare chaque
+heure les rappels (acompte attendu, devis bientôt expiré : boutique.relances), et applique
 chaque jour les durées de conservation des données (boutique.entretien).
 
     uv run python -m boutique.envoi
@@ -21,6 +22,7 @@ from boutique.entretien import entretenir
 from boutique.models import Notification
 from boutique.paiements import fournisseurs
 from boutique.paiements.service import rapprocher
+from boutique.relances import relancer
 from socle.db import creer_moteur, fabrique_sessions
 from socle.journaux import configurer_journaux
 from socle.sms import Expediteur, ExpediteurJournal, ExpediteurOrange, expediteur_pour
@@ -30,6 +32,7 @@ __all__ = ["Expediteur", "ExpediteurJournal", "ExpediteurOrange", "boucle", "tou
 journal = logging.getLogger("boutique.envoi")
 TENTATIVES_MAX = 5
 RAPPROCHEMENT_SECONDES = 300.0
+RELANCES_SECONDES = 3_600.0
 ENTRETIEN_SECONDES = 86_400.0
 
 
@@ -75,7 +78,7 @@ async def boucle(parametres: ParametresBoutique, pause: float = 5.0) -> None:
     async with httpx.AsyncClient(timeout=20) as client:
         expediteur = expediteur_pour(parametres, client)
         agregateur = fournisseurs.fournisseur(parametres, client)
-        prochain_rapprochement = prochain_entretien = time.monotonic()
+        prochain_rapprochement = prochain_relances = prochain_entretien = time.monotonic()
         journal.info("Envoi des SMS démarré", extra={"fournisseur": parametres.sms_fournisseur})
         while True:
             try:
@@ -89,6 +92,14 @@ async def boucle(parametres: ParametresBoutique, pause: float = 5.0) -> None:
                     await rapprocher(sessions, agregateur)
                 except Exception:  # noqa: BLE001 - agrégateur ou base indisponible
                     journal.exception("Rapprochement des paiements interrompu")
+            if time.monotonic() >= prochain_relances:
+                prochain_relances = time.monotonic() + RELANCES_SECONDES
+                try:
+                    rappels = await relancer(sessions, parametres)
+                    if rappels.acomptes or rappels.devis:
+                        journal.info("Rappels envoyés", extra=vars(rappels))
+                except Exception:  # noqa: BLE001 - base indisponible : dans une heure
+                    journal.exception("Rappels interrompus")
             if time.monotonic() >= prochain_entretien:
                 prochain_entretien = time.monotonic() + ENTRETIEN_SECONDES
                 try:

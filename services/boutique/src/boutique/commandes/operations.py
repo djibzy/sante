@@ -88,6 +88,9 @@ def evenement(
     note: str = "",
     visible_client: bool = True,
 ) -> None:
+    if commande.statut != statut:
+        commande.statut_le = datetime.now(UTC)
+        commande.relances = 0
     commande.statut = statut
     commande.evenements.append(
         EvenementCommande(
