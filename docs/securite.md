@@ -8,6 +8,7 @@ semaine 4. Elle sera refaite avant l'ouverture au public, puis à chaque nouveau
 | Domaine | Mesure |
 | --- | --- |
 | Connexion | Mots de passe Argon2 ; compte verrouillé 15 minutes après 5 échecs ; limite de 60 essais par minute et par adresse IP |
+| Droits des personnes | « Mon compte » : télécharger toutes ses données (compte, consentements, journal, commandes, avis) ; supprimer son compte (mot de passe demandé) : compte anonymisé et numéro libéré, sessions coupées, commandes terminées anonymisées, commandes facturées détachées (gardées 10 ans), avis effacés ; impossible tant qu'une commande est attendue |
 | Mot de passe oublié | Code à 6 chiffres par SMS : seule son empreinte est gardée, 10 minutes, 5 essais, 3 codes par heure et par compte ; même réponse qu'un compte existe ou non (SMS envoyé après la réponse) ; nouveau mot de passe = toutes les sessions coupées ; 12 caractères au moins pour les comptes de l'équipe |
 | Jetons | Accès de 15 minutes signé Ed25519 (émetteur et audience vérifiés) ; rafraîchissement à usage unique, stocké en empreinte, dans un cookie httpOnly, Secure, SameSite=Lax ; réutilisation d'un jeton remplacé = toutes les sessions coupées |
 | Droits | Rôles vérifiés par l'API à chaque appel : `boutique:admin` (gestion), `boutique:atelier` (file de fabrication, sans téléphone des clients), `boutique:pro` (prix professionnel) ; attribués en ligne de commande, journalisés |

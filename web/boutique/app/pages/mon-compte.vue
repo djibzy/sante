@@ -1,7 +1,8 @@
 <script setup lang="ts">
 const route = useRoute()
 useSeoMeta({ title: 'Mon compte', robots: 'noindex' })
-const { utilisateur, attendre, changerMotDePasse, deconnexion } = useSession()
+const { utilisateur, attendre, changerMotDePasse, deconnexion, mesDonnees, supprimerCompte, fermer } = useSession()
+const { appeler } = useApiBoutique()
 const chargement = ref(true)
 const formulaire = reactive({ actuel: '', nouveau: '', confirmation: '' })
 const erreur = ref('')
@@ -24,6 +25,49 @@ async function changer() {
     erreur.value = messageErreur(e)
   } finally {
     envoi.value = false
+  }
+}
+
+// Droits sur les données : tout télécharger, ou supprimer le compte.
+const telechargement = ref(false)
+const erreurDonnees = ref('')
+async function telechargerMesDonnees() {
+  telechargement.value = true
+  erreurDonnees.value = ''
+  try {
+    const [compte, boutique] = await Promise.all([mesDonnees(), appeler<Record<string, unknown>>('/api/v1/mes-donnees')])
+    const fichier = new Blob([JSON.stringify({ compte, boutique }, null, 2)], { type: 'application/json' })
+    const lien = document.createElement('a')
+    lien.href = URL.createObjectURL(fichier)
+    lien.download = 'mes-donnees-yasal-sante.json'
+    lien.click()
+    setTimeout(() => URL.revokeObjectURL(lien.href), 60_000)
+  } catch (e) {
+    erreurDonnees.value = messageErreur(e)
+  } finally {
+    telechargement.value = false
+  }
+}
+
+const suppression = reactive({ ouverte: false, motDePasse: '', confirme: false, envoi: false, erreur: '' })
+async function supprimer() {
+  suppression.erreur = ''
+  suppression.envoi = true
+  try {
+    // La boutique vérifie d'abord qu'aucune commande n'est attendue (elle garde alors vos coordonnées).
+    const { possible, en_cours: enCours } = await appeler<{ possible: boolean, en_cours: string[] }>('/api/v1/mes-donnees/oubli')
+    if (!possible) {
+      suppression.erreur = `Commande en cours : ${enCours.join(', ')}. Attendez sa remise, ou annulez-la, avant de supprimer votre compte.`
+      return
+    }
+    await supprimerCompte(suppression.motDePasse)
+    await appeler('/api/v1/mes-donnees/oubli', { method: 'POST' })
+    fermer()
+    await navigateTo({ path: '/', query: { compte: 'supprime' } })
+  } catch (e) {
+    suppression.erreur = messageErreur(e)
+  } finally {
+    suppression.envoi = false
   }
 }
 
@@ -74,6 +118,37 @@ onMounted(async () => {
         </div>
         <button type="submit" class="bouton" :disabled="envoi">Changer mon mot de passe</button>
       </form>
+      <section class="carte" aria-labelledby="titre-donnees">
+        <h2 id="titre-donnees">Mes données</h2>
+        <p class="aide">
+          Votre compte, vos consentements, vos commandes passées avec ce compte et vos avis, dans
+          un fichier. Les commandes passées sans compte se retrouvent avec leur lien de suivi.
+        </p>
+        <div v-if="erreurDonnees" class="alerte alerte-erreur" role="alert">{{ erreurDonnees }}</div>
+        <button type="button" class="bouton bouton-secondaire" :disabled="telechargement" @click="telechargerMesDonnees">
+          Télécharger mes données
+        </button>
+        <button v-if="!suppression.ouverte" type="button" class="bouton bouton-discret danger" @click="suppression.ouverte = true">
+          Supprimer mon compte…
+        </button>
+        <form v-else class="suppression" @submit.prevent="supprimer">
+          <p>
+            Votre compte sera anonymisé et vos sessions fermées. Vos commandes terminées sont
+            anonymisées ; les commandes facturées sont gardées 10 ans pour la comptabilité, sans
+            lien avec vous. Vos avis sont effacés. C'est définitif.
+          </p>
+          <div v-if="suppression.erreur" class="alerte alerte-erreur" role="alert">{{ suppression.erreur }}</div>
+          <div class="champ">
+            <label for="mdp-suppression">Mot de passe</label>
+            <input id="mdp-suppression" v-model="suppression.motDePasse" type="password" autocomplete="current-password" required>
+          </div>
+          <label class="case"><input v-model="suppression.confirme" type="checkbox" required> Je veux supprimer mon compte</label>
+          <div class="liens">
+            <button type="submit" class="bouton danger-plein" :disabled="suppression.envoi || !suppression.confirme">Supprimer définitivement</button>
+            <button type="button" class="bouton bouton-discret" @click="suppression.ouverte = false">Annuler</button>
+          </div>
+        </form>
+      </section>
     </template>
   </section>
 </template>
@@ -84,4 +159,9 @@ onMounted(async () => {
 .formulaire .carte .champ { width: 100%; }
 .formulaire h2 { margin: 0 0 8px; font-size: 1.15rem; }
 .liens { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 8px; }
+.danger { color: var(--danger); }
+.danger-plein { background: var(--danger); }
+.suppression { display: grid; gap: 8px; width: 100%; margin-top: 8px; padding-top: 12px; border-top: 1px solid var(--bordure); }
+.suppression p { margin: 0; }
+.case { display: flex; gap: 8px; align-items: center; font-weight: 600; }
 </style>

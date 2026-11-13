@@ -74,6 +74,19 @@ export function useSession() {
     ouvrir(await appeler<ReponseJetons>('/api/v1/auth/mot-de-passe', { actuel, nouveau }))
   }
 
+  /** Données du compte (service Comptes), pour les télécharger. */
+  function mesDonnees() {
+    return $fetch<Record<string, unknown>>('/api/v1/auth/mes-donnees', {
+      baseURL: config.public.apiComptes,
+      headers: jeton.value ? { Authorization: `Bearer ${jeton.value}` } : {},
+    })
+  }
+
+  /** Supprime le compte ; le jeton d'accès reste valable quelques minutes pour les autres produits. */
+  async function supprimerCompte(motDePasse: string) {
+    await appeler('/api/v1/auth/suppression', { mot_de_passe: motDePasse })
+  }
+
   function rafraichir(): Promise<void> {
     rafraichissementEnCours ??= appeler<ReponseJetons>('/api/v1/auth/rafraichir')
       .then(ouvrir)
@@ -106,7 +119,7 @@ export function useSession() {
 
   return {
     jeton, utilisateur, prete, connexion, inscription, demanderCode, reinitialiser, changerMotDePasse,
-    rafraichir, attendre, deconnexion, aLeRole,
+    mesDonnees, supprimerCompte, fermer, rafraichir, attendre, deconnexion, aLeRole,
   }
 }
 

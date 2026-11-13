@@ -95,4 +95,5 @@ sans argent réel (refusé en production).
 - [x] Mot de passe oublié (code par SMS) et « Mon compte » (changement du mot de passe)
 - [x] Tableau de bord de l'équipe : ventes, encaissements, délais, devis, avis, meilleures ventes, alertes du jour
 - [x] Durées de conservation appliquées chaque nuit (anonymisation, effacement), alertes SMS à l'équipe
+- [x] Droits des personnes : téléchargement de ses données et suppression du compte
 - [ ] Pharmacien partenaire (janvier 2027)

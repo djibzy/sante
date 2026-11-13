@@ -89,6 +89,17 @@ async def charger_pour_client(session: AsyncSession, reference: str, cle: str | 
     return commande
 
 
+async def charger_du_client(session: AsyncSession, client_id: UUID) -> list[Commande]:
+    """Toutes les commandes passées avec ce compte, complètes, les plus récentes d'abord."""
+    requete = (
+        select(Commande)
+        .options(*_COMPLETE)
+        .where(Commande.client_id == client_id)
+        .order_by(Commande.cree_le.desc())
+    )
+    return list((await session.execute(requete)).scalars())
+
+
 async def charger_pour_compte(session: AsyncSession, reference: str, client_id: UUID) -> Commande:
     """Commande passée avec ce compte ; même réponse qu'une référence inconnue sinon."""
     commande = await charger(session, reference)

@@ -7,6 +7,7 @@ const { data: metiers } = await useBoutiqueFetch<Metier[]>('/api/v1/metiers')
 const { data: nouveautes } = await useBoutiqueFetch<PageProduits>('/api/v1/produits', { query: { nouveau: true, tri: 'nouveautes', par_page: 4 } })
 const { data: essentiels } = await useBoutiqueFetch<PageProduits>('/api/v1/produits', { query: { collection: 'Essentielle', par_page: 4 } })
 const tenues = computed(() => (rayons.value ?? []).filter(r => r.univers === 'tenues'))
+const compteSupprime = useRoute().query.compte === 'supprime'
 const AUTRES = [
   { titre: 'Kits de soins', texte: 'Hygiène, premiers secours, relais communautaires.', lien: '/rayons/kits', picto: 'kits' },
   { titre: 'Matériel médical', texte: 'Thermomètres, tensiomètres, et le pharmacien partenaire.', lien: '/rayons/materiel-medical', picto: 'materiel-medical' },
@@ -17,6 +18,9 @@ const AUTRES = [
 
 <template>
   <div>
+    <p v-if="compteSupprime" class="conteneur alerte alerte-succes au-revoir" role="status">
+      Votre compte est supprimé. Merci d'avoir fait confiance à Bibou.
+    </p>
     <section class="bandeau">
       <div class="conteneur bandeau-contenu">
         <div>
@@ -96,6 +100,7 @@ const AUTRES = [
 </template>
 
 <style scoped>
+.au-revoir { margin-top: 16px; }
 .bandeau { background: var(--primaire); color: #fff; overflow: hidden; }
 .bandeau-contenu { display: grid; grid-template-columns: minmax(0, 1fr); align-items: center; gap: 24px; padding-top: 36px; padding-bottom: 28px; }
 @media (min-width: 820px) { .bandeau-contenu { grid-template-columns: minmax(0, 1fr) 260px; padding-top: 52px; } }

@@ -5,7 +5,7 @@ from fastapi import FastAPI
 from comptes.cles import charger_cle_privee, jwk_public, pem_public
 from comptes.config import ParametresComptes
 from comptes.jetons import Signataire
-from comptes.routes import auth, cles, organisations
+from comptes.routes import auth, cles, donnees, organisations
 from socle.application import creer_application
 
 
@@ -17,7 +17,7 @@ def creer_app(parametres: ParametresComptes | None = None) -> FastAPI:
         service="comptes",
         titre="Comptes : connexion unique",
         parametres=p,
-        routeurs=[auth.routeur, organisations.routeur, cles.routeur],
+        routeurs=[auth.routeur, donnees.routeur, organisations.routeur, cles.routeur],
         cle_publique_pem=pem_public(cle_publique),
     )
     app.state.signataire = Signataire(

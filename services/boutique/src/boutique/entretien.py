@@ -14,6 +14,7 @@
 
 from dataclasses import asdict, dataclass
 from datetime import UTC, datetime, timedelta
+from uuid import UUID
 
 from sqlalchemy import CursorResult, and_, delete, exists, or_, select, update
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
@@ -56,6 +57,34 @@ def _nombre(resultat: object) -> int:
     return resultat.rowcount if isinstance(resultat, CursorResult) else 0
 
 
+async def anonymiser(session: AsyncSession, commandes: list[UUID]) -> None:
+    """Retire des commandes tout ce qui désigne la personne ; montants et articles restent."""
+    if not commandes:
+        return
+    await session.execute(
+        update(Commande)
+        .where(Commande.id.in_(commandes))
+        .values(
+            nom_client=NOM_ANONYME,
+            telephone=ANONYME,
+            email=None,
+            adresse="",
+            note_client="",
+            client_id=None,
+        )
+    )
+    await session.execute(
+        update(LigneCommande)
+        .where(LigneCommande.commande_id.in_(commandes))
+        .values(personnalisation=None)
+    )
+    await session.execute(
+        update(EvenementCommande)
+        .where(EvenementCommande.commande_id.in_(commandes))
+        .values(note="")
+    )
+
+
 async def _anonymiser_commandes(session: AsyncSession, maintenant: datetime) -> int:
     facturee = exists().where(Facture.commande_id == Commande.id)
     facture_ancienne = exists().where(
@@ -76,28 +105,7 @@ async def _anonymiser_commandes(session: AsyncSession, maintenant: datetime) -> 
             )
         )
     )
-    if not cibles:
-        return 0
-    await session.execute(
-        update(Commande)
-        .where(Commande.id.in_(cibles))
-        .values(
-            nom_client=NOM_ANONYME,
-            telephone=ANONYME,
-            email=None,
-            adresse="",
-            note_client="",
-            client_id=None,
-        )
-    )
-    await session.execute(
-        update(LigneCommande)
-        .where(LigneCommande.commande_id.in_(cibles))
-        .values(personnalisation=None)
-    )
-    await session.execute(
-        update(EvenementCommande).where(EvenementCommande.commande_id.in_(cibles)).values(note="")
-    )
+    await anonymiser(session, cibles)
     return len(cibles)
 
 
