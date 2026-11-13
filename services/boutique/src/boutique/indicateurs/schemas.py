@@ -46,6 +46,26 @@ class VenteProduit(BaseModel):
     montant: int
 
 
+class TailleCommandee(BaseModel):
+    taille: str
+    quantite: int
+
+
+class TaillesDuProduit(BaseModel):
+    """Répartition des tailles d'un article : de quoi couper d'avance et réassortir."""
+
+    produit_slug: str
+    libelle: str
+    quantite: int
+    tailles: list[TailleCommandee]  # XS < S < M … puis les pointures
+
+
+class CouleurCommandee(BaseModel):
+    couleur: str
+    couleur_hex: str | None
+    quantite: int
+
+
 class Alertes(BaseModel):
     a_traiter: int = Field(description="Commandes à confirmer et devis demandés")
     acomptes_attendus: int = Field(description="Confirmées, fabrication en attente de l'acompte")
@@ -71,6 +91,10 @@ class TableauDeBord(BaseModel):
     delais: Delais
     clients: Clients
     meilleures_ventes: list[VenteProduit]
+    tailles: list[TaillesDuProduit] = Field(
+        default_factory=list, description="Commandes passées sur la période, hors annulées"
+    )
+    couleurs: list[CouleurCommandee] = Field(default_factory=list)
     alertes: Alertes
     pas: Literal["jour", "semaine"]
     serie: list[Point] = Field(description="Chiffre d'affaires remis, par jour ou par semaine")

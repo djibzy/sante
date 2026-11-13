@@ -238,6 +238,12 @@ watch([verifie, () => route.query], charger, { deep: true })
             </table>
           </div>
         </div>
+
+        <div class="carte bloc">
+          <h2>Tailles et couleurs commandées</h2>
+          <p class="aide">Commandes passées sur la période, hors annulées : de quoi couper d'avance et réassortir.</p>
+          <TaillesCommandees :produits="donnees.tailles" :couleurs="donnees.couleurs" />
+        </div>
       </div>
       <p v-else-if="!erreur" class="aide">Chargement…</p>
     </AccesEquipe>
@@ -270,6 +276,7 @@ watch([verifie, () => route.query], charger, { deep: true })
 .tuile .detail { color: var(--texte-doux); font-size: 0.85rem; }
 .bloc { padding: 18px; display: grid; gap: 10px; align-content: start; }
 .bloc h2 { margin: 0; font-size: 1.1rem; }
+.bloc > .aide { margin: 0; }
 .colonnes { display: grid; gap: 16px; grid-template-columns: repeat(auto-fit, minmax(min(100%, 280px), 1fr)); }
 .mesures { margin: 0; display: grid; gap: 8px; }
 .mesures div { display: flex; justify-content: space-between; gap: 12px; }

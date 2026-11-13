@@ -15,10 +15,13 @@ from boutique.commandes.cycle import EN_ATTENTE_DE_L_EQUIPE, Statut
 from boutique.indicateurs.schemas import (
     Alertes,
     Clients,
+    CouleurCommandee,
     Delais,
     Devis,
     Point,
     TableauDeBord,
+    TailleCommandee,
+    TaillesDuProduit,
     VenteProduit,
     Ventes,
 )
@@ -32,7 +35,9 @@ from boutique.models import (
     Produit,
     Remboursement,
     TransactionPaiement,
+    Variante,
 )
+from boutique.vues import rang_taille
 
 EN_COURS = (Statut.CONFIRMEE, Statut.EN_PREPARATION, Statut.PRETE, Statut.EN_LIVRAISON)
 JOURS_PAR_POINT_MAX = 31  # au-delà, la série est donnée par semaine
@@ -247,6 +252,78 @@ async def _meilleures_ventes(
     ]
 
 
+# Commandes qui ne comptent pas dans la demande : devis pas encore acceptés, refusés, annulées.
+HORS_DEMANDE = (Statut.DEVIS_DEMANDE, Statut.DEVIS_ENVOYE, Statut.DEVIS_REFUSE, Statut.ANNULEE)
+
+
+async def _tailles_et_couleurs(
+    session: AsyncSession, debut: datetime, fin: datetime, nombre: int = 8
+) -> tuple[list[TaillesDuProduit], list[CouleurCommandee]]:
+    """Ce qui est commandé (et pas seulement remis) : l'atelier coupe et l'équipe réassortit
+    d'après la demande."""
+    requete = (
+        select(
+            Produit.slug,
+            Produit.nom,
+            Variante.taille,
+            Variante.couleur,
+            Variante.couleur_hex,
+            func.sum(LigneCommande.quantite),
+        )
+        .select_from(LigneCommande)
+        .join(Commande, Commande.id == LigneCommande.commande_id)
+        .join(Variante, Variante.id == LigneCommande.variante_id)
+        .join(Produit, Produit.id == LigneCommande.produit_id)
+        .where(
+            Commande.cree_le >= debut,
+            Commande.cree_le < fin,
+            Commande.statut.not_in(HORS_DEMANDE),
+        )
+        .group_by(
+            Produit.slug, Produit.nom, Variante.taille, Variante.couleur, Variante.couleur_hex
+        )
+    )
+    par_produit: dict[str, tuple[str, dict[str, int]]] = {}
+    couleurs: dict[str, tuple[str | None, int]] = {}
+    for slug, nom, taille, couleur, teinte, quantite in await session.execute(requete):
+        if taille:
+            tailles = par_produit.setdefault(slug, (nom, {}))[1]
+            tailles[taille] = tailles.get(taille, 0) + int(quantite)
+        if couleur:
+            deja = couleurs.get(couleur, (teinte, 0))
+            couleurs[couleur] = (deja[0] or teinte, deja[1] + int(quantite))
+    retenus = sorted(par_produit, key=lambda slug: (-sum(par_produit[slug][1].values()), slug))
+    retenus = retenus[:nombre]
+    # Toute la gamme de l'article, même les tailles que personne n'a prises : un trou entre
+    # S et XXL se voit, au lieu de rapprocher deux tailles qui ne se suivent pas.
+    gammes = await session.execute(
+        select(Produit.slug, Variante.taille)
+        .join(Variante, Variante.produit_id == Produit.id)
+        .where(Produit.slug.in_(retenus), Variante.est_active, Variante.taille.is_not(None))
+        .distinct()
+    )
+    for slug, taille in gammes:
+        if taille:  # filtré en SQL ; rassure le typage
+            par_produit[slug][1].setdefault(taille, 0)
+    produits = [
+        TaillesDuProduit(
+            produit_slug=slug,
+            libelle=par_produit[slug][0],
+            quantite=sum(par_produit[slug][1].values()),
+            tailles=[
+                TailleCommandee(taille=t, quantite=q)
+                for t, q in sorted(par_produit[slug][1].items(), key=lambda e: rang_taille(e[0]))
+            ],
+        )
+        for slug in retenus
+    ]
+    produits.sort(key=lambda p: (-p.quantite, p.libelle))
+    return produits, [
+        CouleurCommandee(couleur=c, couleur_hex=teinte, quantite=q)
+        for c, (teinte, q) in sorted(couleurs.items(), key=lambda e: (-e[1][1], e[0]))
+    ]
+
+
 async def _alertes(session: AsyncSession, aujourd_hui: date) -> Alertes:
     a_traiter = await session.scalar(
         select(func.count())
@@ -318,6 +395,7 @@ async def tableau_de_bord(
 ) -> TableauDeBord:
     debut, fin = _bornes(du, au)
     pas, serie = await _serie(session, du, au)
+    tailles, couleurs = await _tailles_et_couleurs(session, debut, fin)
     return TableauDeBord.model_validate(
         {
             "du": du,
@@ -327,6 +405,8 @@ async def tableau_de_bord(
             "delais": await _delais(session, debut, fin),
             "clients": await _clients(session, debut, fin),
             "meilleures_ventes": await _meilleures_ventes(session, debut, fin),
+            "tailles": tailles,
+            "couleurs": couleurs,
             "alertes": await _alertes(session, aujourd_hui or datetime.now(UTC).date()),
             "pas": pas,
             "serie": serie,

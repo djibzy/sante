@@ -18,6 +18,9 @@ export interface TableauDeBord {
   delais: { confirmation_heures: number | null, livraison_jours: number | null, a_l_heure: number | null }
   clients: { clients: number, nouveaux: number, avis_publies: number, note_moyenne: number | null, avis_a_relire: number }
   meilleures_ventes: { produit_slug: string | null, libelle: string, quantite: number, montant: number }[]
+  // Commandes passées sur la période, hors annulées : tailles dans l'ordre XS < S < M …
+  tailles: { produit_slug: string, libelle: string, quantite: number, tailles: { taille: string, quantite: number }[] }[]
+  couleurs: { couleur: string, couleur_hex: string | null, quantite: number }[]
   alertes: {
     a_traiter: number, acomptes_attendus: number, en_retard: number, stock_bas: number,
     sms_en_echec: number, paiements_a_verifier: number, a_rembourser: number, montant_a_rembourser: number,

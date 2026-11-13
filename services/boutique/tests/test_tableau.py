@@ -145,3 +145,32 @@ async def test_periode_par_semaine_et_bornes(client: AsyncClient) -> None:
     atelier = jeton(["boutique:atelier"])
     refuse = await client.get("/api/v1/admin/tableau-de-bord", headers=atelier)
     assert refuse.status_code == 403
+
+
+async def test_tailles_et_couleurs_commandees(client: AsyncClient) -> None:
+    blouse = await fiche(client, "blouse-medicale-brodee")
+    blanc = next(v for v in blouse["variantes"] if v["taille"] == "M")
+    await commander(client, [await ligne(client, "blouse-medicale-brodee", "M", quantite=2)])
+    await commander(
+        client,
+        [await ligne(client, "blouse-medicale-brodee", "XL"), await ligne(client, "kit-hygiene")],
+    )
+    await commander(client, [await ligne(client, "blouse-medicale-brodee", "S")])
+    annulee = await commander(client, [await ligne(client, "blouse-medicale-brodee", "L")])
+    await statut(client, annulee["commande"]["reference"], "annulee")  # pas de la demande
+
+    donnees = await tableau(client, du=str(AUJOURD_HUI), au=str(AUJOURD_HUI))
+    assert donnees["tailles"] == [
+        {
+            "produit_slug": "blouse-medicale-brodee",
+            "libelle": blouse["nom"],
+            "quantite": 4,
+            "tailles": [  # toute la gamme, dans l'ordre des tailles (L annulée : zéro)
+                {"taille": t, "quantite": q}
+                for t, q in (("S", 1), ("M", 2), ("L", 0), ("XL", 1), ("XXL", 0))
+            ],
+        }
+    ]
+    assert donnees["couleurs"] == [
+        {"couleur": blanc["couleur"], "couleur_hex": blanc["couleur_hex"], "quantite": 4}
+    ]
