@@ -2,7 +2,8 @@
 (exception, hydratation, politique de sécurité du contenu), passe les règles d'accessibilité
 WCAG 2.1 A et AA vérifiées par axe-core (défauts graves et critiques), et les gestes essentiels
 marchent (choisir une taille, ajouter au panier, commander, filtrer par couleur, corriger les
-articles d'une commande, faire payer un proche, encaisser, annuler et rembourser). Les services, la boutique et un
+articles d'une commande, faire payer un proche, encaisser, annuler, rembourser, commander à
+nouveau). Les services, la boutique et un
 compte de l'équipe doivent tourner (voir .github/workflows/ci.yml).
 
     python essais/balayage.py            # BIBOU_ADRESSE=http://localhost:3000 par défaut
@@ -152,6 +153,17 @@ def main() -> int:
         page.get_by_role("button", name="Enregistrer le remboursement").click()
         expect(page.locator(".remboursement")).to_have_count(0)
         expect(page.locator(".rendus li")).to_have_count(1)
+
+        # Annulée : le client remet les mêmes articles dans son panier.
+        cliente = navigateur.new_context(viewport={"width": 390, "height": 844}).new_page()
+        cliente.on("pageerror", lambda e: noter(f"exception : {e}"))
+        cliente.goto(suivi, wait_until="networkidle")
+        cliente.get_by_role("button", name="Commander à nouveau").click()
+        cliente.wait_for_url(f"{ADRESSE}/panier")
+        expect(cliente.locator(".reprise")).to_contain_text(reference)
+        expect(cliente.locator(".ligne")).to_have_count(1)
+        courante["chemin"] = "/panier (commander à nouveau)"
+        erreurs.extend(f"/panier (reprise) : accessibilité, {d}" for d in accessibilite(cliente))
         navigateur.close()
 
     print(f"{len(PUBLIQUES) + len(EQUIPE) + 2} pages parcourues.")

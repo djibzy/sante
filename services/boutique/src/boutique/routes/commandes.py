@@ -12,7 +12,9 @@ from boutique.atelier import delais
 from boutique.commandes import acces, acompte, operations
 from boutique.commandes.cycle import ANNULABLES_PAR_CLIENT, Statut
 from boutique.commandes.pdf import reponse_devis, reponse_facture
+from boutique.commandes.recommande import a_recommander
 from boutique.commandes.schemas import (
+    ARecommander,
     Chiffrage,
     CommandeClient,
     CommandeCreee,
@@ -198,6 +200,31 @@ async def suivre(
     reference: str, cle: str | None = CLE, session: AsyncSession = Depends(session_db)
 ) -> CommandeClient:
     return vue_client(await acces.charger_pour_client(session, reference, cle))
+
+
+@routeur.get(
+    "/suivi/{reference}/a-recommander",
+    summary="Commander à nouveau : les articles encore disponibles, prêts pour le panier",
+    dependencies=[LIMITE_LECTURES],
+)
+async def recommander_suivi(
+    reference: str, cle: str | None = CLE, session: AsyncSession = Depends(session_db)
+) -> ARecommander:
+    commande = await acces.charger_pour_client(session, reference, cle)
+    return await a_recommander(session, commande, professionnel=False)
+
+
+@routeur.get(
+    "/mes-commandes/{reference}/a-recommander",
+    summary="Commander à nouveau : les articles encore disponibles, prêts pour le panier",
+)
+async def recommander_mienne(
+    reference: str,
+    principal: Principal = Depends(principal_requis),
+    session: AsyncSession = Depends(session_db),
+) -> ARecommander:
+    commande = await acces.charger_pour_compte(session, reference, principal.id)
+    return await a_recommander(session, commande, professionnel=principal.a_role(ROLE_PRO))
 
 
 async def _annuler(

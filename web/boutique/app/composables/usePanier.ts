@@ -25,6 +25,13 @@ const CLE_SUIVIS = 'bibou-suivis'
 const CLE_CODE = 'bibou-code-promo'
 const QUANTITE_MAX = 500
 
+/** « Commander à nouveau » : ce qui vient d'être repris d'une commande, et ce qui ne l'a pas été. */
+export interface Reprise {
+  reference: string
+  ajoutes: number
+  ecartes: string[]
+}
+
 export interface SuiviLocal {
   reference: string
   cle: string
@@ -56,6 +63,7 @@ export function usePanier() {
   // Code de réduction saisi au panier ; le serveur le vérifie au chiffrage puis à la commande.
   const codePromo = useState<string>('code-promo', () => '')
   const nombre = computed(() => lignes.value.reduce((total, l) => total + l.quantite, 0))
+  const reprise = useState<Reprise | null>('panier-reprise', () => null)
 
   function restaurer() {
     lignes.value = lire<LignePanier[]>(CLE_PANIER, [])
@@ -110,7 +118,7 @@ export function usePanier() {
   })))
 
   return {
-    lignes, livraison, suivis, nombre, demande, codePromo,
+    lignes, livraison, suivis, nombre, demande, codePromo, reprise,
     restaurer, ajouter, changerQuantite, vider, retenirSuivi, choisirCode,
   }
 }

@@ -1,3 +1,5 @@
+import type { LignePanier } from '~/composables/usePanier'
+
 export type Statut =
   | 'devis_demande' | 'devis_envoye' | 'devis_refuse' | 'en_attente' | 'acompte_attendu'
   | 'confirmee' | 'en_preparation' | 'prete' | 'en_livraison' | 'livree' | 'annulee'
@@ -38,6 +40,12 @@ export interface Chiffrage {
   acompte: number // à régler une fois la commande confirmée, non remboursable
   date_estimee: string
   commandable: boolean
+}
+
+/** « Commander à nouveau » : lignes prêtes pour le panier, et ce qui ne revient pas (raison). */
+export interface ARecommander {
+  lignes: LignePanier[]
+  ecartes: string[]
 }
 
 export interface LigneCommande {

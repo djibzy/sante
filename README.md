@@ -114,6 +114,7 @@ jours (`BOUTIQUE_RELANCE_DEVIS_JOURS`).
 - [x] Remboursements enregistrés (trop-perçu, annulation) : onglet « À rembourser », alerte du tableau de bord, SMS au client, sorties de caisse dans l'export des encaissements
 - [x] Lien de paiement à envoyer à un proche (WhatsApp, partage, copie) : il voit le montant et les articles, ni téléphone ni adresse, et paie en ligne ; un nouveau lien remplace l'ancien
 - [x] Tableau de bord : tailles (toute la gamme, zéros compris) et couleurs commandées sur la période, pour couper d'avance et réassortir
+- [x] « Commander à nouveau » depuis une commande remise ou annulée : les articles encore proposés reviennent au panier (même broderie), le reste est signalé avec sa raison
 - [x] Rappels SMS automatiques : acompte attendu, devis bientôt expiré
 - [x] Taille conseillée d'après ses mesures (fiche produit et guide des tailles) ; plan du site et robots.txt
 - [x] Commande pour une équipe : le même article brodé au nom de chacun (liste saisie ou collée depuis un tableur), puis commande ou devis

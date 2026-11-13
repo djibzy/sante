@@ -316,6 +316,25 @@ class NouveauPaiement(BaseModel):
         return moyen
 
 
+class LigneARecommander(BaseModel):
+    """Ligne prête pour le panier de l'appareil (mêmes champs que lui)."""
+
+    produit_id: UUID
+    variante_id: UUID | None
+    quantite: int
+    personnalisation: str | None
+    slug: str
+    nom: str
+    variante: str | None
+    rayon_slug: str
+    prix_indicatif: int | None
+
+
+class ARecommander(BaseModel):
+    lignes: list[LigneARecommander]
+    ecartes: list[str] = Field(description="Articles qui ne reviennent pas au panier, et pourquoi")
+
+
 class NouveauRemboursement(BaseModel):
     montant: int = Field(ge=1, le=100_000_000)
     moyen: Moyen

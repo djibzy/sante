@@ -1,6 +1,7 @@
 <script setup lang="ts">
 useSeoMeta({ title: 'Panier', robots: 'noindex' })
-const { lignes, changerQuantite } = usePanier()
+const { lignes, changerQuantite, reprise } = usePanier()
+onBeforeUnmount(() => { reprise.value = null }) // le message ne vaut que pour cette visite
 const { chiffrage, zones, enCours, erreur } = useChiffrage()
 const monte = ref(false)
 onMounted(() => { monte.value = true })
@@ -14,6 +15,14 @@ const aLaDemande = (index: number) => !!chiffrage.value?.acompte && !!chiffrage.
 <template>
   <section class="conteneur panier">
     <h1>Panier</h1>
+    <div v-if="reprise" class="alerte alerte-info reprise" role="status">
+      <p v-if="reprise.ajoutes">Articles de la commande {{ reprise.reference }} ajoutés : vérifiez tailles et quantités.</p>
+      <p v-else>Aucun article de la commande {{ reprise.reference }} n'est encore proposé.</p>
+      <template v-if="reprise.ecartes.length">
+        <p>Non repris :</p>
+        <ul><li v-for="e in reprise.ecartes" :key="e">{{ e }}</li></ul>
+      </template>
+    </div>
     <p v-if="!monte" class="aide">Chargement du panier…</p>
     <div v-else-if="!lignes.length" class="carte vide">
       <p>Votre panier est vide.</p>
@@ -61,6 +70,9 @@ const aLaDemande = (index: number) => !!chiffrage.value?.acompte && !!chiffrage.
 </template>
 
 <style scoped>
+.reprise { display: grid; gap: 4px; margin-bottom: 16px; }
+.reprise p, .reprise ul { margin: 0; }
+.reprise ul { padding-left: 1.2em; }
 .panier { padding-top: 24px; }
 .vide { padding: 24px; display: grid; justify-items: start; gap: 8px; }
 .colonnes { display: grid; gap: 20px; }

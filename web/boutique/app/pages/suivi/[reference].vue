@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type { Commande } from '~/types/commandes'
+import type { ARecommander, Commande } from '~/types/commandes'
 import { classeStatut } from '~/types/commandes'
 
 const route = useRoute()
@@ -17,6 +17,23 @@ const chargement = ref(true)
 const action = ref<'annulation' | 'acceptation' | null>(null)
 const confirmerAnnulation = ref(false)
 const copie = ref(false)
+const { ajouter, reprise } = usePanier()
+const reprendre = ref(false)
+
+// Les mêmes articles dans le panier : le serveur dit ce qui est encore proposé.
+async function commanderANouveau() {
+  reprendre.value = true
+  try {
+    const resultat = await appeler<ARecommander>(`${base.value}/a-recommander`, { query: requete.value })
+    resultat.lignes.forEach(ajouter)
+    reprise.value = { reference, ajoutes: resultat.lignes.length, ecartes: resultat.ecartes }
+    await navigateTo('/panier')
+  } catch (e) {
+    erreur.value = messageErreur(e)
+  } finally {
+    reprendre.value = false
+  }
+}
 
 // Avec la clé du lien : suivi public. Sans clé : commande du compte connecté.
 const base = computed(() => cle.value ? `/api/v1/suivi/${reference}` : `/api/v1/mes-commandes/${reference}`)
@@ -134,6 +151,12 @@ onMounted(charger)
         <div class="carte bloc">
           <h2>Articles</h2>
           <DetailCommande :commande="commande" />
+          <button
+            v-if="!commande.est_devis && ['livree', 'annulee'].includes(commande.statut)" type="button"
+            class="bouton bouton-secondaire" :disabled="reprendre" @click="commanderANouveau"
+          >
+            {{ reprendre ? 'Préparation du panier…' : 'Commander à nouveau' }}
+          </button>
         </div>
         <aside class="carte bloc">
           <template v-if="commande.devis_disponible">
