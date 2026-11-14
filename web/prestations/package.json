@@ -5,6 +5,7 @@
   "scripts": {
     "dev": "nuxt dev --port 3001",
     "build": "nuxt build",
+    "typecheck": "nuxt typecheck",
     "preview": "node .output/server/index.mjs",
     "postinstall": "nuxt prepare"
   },
@@ -14,6 +15,9 @@
     "vue-router": "4.6.4"
   },
   "devDependencies": {
-    "axe-core": "^4.10.3"
+    "@types/node": "^26.6.6",
+    "axe-core": "^4.10.3",
+    "typescript": "^6.0.3",
+    "vue-tsc": "^3.3.14"
   }
 }

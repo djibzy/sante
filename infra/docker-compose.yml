@@ -207,6 +207,26 @@ services:
     depends_on:
       postgres: { condition: service_healthy }
 
+  # Alerte par SMS quand un service ne répond plus (voir docs/exploitation.md). À lancer de
+  # préférence depuis une autre machine que le serveur surveillé :
+  #   docker compose --profile surveillance up -d surveillance
+  surveillance:
+    profiles: ["surveillance"]
+    build:
+      context: ..
+      dockerfile: infra/python.Dockerfile
+      args: { SERVICE: comptes }
+    restart: unless-stopped
+    command: ["python", "-m", "socle.surveillance"]
+    environment:
+      SURVEILLANCE_ADRESSES: https://comptes.${DOMAINE}/sante,https://boutique.${DOMAINE}/sante,https://prestations.${DOMAINE}/sante
+      SURVEILLANCE_DESTINATAIRES: ${SURVEILLANCE_DESTINATAIRES:?numéros E.164 à prévenir, séparés par des virgules}
+      SURVEILLANCE_SMS_FOURNISSEUR: ${SMS_FOURNISSEUR:-journal}
+      SURVEILLANCE_SMS_EXPEDITEUR: ${SMS_EXPEDITEUR:-}
+      SURVEILLANCE_SMS_NOM_EXPEDITEUR: ${SMS_NOM_EXPEDITEUR:-}
+      SURVEILLANCE_ORANGE_CLIENT_ID: ${ORANGE_CLIENT_ID:-}
+      SURVEILLANCE_ORANGE_CLIENT_SECRET: ${ORANGE_CLIENT_SECRET:-}
+
   caddy:
     image: caddy:2
     restart: unless-stopped

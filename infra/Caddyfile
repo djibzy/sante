@@ -26,6 +26,10 @@ comptes.{$DOMAINE} {
 
 boutique.{$DOMAINE} {
 	import securite
+	handle /sante {
+		reverse_proxy boutique:8000
+	}
+
 	handle /api/* {
 		reverse_proxy boutique:8000
 	}
@@ -41,6 +45,10 @@ boutique.{$DOMAINE} {
 
 prestations.{$DOMAINE} {
 	import securite
+	handle /sante {
+		reverse_proxy prestations:8000
+	}
+
 	handle /api/* {
 		reverse_proxy prestations:8000
 	}

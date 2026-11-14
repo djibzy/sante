@@ -17,7 +17,7 @@ export function useApi(baseURL: string) {
   }
 
   async function appeler<T>(chemin: string, options: OptionsAppel = {}): Promise<T> {
-    const essai = () => $fetch<T>(chemin, { baseURL, ...options, headers: entetes() })
+    const essai = () => $fetch(chemin, { baseURL, ...options, headers: entetes() }) as Promise<T>
     try {
       return await essai()
     } catch (e) {

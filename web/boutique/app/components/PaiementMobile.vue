@@ -128,7 +128,7 @@ watch(() => [props.commande.statut, props.commande.montant_paye], () => { lire()
 </script>
 
 <template>
-  <section v-if="visible" class="paiement" aria-labelledby="titre-paiement">
+  <section v-if="visible && etat" class="paiement" aria-labelledby="titre-paiement">
     <h2 id="titre-paiement">Paiement en ligne</h2>
     <p v-if="message" :class="['alerte', message.classe]" role="status">{{ message.texte }}</p>
     <p v-if="attente" class="aide">Nous attendons la réponse de votre opérateur…</p>
