@@ -3,7 +3,8 @@ et s'hydrate sans erreur, passe les règles WCAG 2.1 A et AA vérifiées par axe
 graves et critiques), ne déborde pas d'un écran de téléphone, et le service marche de bout en
 bout : une structure demande une visite, la gestion signe le contrat, l'agent enlève le linge en
 le comptant, le dépose chez le partenaire, le rend avec une pièce manquante, le relevé du mois
-tombe juste ; l'agent de terrain n'a pas accès à la gestion.
+tombe juste ; l'agent de terrain n'a pas accès à la gestion. Sur un réseau lent, ce qui est tapé
+et envoyé avant que la page soit prête n'est pas perdu.
 
 Les services, l'interface, les données de démonstration (prestations.donnees_demo) et deux
 comptes de l'équipe doivent exister (voir .github/workflows/ci.yml).
@@ -71,6 +72,48 @@ class Controle:
             self.erreurs.append(f"{etape} : la page déborde de l'écran")
 
 
+def reseau_lent(controle: Controle) -> None:
+    """Les scripts de la page sont retenus le temps de taper et d'envoyer, comme sur un réseau
+    lent : une fois libérés, la saisie est toujours là et l'envoi part (charte commune)."""
+    controle.etape = "réseau lent"
+    page = controle.contexte().new_page()
+    retenus: list = []
+    libres = {"oui": False}
+
+    def retenir(route) -> None:  # noqa: ANN001
+        if libres["oui"]:
+            route.continue_()
+        else:
+            retenus.append(route)
+
+    page.route(lambda url: "/_nuxt/" in url and url.split("?")[0].endswith(".js"), retenir)
+
+    def liberer() -> None:
+        libres["oui"] = True
+        for route in retenus:
+            route.continue_()
+        retenus.clear()
+
+    page.goto(f"{ADRESSE}/entretien-du-linge", wait_until="commit")
+    page.wait_for_selector("#structure")
+    page.fill("#structure", "Clinique du réseau lent")
+    page.select_option("#type", "maternite")
+    liberer()
+    page.wait_for_load_state("networkidle")
+    page.wait_for_timeout(300)
+    if (page.input_value("#structure"), page.input_value("#type")) != ("Clinique du réseau lent", "maternite"):
+        controle.erreurs.append("réseau lent : la saisie faite avant le chargement est perdue")
+
+    libres["oui"] = False
+    page.goto(f"{ADRESSE}/connexion", wait_until="commit")
+    page.wait_for_selector("#mot-de-passe")
+    page.fill("#telephone", TERRAIN)
+    page.fill("#mot-de-passe", MOT_DE_PASSE)
+    page.click("button[type=submit]")  # trop tôt : retenu, puis rejoué
+    liberer()
+    page.wait_for_url(f"{ADRESSE}/equipe")
+
+
 def connecter(controle: Controle, telephone: str, largeur: int = 390) -> Page:
     page = controle.contexte(largeur).new_page()
     page.goto(f"{ADRESSE}/connexion", wait_until="networkidle")
@@ -89,6 +132,7 @@ def main() -> int:
     telephone = f"7{random.randint(1, 9)} {random.randint(10, 99)} {random.randint(10, 99)} {random.randint(10, 99)}"
     with sync_playwright() as p:
         controle = Controle(p.chromium.launch())
+        reseau_lent(controle)
 
         # La structure découvre l'offre et demande une visite.
         page = controle.contexte().new_page()
