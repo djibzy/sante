@@ -155,6 +155,9 @@ class Contrat(IdMixin, HorodatageMixin, Base):
     pieces_incluses: Mapped[int | None] = mapped_column()  # par mois ; vide : sans limite
     prix_piece_supplementaire: Mapped[int | None] = mapped_column()
     sms_actifs: Mapped[bool] = mapped_column(nullable=False, default=True, server_default=true())
+    # Lien de suivi de la structure (messagerie) : seule l'empreinte est gardée ; vide tant que
+    # l'équipe n'a pas envoyé le lien.
+    empreinte_cle_suivi: Mapped[str | None] = mapped_column(String(64), unique=True)
     debut_le: Mapped[date] = mapped_column(Date, nullable=False)
     fin_le: Mapped[date | None] = mapped_column(Date)
     notes: Mapped[str] = mapped_column(Text, nullable=False, default="", server_default="")
@@ -305,6 +308,39 @@ class LigneCollecte(IdMixin, Base):
     # manquait : le relevé prend alors le tarif du moment, ou signale qu'il est à fixer.
     prix_unitaire: Mapped[int | None] = mapped_column()
     cout_unitaire: Mapped[int | None] = mapped_column()
+
+
+class Message(IdMixin, Base):
+    """Message du fil d'un contrat, entre la structure et l'équipe. Jamais modifié : retiré avec
+    un motif (le texte est alors effacé) ; pas de donnée de santé."""
+
+    __tablename__ = "messages"
+    __table_args__ = (
+        CheckConstraint("auteur IN ('structure', 'equipe')", name="auteur_valide"),
+        Index("ix_messages_fil", "contrat_id", "cree_le"),
+        Index(
+            "ix_messages_a_lire",
+            "contrat_id",
+            "auteur",
+            postgresql_where=text("lu_le IS NULL AND retire_le IS NULL"),
+        ),
+    )
+
+    contrat_id: Mapped[UUID] = mapped_column(
+        ForeignKey("contrats.id", ondelete="CASCADE"), nullable=False
+    )
+    auteur: Mapped[str] = mapped_column(String(10), nullable=False)
+    auteur_id: Mapped[UUID | None] = mapped_column(Uuid)  # membre de l'équipe
+    nom_auteur: Mapped[str] = mapped_column(String(120), nullable=False, default="")
+    texte: Mapped[str] = mapped_column(Text, nullable=False, default="")
+    lu_le: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    notifie: Mapped[bool] = mapped_column(nullable=False, default=False, server_default=false())
+    retire_le: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    retire_par: Mapped[UUID | None] = mapped_column(Uuid)
+    motif_retrait: Mapped[str] = mapped_column(String(200), nullable=False, default="")
+    cree_le: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, default=_maintenant
+    )
 
 
 class Notification(IdMixin, Base):

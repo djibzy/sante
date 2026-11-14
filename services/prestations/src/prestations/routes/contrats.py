@@ -8,7 +8,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query, Request, status
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from prestations import acces, calendrier
+from prestations import acces, calendrier, messagerie
 from prestations.etats import StatutContrat, StatutDemande
 from prestations.models import Contrat, Demande, JournalAudit
 from prestations.routes import GESTION, adresse_ip
@@ -59,7 +59,13 @@ async def lister(
             Contrat.statut != StatutContrat.ACTIF, Contrat.structure
         )
     )
-    return [contrat_vue(c, f"DE-{numero}" if numero else None) for c, numero in resultat]
+    a_lire = await messagerie.compter_a_lire(session)
+    return [
+        contrat_vue(c, f"DE-{numero}" if numero else None).model_copy(
+            update={"messages_a_lire": a_lire.get(c.id, 0)}
+        )
+        for c, numero in resultat
+    ]
 
 
 @routeur.post("", status_code=status.HTTP_201_CREATED, summary="Signer un contrat")
@@ -111,7 +117,9 @@ async def detail(
     session: AsyncSession = Depends(session_db),
 ) -> ContratVue:
     contrat = await acces.contrat(session, reference)
-    return contrat_vue(contrat, await _demande_reference(session, contrat))
+    return contrat_vue(contrat, await _demande_reference(session, contrat)).model_copy(
+        update={"messages_a_lire": (await messagerie.compter_a_lire(session)).get(contrat.id, 0)}
+    )
 
 
 @routeur.patch("/{reference}", summary="Modifier un contrat (jours, tarifs, statut…)")

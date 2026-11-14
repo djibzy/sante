@@ -11,7 +11,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from prestations import calendrier
 from prestations.linge import SERVICES, Article, Service, nommer
-from prestations.models import Collecte, Demande, LigneCollecte, Notification
+from prestations.models import Collecte, Contrat, Demande, LigneCollecte, Notification
 from socle.sms import gsm
 from socle.telephones import afficher_telephone
 
@@ -122,3 +122,21 @@ def manque_pour_l_equipe(collecte: Collecte) -> str:
         f"Linge manquant au retour, bon {collecte.reference} "
         f"({collecte.contrat.structure[:40]}) : {_detail(manque)}.{partenaire}"
     )
+
+
+def lien_de_suivi(nom: str, contrat: Contrat, lien: str) -> str:
+    return (
+        f"{nom} : voici le suivi de votre contrat {contrat.reference} "
+        f"(collectes, messages avec nous) : {lien}"
+    )
+
+
+def message_pour_la_structure(nom: str, contrat: Contrat) -> str:
+    return (
+        f"{nom} : nouveau message sur votre contrat {contrat.reference}. "
+        "Ouvrez votre lien de suivi (reçu par SMS) pour le lire."
+    )
+
+
+def message_pour_l_equipe(contrat: Contrat) -> str:
+    return f"Message de {contrat.structure[:50]} sur {contrat.reference}. A lire dans la gestion."

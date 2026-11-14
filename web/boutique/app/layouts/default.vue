@@ -56,6 +56,7 @@ const whatsapp = computed(() => config.public.whatsapp ? `https://wa.me/${config
         <NuxtLink to="/confidentialite">Confidentialité</NuxtLink>
         <NuxtLink to="/mentions-legales">Mentions légales</NuxtLink>
       </nav>
+      <p class="signature-pied">par <strong>Yasal Santé</strong></p>
     </ChartePied>
   </div>
 </template>
@@ -70,6 +71,8 @@ const whatsapp = computed(() => config.public.whatsapp ? `https://wa.me/${config
 .colonnes-pied a { color: var(--texte); text-decoration: none; }
 .colonnes-pied a:hover { color: var(--primaire); text-decoration: underline; }
 .colonnes-pied p { margin: 0; }
+.signature-pied { text-align: center; margin: 20px 0 0 !important; font-size: 0.85rem; letter-spacing: 0.04em; color: var(--texte-doux) !important; }
+.signature-pied strong { color: var(--texte); }
 .titre-pied { font-weight: 800; color: var(--texte) !important; margin-bottom: 4px !important; }
 .liens-legaux { display: flex; flex-wrap: wrap; gap: 6px 16px; margin: 8px 0; }
 .liens-legaux a { color: var(--texte-doux); }

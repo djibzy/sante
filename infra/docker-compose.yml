@@ -121,6 +121,7 @@ services:
       PRESTATIONS_COORDONNEES: ${PRESTATIONS_COORDONNEES:-Bamako, Mali}
       PRESTATIONS_MENTIONS_LEGALES: ${PRESTATIONS_MENTIONS_LEGALES:-}
       PRESTATIONS_TELEPHONES_EQUIPE: ${PRESTATIONS_TELEPHONES_EQUIPE:-[]}
+      PRESTATIONS_URL_PUBLIQUE: https://prestations.${DOMAINE}
     depends_on:
       postgres: { condition: service_healthy }
 

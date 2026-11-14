@@ -295,6 +295,7 @@ class ContratVue(ContratResume):
     fin_le: date | None
     notes: str
     demande_reference: str | None
+    messages_a_lire: int = 0
     cree_le: datetime
 
 

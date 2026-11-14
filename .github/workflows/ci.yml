@@ -83,6 +83,7 @@ jobs:
       COMPTES_CORS_ORIGINES: '["http://localhost:3000", "http://localhost:3001"]'
       BOUTIQUE_CORS_ORIGINES: '["http://localhost:3000"]'
       PRESTATIONS_CORS_ORIGINES: '["http://localhost:3001"]'
+      PRESTATIONS_URL_PUBLIQUE: http://localhost:3001
       BOUTIQUE_PAIEMENT_MOBILE: simulation
       NUXT_PUBLIC_WHATSAPP: "22376000000"
     steps:

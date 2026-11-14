@@ -3,7 +3,15 @@
 from fastapi import FastAPI
 
 from prestations.config import ParametresPrestations
-from prestations.routes import collectes, contrats, demandes, partenaires, public, releves
+from prestations.routes import (
+    collectes,
+    contrats,
+    demandes,
+    messagerie,
+    partenaires,
+    public,
+    releves,
+)
 from socle.application import creer_application
 
 
@@ -19,5 +27,6 @@ def creer_app(parametres: ParametresPrestations | None = None) -> FastAPI:
             demandes.routeur,
             contrats.routeur,
             releves.routeur,
+            messagerie.routeur,
         ],
     )

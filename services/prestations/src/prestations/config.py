@@ -15,6 +15,9 @@ class ParametresPrestations(ParametresService, ParametresSms):
 
     database_url: str = "postgresql+asyncpg://postgres@localhost:5432/prestations"
 
+    # Adresse publique de l'interface (liens de suivi envoyés aux structures).
+    url_publique: str = ""
+
     # Nom qui signe les SMS et les relevés.
     nom_service: str = "Yasal Santé"
     # Imprimés sur les relevés mensuels : à compléter avant l'ouverture.

@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type { Contrat, Demande, Offre, PageCollectes, Partenaire } from '~/types/prestations'
+import type { Contrat, Demande, LienDeSuivi, Offre, PageCollectes, Partenaire } from '~/types/prestations'
 import { classeCollecte } from '~/types/prestations'
 
 // Un contrat : calendrier de collecte, partenaire, formule et tarifs. « nouveau » : la page
@@ -21,6 +21,19 @@ const erreur = ref('')
 const message = ref('')
 const envoi = ref(false)
 const mois = ref(moisCourant())
+const lienEnvoye = ref<LienDeSuivi | null>(null)
+
+async function envoyerLien() {
+  erreur.value = ''
+  envoi.value = true
+  try {
+    lienEnvoye.value = await appeler<LienDeSuivi>(`/api/v1/admin/contrats/${reference.value}/lien-de-suivi`, { method: 'POST' })
+  } catch (e) {
+    erreur.value = messageErreur(e)
+  } finally {
+    envoi.value = false
+  }
+}
 
 const fiche = reactive({
   statut: 'actif', structure: '', type_structure: '', contact: '', telephone: '', adresse: '',
@@ -206,6 +219,25 @@ watch([verifie, reference], charger)
       </form>
 
       <section v-if="contrat" class="carte annexe">
+        <h2>Lien de suivi de la structure</h2>
+        <p class="aide">
+          Le lien donne accès aux messages de ce contrat, sans mot de passe. Le renvoyer remplace
+          l'ancien. Il part par SMS au contact du contrat.
+        </p>
+        <div class="boutons">
+          <button type="button" class="bouton bouton-secondaire" :disabled="envoi" @click="envoyerLien">
+            {{ lienEnvoye ? 'Renvoyer le lien par SMS' : 'Envoyer le lien par SMS' }}
+          </button>
+        </div>
+        <p v-if="lienEnvoye" class="aide" role="status">
+          {{ lienEnvoye.sms_envoye ? 'SMS envoyé. ' : 'Les SMS sont coupés pour ce contrat : ' }}À copier si besoin :
+          <input class="lien-copiable" :value="lienEnvoye.lien" readonly aria-label="Lien de suivi" @focus="($event.target as HTMLInputElement).select()">
+        </p>
+      </section>
+
+      <FilContrat v-if="contrat" class="carte annexe" :base="`/api/v1/admin/contrats/${reference}`" equipe />
+
+      <section v-if="contrat" class="carte annexe">
         <h2>Relevé mensuel</h2>
         <div class="boutons">
           <label for="mois" class="visuellement-cache">Mois</label>
@@ -227,6 +259,7 @@ watch([verifie, reference], charger)
 </template>
 
 <style scoped>
+.lien-copiable { display: block; width: 100%; margin-top: 6px; padding: 8px; border: 1.5px solid var(--bordure); border-radius: 8px; font: inherit; font-size: 0.85rem; }
 .fiche { padding: 20px; display: grid; gap: 16px; }
 .fiche fieldset { border: 0; padding: 0; margin: 0; min-width: 0; }
 .fiche legend { font-weight: 800; font-size: 1.1rem; margin-bottom: 6px; }

@@ -36,7 +36,7 @@ watch(verifie, charger)
           <tbody>
             <tr v-for="c in contrats" :key="c.id">
               <td><NuxtLink :to="`/equipe/contrats/${c.reference}`">{{ c.reference }}</NuxtLink></td>
-              <td>{{ c.structure }}</td>
+              <td>{{ c.structure }}<span v-if="c.messages_a_lire" class="pastille pastille-accent"> {{ c.messages_a_lire }} message{{ c.messages_a_lire > 1 ? 's' : '' }}</span></td>
               <td>{{ c.libelle_jours }}</td>
               <td>{{ c.formule === 'forfait' ? `Forfait ${formaterFcfa(c.forfait_mensuel ?? 0)}` : 'À la pièce' }}</td>
               <td>{{ c.partenaire?.nom ?? '—' }}</td>

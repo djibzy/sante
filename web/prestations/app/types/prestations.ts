@@ -86,6 +86,7 @@ export type Formule = 'piece' | 'forfait'
 export type StatutContrat = 'actif' | 'suspendu' | 'termine'
 
 export interface Contrat extends ContratResume {
+  messages_a_lire: number
   service: string
   statut: StatutContrat
   formule: Formule
@@ -215,4 +216,30 @@ export function classeCollecte(statut: StatutCollecte, enRetard = false): string
     rendue: 'pastille pastille-succes',
     annulee: 'pastille pastille-attente',
   }[statut]
+}
+
+// --- Messagerie du contrat ---------------------------------------------------------------------
+
+export interface EntreeFil {
+  id: string
+  auteur: 'structure' | 'equipe'
+  nom_auteur: string
+  texte: string
+  quand: string
+  lu_le: string | null
+  retire: boolean
+  motif_retrait: string
+}
+
+export interface Fil {
+  reference: string
+  structure: string
+  ouvert: boolean
+  entrees: EntreeFil[]
+  a_lire: number
+}
+
+export interface LienDeSuivi {
+  lien: string
+  sms_envoye: boolean
 }

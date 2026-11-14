@@ -52,7 +52,6 @@ const LIENS = [
       </button>
       <NuxtLink to="/" class="lien-logo" aria-label="Bibou, accueil de la boutique">
         <img src="/marque/bibou.png" alt="Bibou" width="115" height="44" class="logo">
-        <span class="endossement">par Yasal Santé</span>
       </NuxtLink>
       <FormulaireRecherche class="recherche-entete" />
       <nav aria-label="Mon espace" class="mon-espace">
@@ -131,7 +130,6 @@ const LIENS = [
 .burger svg { width: 24px; max-width: none; }
 .lien-logo { display: flex; align-items: flex-end; gap: 10px; text-decoration: none; flex-shrink: 0; }
 .logo { height: 40px; width: auto; }
-.endossement { color: var(--texte-doux); font-size: 0.8rem; padding-bottom: 4px; white-space: nowrap; }
 .recherche-entete { flex: 1; max-width: 460px; margin: 0 auto; }
 .mon-espace { display: flex; align-items: center; gap: 4px; margin-left: auto; }
 .lien-commandes { white-space: nowrap; }
@@ -166,7 +164,7 @@ const LIENS = [
 .mega .tout { font-weight: 700; color: var(--primaire); }
 @media (max-width: 900px) {
   .burger { display: block; }
-  .menu, .recherche-entete, .endossement { display: none; }
+  .menu, .recherche-entete { display: none; }
   .ligne-haute { gap: 6px; }
 }
 @media (max-width: 440px) {

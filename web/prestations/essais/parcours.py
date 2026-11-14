@@ -178,6 +178,30 @@ def main() -> int:
         gestion.wait_for_url("**/equipe/contrats/CT-*")
         contrat = gestion.url.rsplit("/", 1)[-1]
 
+        # La messagerie : la gestion envoie le lien de suivi, la structure écrit, la gestion répond.
+        controle.etape = "messagerie"
+        gestion.get_by_role("button", name="Envoyer le lien par SMS").click()
+        lien = gestion.get_by_label("Lien de suivi", exact=True).input_value()
+        chemin_lien = "/contrat/" + lien.split("/contrat/", 1)[1]
+        structure_page = controle.contexte().new_page()
+        structure_page.goto(f"{ADRESSE}/contrat/{contrat}", wait_until="networkidle")  # sans clé
+        expect(structure_page.get_by_text("Ce lien est incomplet")).to_be_visible()
+        structure_page.goto(f"{ADRESSE}{chemin_lien}", wait_until="networkidle")
+        controle.verifier(structure_page, "suivi par la structure")
+        structure_page.get_by_label("Écrire à Yasal Santé").fill("Pouvez-vous passer à 8 h demain ?")
+        structure_page.get_by_role("button", name="Envoyer", exact=True).click()
+        expect(structure_page.locator(".texte")).to_have_text("Pouvez-vous passer à 8 h demain ?")
+        gestion.goto(f"{ADRESSE}/equipe/contrats", wait_until="networkidle")
+        expect(gestion.locator("tr", has_text=contrat)).to_contain_text("1 message")
+        gestion.goto(f"{ADRESSE}/equipe/contrats/{contrat}", wait_until="networkidle")
+        gestion.get_by_label("Écrire à la structure").fill("Oui, nous passerons à 8 h.")
+        controle.verifier(gestion, "messages du contrat")
+        gestion.get_by_role("button", name="Envoyer", exact=True).click()
+        expect(gestion.locator(".fil .texte").last).to_have_text("Oui, nous passerons à 8 h.")
+        structure_page.reload(wait_until="networkidle")
+        expect(structure_page.locator(".texte").last).to_have_text("Oui, nous passerons à 8 h.")
+        structure_page.context.close()
+
         # L'agent compte le linge à l'enlèvement, le dépose, puis le rend au jour promis.
         controle.etape = "tournée"
         agent = connecter(controle, TERRAIN)

@@ -37,6 +37,6 @@ générées dans `web/boutique/public/` et `web/charte/public/marque/`.
 - Le logo garde ses proportions et un espace libre autour de lui au moins égal à la hauteur de
   la lettre « o ».
 - Pas d'ombre, de contour ni de déformation ; pas de logo bleu sur fond vert ou rouge.
-- La mention « par Yasal Santé » ou « une marque de Yasal Santé » accompagne Bibou dans l'en-tête
-  et le pied de page du site, sur les devis et sur les factures.
+- Comme « from Meta » : le logo de Bibou paraît seul dans l'en-tête. La mention « par Yasal Santé »
+  se met discrètement tout en bas du pied de page du site, sur les devis et sur les factures.
 - Les polices restent celles du système (aucun téléchargement de police : forfaits data coûteux).
