@@ -10,6 +10,7 @@ const props = defineProps<{
   chaussures?: PieceHabillee | null
   calot?: PieceHabillee | null
   libelle: string
+  logo?: string | null // logo de la structure, brodé sur la poitrine (côté cœur)
 }>()
 
 // Place de chaque forme (cadre 100 × 125) sur le corps (cadre 200 × 400) : épaules, taille.
@@ -60,6 +61,10 @@ const souliers = computed(() => {
       <path d="M61 370h33v3q0 3-3 3h-27q-3 0-3-3ZM106 370h33v3q0 3-3 3h-27q-3 0-3-3Z" :fill="souliers.semelle" />
     </g>
     <TraceVetement v-if="pose(calot)" v-bind="calot!" :transform="POSES[calot!.forme]" />
+    <image
+      v-if="logo && (pose(dessus) || pose(haut))" :href="logo" x="110" y="96" width="19" height="19"
+      preserveAspectRatio="xMidYMid meet"
+    />
   </svg>
 </template>
 

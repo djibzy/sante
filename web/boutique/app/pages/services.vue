@@ -1,6 +1,7 @@
 <script setup lang="ts">
 useSeoMeta({ title: 'Nos autres services', description: 'Kits de soins, matériel médical, campagnes de sensibilisation, devis pour les structures de santé.' })
 const SERVICES = [
+  { id: 'couleurs', titre: 'Votre structure à vos couleurs', texte: 'Déposez votre logo : votre palette, la peinture RAL la plus proche pour vos murs, et votre équipe habillée à vos couleurs, logo brodé. Un seul interlocuteur, du logo à la blouse.', lien: '/a-vos-couleurs', action: 'Essayer avec votre logo', picto: 'blouses-medicales' },
   { id: 'kits', titre: 'Kits de soins', texte: "Kits d'hygiène, de premiers secours et du relais communautaire, composés article par article et assemblés à l'atelier.", lien: '/rayons/kits', action: 'Voir les kits', picto: 'kits' },
   { id: 'materiel', titre: 'Matériel médical', texte: 'Thermomètres et tensiomètres. Les articles du domaine pharmaceutique sont délivrés par notre pharmacien partenaire.', lien: '/rayons/materiel-medical', action: 'Voir le matériel', picto: 'materiel-medical' },
   { id: 'campagnes', titre: 'Campagnes de sensibilisation', texte: 'T-shirts et casquettes imprimés, affiches et boîtes à images conçues avec notre studio et relues par notre comité médical.', lien: '/rayons/campagnes', action: 'Préparer une campagne', picto: 'campagnes' },

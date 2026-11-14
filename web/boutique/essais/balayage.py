@@ -3,7 +3,7 @@
 WCAG 2.1 A et AA vérifiées par axe-core (défauts graves et critiques), et les gestes essentiels
 marchent (choisir une taille, ajouter au panier, commander, filtrer par couleur, corriger les
 articles d'une commande, faire payer un proche, encaisser, annuler, rembourser, commander à
-nouveau). Les services, la boutique et un
+nouveau, habiller une structure à ses couleurs). Les services, la boutique et un
 compte de l'équipe doivent tourner (voir .github/workflows/ci.yml).
 
     python essais/balayage.py            # BIBOU_ADRESSE=http://localhost:3000 par défaut
@@ -28,7 +28,8 @@ PUBLIQUES = [
     "/recherche?q=blouse", "/favoris", "/guide-des-tailles", "/broderie", "/services", "/hors-ligne",
     "/conditions", "/confidentialite", "/mentions-legales", "/connexion", "/inscription",
     "/mot-de-passe-oublie", "/nouveautes", "/promotions", "/explorer", "/explorer?famille=bleu",
-    "/explorer?proche=1f4fa8", "/composer", "/composer?vide=1", "/commande-equipe",
+    "/explorer?proche=1f4fa8", "/composer", "/composer?vide=1", "/commande-equipe", "/a-vos-couleurs",
+    "/a-vos-couleurs?p=1f4fa8,e07b1f&mur=9001&nom=Clinique%20du%20Fleuve",
     "/commande-equipe?produit=blouse-medicale-brodee", "/collection/Wax", "/univers/equipement",
 ]
 EQUIPE = [
@@ -127,6 +128,16 @@ def main() -> int:
         page.get_by_role("button", name=re.compile("Bleus")).click()
         page.wait_for_url(re.compile(r"famille=bleu"))
         expect(page.locator(".compte")).to_contain_text("bleus")
+
+        # « À vos couleurs » : le logo d'exemple donne sa palette, ses murs, son équipe habillée.
+        courante["chemin"] = "/a-vos-couleurs (exemple)"
+        page.goto(f"{ADRESSE}/a-vos-couleurs", wait_until="networkidle")
+        page.get_by_role("button", name="Essayer avec un exemple").click()
+        expect(page.locator(".palette li")).to_have_count(2)
+        expect(page.locator(".tenue")).to_have_count(3)
+        if page.evaluate("document.documentElement.scrollWidth") > 391:
+            erreurs.append("/a-vos-couleurs : le rendu déborde de l'écran du téléphone")
+        erreurs.extend(f"/a-vos-couleurs (exemple) : accessibilité, {d}" for d in accessibilite(page))
 
         courante["chemin"] = "/connexion (équipe)"
         page.goto(f"{ADRESSE}/connexion?retour=/gestion", wait_until="networkidle")

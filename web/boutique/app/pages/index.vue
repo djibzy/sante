@@ -15,7 +15,7 @@ const AUTRES = [
   { titre: 'Kits de soins', texte: 'Hygiène, premiers secours, relais communautaires.', lien: '/rayons/kits', picto: 'kits' },
   { titre: 'Matériel médical', texte: 'Thermomètres, tensiomètres, et le pharmacien partenaire.', lien: '/rayons/materiel-medical', picto: 'materiel-medical' },
   { titre: 'Campagnes de sensibilisation', texte: 'T-shirts, affiches et boîtes à images avec notre studio.', lien: '/rayons/campagnes', picto: 'campagnes' },
-  { titre: 'Devis pour les structures', texte: 'Quantités, logo brodé, prix professionnel, devis PDF.', lien: '/services#structures', picto: 'blouses-medicales' },
+  { titre: 'Votre structure à vos couleurs', texte: 'Votre logo : la peinture de vos murs et les tenues de votre équipe.', lien: '/a-vos-couleurs', picto: 'blouses-medicales' },
 ]
 </script>
 

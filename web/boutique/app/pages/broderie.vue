@@ -21,6 +21,7 @@ const whatsapp = computed(() => `https://wa.me/${config.public.whatsapp}?text=${
           <li>En fil bleu, blanc, noir ou aux couleurs de votre logo.</li>
         </ul>
         <p>Indiquez le texte sur la fiche du produit, dans « Texte à broder ». Nous vous montrons un aperçu avant de broder.</p>
+        <p>Pour une structure : <NuxtLink to="/a-vos-couleurs">voyez votre équipe à vos couleurs, avec votre logo</NuxtLink>.</p>
       </div>
     </div>
 
