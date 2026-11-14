@@ -11,6 +11,7 @@ services:
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?à définir dans .env}
       COMPTES_DB_MOT_DE_PASSE: ${COMPTES_DB_MOT_DE_PASSE:?}
       BOUTIQUE_DB_MOT_DE_PASSE: ${BOUTIQUE_DB_MOT_DE_PASSE:?}
+      PRESTATIONS_DB_MOT_DE_PASSE: ${PRESTATIONS_DB_MOT_DE_PASSE:?}
     volumes:
       - donnees-postgres:/var/lib/postgresql/data
       - ./postgres-init.sh:/docker-entrypoint-initdb.d/init.sh:ro
@@ -30,7 +31,7 @@ services:
       COMPTES_DATABASE_URL: postgresql+asyncpg://comptes:${COMPTES_DB_MOT_DE_PASSE}@postgres:5432/comptes
       COMPTES_JWT_CLE_PRIVEE: ${COMPTES_JWT_CLE_PRIVEE:?générer avec comptes.outils generer-cles}
       COMPTES_COOKIE_DOMAINE: .${DOMAINE}
-      COMPTES_CORS_ORIGINES: '["https://boutique.${DOMAINE}"]'
+      COMPTES_CORS_ORIGINES: '["https://boutique.${DOMAINE}", "https://prestations.${DOMAINE}"]'
       # Codes « mot de passe oublié » : même compte SMS que la boutique.
       COMPTES_SMS_FOURNISSEUR: ${SMS_FOURNISSEUR:-journal}
       COMPTES_SMS_EXPEDITEUR: ${SMS_EXPEDITEUR:-}
@@ -104,10 +105,49 @@ services:
     depends_on:
       boutique: { condition: service_started }
 
+  # Services aux structures : entretien du linge avec les blanchisseries partenaires.
+  prestations:
+    build:
+      context: ..
+      dockerfile: infra/python.Dockerfile
+      args: { SERVICE: prestations }
+    restart: unless-stopped
+    environment:
+      PRESTATIONS_ENVIRONNEMENT: production
+      PRESTATIONS_DATABASE_URL: postgresql+asyncpg://prestations:${PRESTATIONS_DB_MOT_DE_PASSE}@postgres:5432/prestations
+      PRESTATIONS_JWT_CLE_PUBLIQUE: ${BOUTIQUE_JWT_CLE_PUBLIQUE:?}
+      PRESTATIONS_CORS_ORIGINES: '["https://prestations.${DOMAINE}"]'
+      # Imprimés sur les relevés mensuels remis aux structures.
+      PRESTATIONS_COORDONNEES: ${PRESTATIONS_COORDONNEES:-Bamako, Mali}
+      PRESTATIONS_MENTIONS_LEGALES: ${PRESTATIONS_MENTIONS_LEGALES:-}
+      PRESTATIONS_TELEPHONES_EQUIPE: ${PRESTATIONS_TELEPHONES_EQUIPE:-[]}
+    depends_on:
+      postgres: { condition: service_healthy }
+
+  # SMS des prestations (bons de collecte, demandes) et durées de conservation, chaque nuit.
+  prestations-envoi:
+    build:
+      context: ..
+      dockerfile: infra/python.Dockerfile
+      args: { SERVICE: prestations }
+    restart: unless-stopped
+    command: ["python", "-m", "prestations.envoi"]
+    environment:
+      PRESTATIONS_ENVIRONNEMENT: production
+      PRESTATIONS_DATABASE_URL: postgresql+asyncpg://prestations:${PRESTATIONS_DB_MOT_DE_PASSE}@postgres:5432/prestations
+      PRESTATIONS_SMS_FOURNISSEUR: ${SMS_FOURNISSEUR:-journal}
+      PRESTATIONS_SMS_EXPEDITEUR: ${SMS_EXPEDITEUR:-}
+      PRESTATIONS_SMS_NOM_EXPEDITEUR: ${SMS_NOM_EXPEDITEUR:-}
+      PRESTATIONS_ORANGE_CLIENT_ID: ${ORANGE_CLIENT_ID:-}
+      PRESTATIONS_ORANGE_CLIENT_SECRET: ${ORANGE_CLIENT_SECRET:-}
+    depends_on:
+      prestations: { condition: service_started }
+
   web-boutique:
     build:
       context: ../web
       dockerfile: ../infra/web.Dockerfile
+      args: { APP: boutique }
     restart: unless-stopped
     environment:
       NUXT_API_BOUTIQUE_INTERNE: http://boutique:8000
@@ -116,9 +156,24 @@ services:
       NUXT_PUBLIC_WHATSAPP: ${WHATSAPP:-}
       NUXT_PUBLIC_ADRESSE: ${ADRESSE_BOUTIQUE:-}
       NUXT_PUBLIC_HORAIRES: ${HORAIRES_BOUTIQUE:-}
+      NUXT_PUBLIC_SITE_PRESTATIONS: https://prestations.${DOMAINE}
       # « true » une fois les conditions, la confidentialité et les mentions validées par un juriste.
       NUXT_PUBLIC_TEXTES_JURIDIQUES_VALIDES: ${TEXTES_JURIDIQUES_VALIDES:-}
     depends_on: [boutique]
+
+  web-prestations:
+    build:
+      context: ../web
+      dockerfile: ../infra/web.Dockerfile
+      args: { APP: prestations }
+    restart: unless-stopped
+    environment:
+      NUXT_API_PRESTATIONS_INTERNE: http://prestations:8000
+      NUXT_PUBLIC_API_PRESTATIONS: https://prestations.${DOMAINE}
+      NUXT_PUBLIC_API_COMPTES: https://comptes.${DOMAINE}
+      NUXT_PUBLIC_SITE_BOUTIQUE: https://boutique.${DOMAINE}
+      NUXT_PUBLIC_WHATSAPP: ${WHATSAPP:-}
+    depends_on: [prestations]
 
   # Sauvegarde de chaque base, chaque nuit, gardée 14 jours dans le volume « sauvegardes ».
   # À recopier régulièrement hors du serveur (voir docs/securite.md).
@@ -131,7 +186,7 @@ services:
       PGHOST: postgres
       PGUSER: postgres
       PGPASSWORD: ${POSTGRES_PASSWORD:?}
-      BASES: comptes boutique
+      BASES: comptes boutique prestations
       JOURS_CONSERVES: 14
       # Copie chiffrée hors du serveur (vide : sauvegardes seulement sur le serveur).
       COPIE_DISTANTE: ${SAUVEGARDE_COPIE_DISTANTE:-}
@@ -163,7 +218,7 @@ services:
       - ./Caddyfile:/etc/caddy/Caddyfile:ro
       - caddy-donnees:/data
       - caddy-config:/config
-    depends_on: [comptes, boutique, web-boutique]
+    depends_on: [comptes, boutique, web-boutique, prestations, web-prestations]
 
 volumes:
   sauvegardes:

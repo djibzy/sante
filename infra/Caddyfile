@@ -38,3 +38,13 @@ boutique.{$DOMAINE} {
 		reverse_proxy web-boutique:3000
 	}
 }
+
+prestations.{$DOMAINE} {
+	import securite
+	handle /api/* {
+		reverse_proxy prestations:8000
+	}
+	handle {
+		reverse_proxy web-prestations:3000
+	}
+}

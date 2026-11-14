@@ -44,18 +44,21 @@ jobs:
         run: uv run pytest services/prestations
 
   web:
-    name: Interface de la boutique
+    name: Interface ${{ matrix.app }}
     runs-on: ubuntu-24.04
+    strategy:
+      matrix:
+        app: [boutique, prestations]
     defaults:
       run:
-        working-directory: web/boutique
+        working-directory: web/${{ matrix.app }}
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
           node-version: 22
           cache: npm
-          cache-dependency-path: web/boutique/package-lock.json
+          cache-dependency-path: web/${{ matrix.app }}/package-lock.json
       - run: npm ci
       - run: npm run build
 
@@ -74,9 +77,11 @@ jobs:
     env:
       COMPTES_DATABASE_URL: postgresql+asyncpg://postgres:postgres@localhost:5432/comptes
       BOUTIQUE_DATABASE_URL: postgresql+asyncpg://postgres:postgres@localhost:5432/boutique
+      PRESTATIONS_DATABASE_URL: postgresql+asyncpg://postgres:postgres@localhost:5432/prestations
       COMPTES_COOKIE_SECURISE: "false"
-      COMPTES_CORS_ORIGINES: '["http://localhost:3000"]'
+      COMPTES_CORS_ORIGINES: '["http://localhost:3000", "http://localhost:3001"]'
       BOUTIQUE_CORS_ORIGINES: '["http://localhost:3000"]'
+      PRESTATIONS_CORS_ORIGINES: '["http://localhost:3001"]'
       BOUTIQUE_PAIEMENT_MOBILE: simulation
       NUXT_PUBLIC_WHATSAPP: "22376000000"
     steps:
@@ -89,39 +94,57 @@ jobs:
         with:
           node-version: 22
           cache: npm
-          cache-dependency-path: web/boutique/package-lock.json
-      - name: Interface construite
-        working-directory: web/boutique
-        run: npm ci && npm run build
+          cache-dependency-path: |
+            web/boutique/package-lock.json
+            web/prestations/package-lock.json
+      - name: Interfaces construites
+        run: |
+          (cd web/boutique && npm ci && npm run build)
+          (cd web/prestations && npm ci && npm run build)
       - name: Bases, clés de signature, migrations, données de démonstration
         run: |
-          PGPASSWORD=postgres psql -h localhost -U postgres -c "CREATE DATABASE comptes" -c "CREATE DATABASE boutique"
+          PGPASSWORD=postgres psql -h localhost -U postgres -c "CREATE DATABASE comptes" \
+            -c "CREATE DATABASE boutique" -c "CREATE DATABASE prestations"
           uv run python essais/cles_ci.py >> "$GITHUB_ENV"
           (cd services/comptes && uv run alembic upgrade head)
           (cd services/boutique && uv run alembic upgrade head)
+          (cd services/prestations && uv run alembic upgrade head)
           uv run python -m boutique.donnees_demo
-      - name: Services et interface lancés
+          uv run python -m prestations.donnees_demo
+      - name: Services et interfaces lancés
         run: |
           nohup uv run uvicorn comptes.main:creer_app --factory --port 8001 > comptes.log 2>&1 &
           nohup uv run uvicorn boutique.main:creer_app --factory --port 8002 > boutique.log 2>&1 &
+          nohup uv run uvicorn prestations.main:creer_app --factory --port 8003 > prestations.log 2>&1 &
           (cd web/boutique && nohup node .output/server/index.mjs > ../../web.log 2>&1 &)
+          (cd web/prestations && PORT=3001 nohup node .output/server/index.mjs > ../../web-prestations.log 2>&1 &)
           for _ in $(seq 60); do
             curl -sf localhost:8001/sante > /dev/null && curl -sf localhost:8002/sante > /dev/null \
-              && curl -sf localhost:3000/ > /dev/null && break
+              && curl -sf localhost:8003/sante > /dev/null && curl -sf localhost:3000/ > /dev/null \
+              && curl -sf localhost:3001/ > /dev/null && break
             sleep 1
           done
-      - name: Compte de l'équipe
+      - name: Comptes de l'équipe
         run: |
-          curl -sf -X POST localhost:8001/api/v1/auth/inscription -H 'Content-Type: application/json' \
-            -d '{"telephone": "70 00 00 01", "nom": "Équipe Bibou", "mot_de_passe": "bibou-equipe-2026", "accepte_conditions": true}' > /dev/null
+          inscrire() {
+            curl -sf -X POST localhost:8001/api/v1/auth/inscription -H 'Content-Type: application/json' \
+              -d "{\"telephone\": \"$1\", \"nom\": \"$2\", \"mot_de_passe\": \"$3\", \"accepte_conditions\": true}" > /dev/null
+          }
+          inscrire "70 00 00 01" "Équipe Bibou" "bibou-equipe-2026"
+          inscrire "70 00 00 03" "Gestion Prestations" "prestations-equipe-2026"
+          inscrire "70 00 00 04" "Agent Terrain" "prestations-equipe-2026"
           uv run python -m comptes.outils attribuer-role --telephone "70 00 00 01" --role boutique:admin
+          uv run python -m comptes.outils attribuer-role --telephone "70 00 00 03" --role prestations:admin
+          uv run python -m comptes.outils attribuer-role --telephone "70 00 00 04" --role prestations:terrain
       - name: Navigateur
         run: uvx --from playwright==1.49.1 playwright install --with-deps chromium
       - name: Balayage des pages et gestes essentiels
         run: uv run --with playwright==1.49.1 python web/boutique/essais/balayage.py
+      - name: Entretien du linge de bout en bout
+        run: uv run --with playwright==1.49.1 python web/prestations/essais/parcours.py
       - name: Journaux des services
         if: failure()
-        run: tail -n 80 comptes.log boutique.log web.log
+        run: tail -n 80 comptes.log boutique.log prestations.log web.log web-prestations.log
 
   images:
     name: Images Docker
@@ -132,7 +155,8 @@ jobs:
       - run: docker build -f infra/python.Dockerfile --build-arg SERVICE=comptes -t sante-comptes .
       - run: docker build -f infra/python.Dockerfile --build-arg SERVICE=boutique -t sante-boutique .
       - run: docker build -f infra/python.Dockerfile --build-arg SERVICE=prestations -t sante-prestations .
-      - run: docker build -f infra/web.Dockerfile -t sante-web-boutique web
+      - run: docker build -f infra/web.Dockerfile --build-arg APP=boutique -t sante-web-boutique web
+      - run: docker build -f infra/web.Dockerfile --build-arg APP=prestations -t sante-web-prestations web
 
   audit:
     name: Audit des dépendances (vulnérabilités connues)
@@ -147,6 +171,9 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 22
-      - name: Interface
+      - name: Interface de la boutique
         working-directory: web/boutique
+        run: npm audit --omit=dev --audit-level=high
+      - name: Interface des prestations
+        working-directory: web/prestations
         run: npm audit --omit=dev --audit-level=high

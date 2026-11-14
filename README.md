@@ -1,15 +1,19 @@
 # Yasal Santé : écosystème de santé (Mali, puis AES)
 
 Information, formation et équipement de santé, en produits séparés reliés par un socle commun.
-Ce dépôt contient, pour commencer, le socle, le service de comptes et **Bibou**, la boutique
-(tenues brodées, imprimés, kits et matériel). Marque et logos : [docs/marque.md](docs/marque.md).
+Ce dépôt contient, pour commencer, le socle, le service de comptes, **Bibou**, la boutique
+(tenues brodées, imprimés, kits et matériel), et les **prestations** aux structures de santé, à
+commencer par l'entretien du linge avec des blanchisseries partenaires. Marque et logos :
+[docs/marque.md](docs/marque.md).
 
 | Dossier | Contenu | Port local |
 | --- | --- | --- |
 | `socle/` | Code partagé : base de données, identifiants, jetons, journaux, audit | |
 | `services/comptes/` | Compte unique : inscription et connexion par téléphone, organisations | 8001 |
 | `services/boutique/` | Catalogue, panier, commandes, devis PDF, paiements, zones de livraison | 8002 |
+| `services/prestations/` | Services aux structures : demandes, contrats, tournée, collectes comptées, relevés | 8003 |
 | `web/boutique/` | Interface de Bibou (Nuxt), avec la charte commune de `web/charte/` | 3000 |
+| `web/prestations/` | Offre aux structures et espace de l'équipe des prestations (Nuxt) | 3001 |
 | `infra/` | Mise en production : Docker Compose, Caddy, PostgreSQL | |
 
 Documents de référence : [dossier de projet](https://claude.ai/artifact/1RG4A9vTti9ycmD12kiJ98),
@@ -20,41 +24,51 @@ Documents de référence : [dossier de projet](https://claude.ai/artifact/1RG4A9
 ## Lancer en local
 
 Prérequis : [uv](https://docs.astral.sh/uv/), PostgreSQL 16 (utilisateur `postgres` sans mot de
-passe sur localhost, bases `comptes` et `boutique`), Node.js 22.
+passe sur localhost, bases `comptes`, `boutique` et `prestations`), Node.js 22.
 
 ```bash
 uv sync
 uv run python -m comptes.outils generer-cles        # copier les lignes dans un fichier .env
 (cd services/comptes && uv run alembic upgrade head)
 (cd services/boutique && uv run alembic upgrade head)
+(cd services/prestations && uv run alembic upgrade head)
 uv run python -m boutique.donnees_demo               # catalogue de démonstration
+uv run python -m prestations.donnees_demo            # partenaires et contrats fictifs
 
 uv run uvicorn comptes.main:creer_app --factory --port 8001
 uv run uvicorn boutique.main:creer_app --factory --port 8002
+uv run uvicorn prestations.main:creer_app --factory --port 8003
 cd web/boutique && npm install && npm run dev        # http://localhost:3000
+cd web/prestations && npm install && npm run dev     # http://localhost:3001
 ```
 
-Pour que l'interface parle aux API en local, ajouter au `.env` :
-`COMPTES_COOKIE_SECURISE=false`, `COMPTES_CORS_ORIGINES=["http://localhost:3000"]` et
-`BOUTIQUE_CORS_ORIGINES=["http://localhost:3000"]`.
+Pour que les interfaces parlent aux API en local, ajouter au `.env` :
+`COMPTES_COOKIE_SECURISE=false`,
+`COMPTES_CORS_ORIGINES=["http://localhost:3000", "http://localhost:3001"]`,
+`BOUTIQUE_CORS_ORIGINES=["http://localhost:3000"]`, `PRESTATIONS_CORS_ORIGINES=["http://localhost:3001"]`
+et la clé publique de Comptes dans `BOUTIQUE_JWT_CLE_PUBLIQUE` et `PRESTATIONS_JWT_CLE_PUBLIQUE`.
 
-Documentation des API : http://localhost:8001/docs et http://localhost:8002/docs.
+Documentation des API : http://localhost:8001/docs, http://localhost:8002/docs et
+http://localhost:8003/docs.
 
 ## Vérifier
 
 ```bash
 uv run ruff check . && uv run ruff format --check .
-uv run mypy socle/src services/comptes/src services/boutique/src
+uv run mypy socle/src services/comptes/src services/boutique/src services/prestations/src
 uv run pytest services/comptes
 uv run pytest services/boutique
+uv run pytest services/prestations
 ```
 
-Les tests utilisent les bases `comptes_test` et `boutique_test`. L'intégration continue
-(GitHub Actions) lance tout cela à chaque envoi, puis construit les images Docker.
+Les tests utilisent les bases `comptes_test`, `boutique_test` et `prestations_test`.
+L'intégration continue (GitHub Actions) lance tout cela à chaque envoi, parcourt les deux
+interfaces dans un vrai navigateur (`web/*/essais/`), puis construit les images Docker.
 
 ## Mettre en production
 
-Sur un serveur avec Docker, et les sous-domaines `comptes.` et `boutique.` pointés vers lui :
+Sur un serveur avec Docker, et les sous-domaines `comptes.`, `boutique.` et `prestations.`
+pointés vers lui :
 
 ```bash
 cd infra
@@ -65,6 +79,17 @@ docker compose exec comptes python -m comptes.outils creer-admin --telephone "76
 docker compose exec comptes python -m comptes.outils attribuer-role --telephone "76…" --role boutique:admin
 docker compose exec comptes python -m comptes.outils attribuer-role --telephone "66…" --role boutique:pro
 docker compose exec comptes python -m comptes.outils attribuer-role --telephone "65…" --role boutique:atelier
+# Prestations : la gestion (demandes, contrats, partenaires, relevés) et les agents de collecte.
+docker compose exec comptes python -m comptes.outils attribuer-role --telephone "76…" --role prestations:admin
+docker compose exec comptes python -m comptes.outils attribuer-role --telephone "77…" --role prestations:terrain
+```
+
+Un serveur déjà installé avant l'arrivée des prestations n'a pas encore leur base : la créer une
+fois (`PRESTATIONS_DB_MOT_DE_PASSE` ajouté au `.env`), puis relancer `docker compose up -d` :
+
+```bash
+docker compose exec postgres psql -U postgres \
+  -c "CREATE ROLE prestations LOGIN PASSWORD '…'" -c "CREATE DATABASE prestations OWNER prestations"
 ```
 
 Avant le premier devis, renseigner dans `.env` l'adresse de la boutique (`BOUTIQUE_COORDONNEES`)
@@ -125,4 +150,5 @@ boutique depuis 3 puis 7 jours (`BOUTIQUE_RELANCES_RETRAIT_JOURS`).
 - [x] Taille conseillée d'après ses mesures (fiche produit et guide des tailles) ; plan du site et robots.txt
 - [x] Commande pour une équipe : le même article brodé au nom de chacun (liste saisie ou collée depuis un tableur), puis commande ou devis
 - [x] Acompte non remboursable des articles faits à la demande : demandé à la confirmation, payé en ligne ou à la boutique, il lance la fabrication (clause à faire valider : acompte ou arrhes)
+- [x] Prestations aux structures, d'abord l'entretien du linge avec des blanchisseries partenaires : demande en ligne avec estimation des volumes, contrat (jours de collecte propres à chaque structure ou sur appel, formule à la pièce ou au forfait), tournée du jour, linge compté à l'enlèvement et au retour avec un SMS de bon de collecte, pièces manquantes signalées, relevé mensuel PDF et marge par partenaire
 - [ ] Pharmacien partenaire (janvier 2027)

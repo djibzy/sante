@@ -1,0 +1,32 @@
+/*
+ * Écrans de l'équipe des prestations : formulaires de terrain (gros boutons, au pouce),
+ * tableaux et onglets. Les couleurs viennent de la charte commune (Yasal Santé).
+ */
+.entete-page { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 10px; margin-bottom: 12px; }
+.entete-page h1 { margin: 0; font-size: 1.6rem; }
+
+.formulaire-terrain { display: grid; gap: 4px; padding: 14px 0 4px; border-top: 1px dashed var(--bordure); margin-top: 10px; }
+.formulaire-terrain h3 { margin: 0; font-size: 1.05rem; }
+.grille-champs { display: grid; gap: 0 12px; grid-template-columns: repeat(auto-fit, minmax(min(100%, 200px), 1fr)); margin-top: 12px; }
+.boutons { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+
+.onglets { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 14px; }
+.onglets a, .onglets button {
+  padding: 6px 12px; border-radius: 999px; border: 1.5px solid var(--bordure); background: var(--surface);
+  color: var(--texte); text-decoration: none; font: inherit; font-weight: 600; cursor: pointer;
+}
+.onglets a.actif, .onglets button.actif { background: var(--primaire); border-color: var(--primaire); color: #fff; }
+
+.liste-cartes { display: grid; gap: 12px; }
+
+.tableau-defilant { overflow-x: auto; }
+.tableau { width: 100%; border-collapse: collapse; font-size: 0.95rem; }
+.tableau th, .tableau td { padding: 8px 6px; border-bottom: 1px solid var(--bordure); text-align: left; vertical-align: top; }
+.tableau thead th { font-size: 0.85rem; color: var(--texte-doux); }
+.tableau .nombre { text-align: right; white-space: nowrap; }
+
+/* Une pastille d'état ne se coupe jamais en deux lignes. */
+.pastille { white-space: nowrap; flex-shrink: 0; }
+
+/* Une information n'a pas la couleur d'une erreur : le rouge de la marque reste à l'accent. */
+.alerte-info { background: var(--primaire-clair); color: var(--primaire-fonce); }

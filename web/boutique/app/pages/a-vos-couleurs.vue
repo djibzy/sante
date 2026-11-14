@@ -150,7 +150,7 @@ const SERVICES = [
   { id: 'tenues', texte: "Les tenues de l'équipe à nos couleurs" },
   { id: 'broderie', texte: 'La broderie de notre logo' },
   { id: 'peinture', texte: 'La peinture et la signalétique de nos locaux' },
-  { id: 'entretien', texte: "L'entretien de nos tenues : collecte, lavage, repassage" },
+  { id: 'entretien', texte: "L'entretien de notre linge (tenues, draps, alèses) : collecte, lavage, retour compté" },
 ]
 const voulus = ref<string[]>(['tenues', 'broderie'])
 const origine = ref('')
@@ -301,6 +301,9 @@ watch([palette, nom, murChoisi], () => { copie.value = false }, { deep: true })
           <button type="button" class="bouton bouton-secondaire" @click="copier">{{ copie ? 'Lien copié' : 'Copier le lien du rendu' }}</button>
         </div>
         <p class="aide">Le lien garde la palette, les murs et le nom, pas le logo : partagez-le avec votre direction.</p>
+        <p v-if="voulus.includes('entretien')" class="aide">
+          L'entretien en détail : <a :href="`${config.public.sitePrestations}/entretien-du-linge`">collecte, lavage par une blanchisserie partenaire, retour compté</a>.
+        </p>
       </div>
     </template>
   </section>

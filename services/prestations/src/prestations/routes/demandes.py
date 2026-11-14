@@ -61,6 +61,24 @@ async def lister(
     )
 
 
+async def _vue(session: AsyncSession, demande: Demande) -> DemandeVue:
+    numero = (
+        await session.scalar(select(Contrat.numero).where(Contrat.id == demande.contrat_id))
+        if demande.contrat_id
+        else None
+    )
+    return demande_vue(demande, f"CT-{numero}" if numero else None)
+
+
+@routeur.get("/{reference}", summary="Une demande, pour préparer son contrat")
+async def detail(
+    reference: str,
+    _: Principal = Depends(GESTION),
+    session: AsyncSession = Depends(session_db),
+) -> DemandeVue:
+    return await _vue(session, await acces.demande(session, reference))
+
+
 @routeur.patch("/{reference}", summary="Noter un appel, changer le statut d'une demande")
 async def modifier(
     reference: str,
@@ -69,7 +87,7 @@ async def modifier(
     principal: Principal = Depends(GESTION),
     session: AsyncSession = Depends(session_db),
 ) -> DemandeVue:
-    demande = await acces.demande(session, reference)
+    demande = await acces.demande(session, reference, verrou=True)
     changements = donnees.model_dump(exclude_unset=True, exclude_none=True)
     if "statut" in changements and demande.statut == StatutDemande.SIGNEE:
         raise HTTPException(status.HTTP_409_CONFLICT, "Demande déjà signée : voir son contrat")
@@ -86,9 +104,4 @@ async def modifier(
         adresse_ip=adresse_ip(request),
     )
     await session.commit()
-    numero = (
-        await session.scalar(select(Contrat.numero).where(Contrat.id == demande.contrat_id))
-        if demande.contrat_id
-        else None
-    )
-    return demande_vue(demande, f"CT-{numero}" if numero else None)
+    return await _vue(session, demande)

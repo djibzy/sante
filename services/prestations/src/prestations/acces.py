@@ -75,10 +75,11 @@ async def contrat_par_id(session: AsyncSession, identifiant: UUID) -> Contrat:
     return trouve
 
 
-async def demande(session: AsyncSession, reference: str) -> Demande:
-    trouvee = await session.scalar(
-        select(Demande).where(Demande.numero == numero(reference, "DE")).with_for_update()
-    )
+async def demande(session: AsyncSession, reference: str, *, verrou: bool = False) -> Demande:
+    requete = select(Demande).where(Demande.numero == numero(reference, "DE"))
+    if verrou:
+        requete = requete.with_for_update()
+    trouvee = await session.scalar(requete)
     if trouvee is None:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "Demande introuvable")
     return trouvee

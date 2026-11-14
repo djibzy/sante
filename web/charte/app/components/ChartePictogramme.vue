@@ -15,6 +15,7 @@ const teintes: Record<string, [string, string]> = {
   kits: ['#e4f4ec', '#177a4a'],
   'materiel-medical': ['#fde8eb', '#b0182e'],
   campagnes: ['#fff1dc', '#b86800'],
+  entretien: ['#e4f4ec', '#177a4a'], // entretien du linge (service aux structures)
 }
 // Anciens noms de rayons, gardés pour les liens déjà partagés.
 const alias: Record<string, string> = {
@@ -66,6 +67,11 @@ const couleurs = computed(() => teintes[forme.value] ?? ['#f1f1f6', '#5b5a78'])
     <g v-else-if="forme === 'campagnes'">
       <path d="M14 28v10h8l16 9V19l-16 9z" />
       <path d="M22 38l3 10M44 27a8 8 0 0 1 0 12" />
+    </g>
+    <g v-else-if="forme === 'entretien'">
+      <rect x="15" y="11" width="34" height="42" rx="5" />
+      <circle cx="32" cy="35" r="10" />
+      <path d="M21 18h6M26 36c2-3 4-3 6 0s4 3 6 0" />
     </g>
     <g v-else>
       <rect x="18" y="16" width="28" height="36" rx="5" />

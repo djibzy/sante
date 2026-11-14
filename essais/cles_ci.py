@@ -12,6 +12,7 @@ for nom, valeur in (
     ("COMPTES_JWT_CLE_PRIVEE", pem_prive(cle)),
     ("COMPTES_JWT_CLE_PUBLIQUE", pem_public(cle.public_key())),
     ("BOUTIQUE_JWT_CLE_PUBLIQUE", pem_public(cle.public_key())),
+    ("PRESTATIONS_JWT_CLE_PUBLIQUE", pem_public(cle.public_key())),
 ):
     fin = f"FIN_{secrets.token_hex(8)}"
     print(f"{nom}<<{fin}\n{valeur.strip()}\n{fin}")

@@ -1,14 +1,17 @@
-# Image de l'interface de la boutique, construite depuis le dossier web/ :
-#   docker build -f infra/web.Dockerfile web
+# Image d'une interface Nuxt, construite depuis le dossier web/ avec la charte commune :
+#   docker build -f infra/web.Dockerfile --build-arg APP=boutique web
+#   docker build -f infra/web.Dockerfile --build-arg APP=prestations web
 FROM node:22-slim AS construction
+ARG APP=boutique
 WORKDIR /web
 COPY charte charte
-COPY boutique boutique
-RUN cd boutique && npm ci && npm run build
+COPY ${APP} ${APP}
+RUN cd ${APP} && npm ci && npm run build
 
 FROM node:22-slim
+ARG APP=boutique
 WORKDIR /app
-COPY --from=construction /web/boutique/.output .output
+COPY --from=construction /web/${APP}/.output .output
 ENV HOST=0.0.0.0 PORT=3000 NODE_ENV=production
 USER node
 EXPOSE 3000

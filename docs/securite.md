@@ -44,14 +44,22 @@ semaine 4. Elle sera refaite avant l'ouverture au public, puis à chaque nouveau
    second facteur (code par SMS, sur la même base que « mot de passe oublié ») au premier
    trimestre 2027.
 4. **Politique de sécurité du contenu (CSP)** : en place pour les scripts (nonce par
-   réponse, plugin Nitro `server/plugins/securite-contenu.ts`) ; les styles restent permis en
+   réponse, plugin Nitro `web/charte/server/plugins/securite-contenu.ts`, commun aux
+   interfaces) ; les styles restent permis en
    ligne (attributs `style` des composants) : à resserrer avec des nonces si besoin.
 5. **Durées de conservation** : appliquées chaque nuit (boutique.entretien, comptes.entretien) :
    commandes facturées anonymisées après 10 ans (obligation comptable OHADA), commandes sans
    suite après 3 ans, SMS effacés après 3 ans, avis refusés après 30 jours, tentatives de
    paiement abandonnées après 90 jours, codes SMS le lendemain, sessions fermées après
-   30 jours, adresses IP du journal après un an. Reste à les écrire dans la politique de
-   confidentialité.
+   30 jours, adresses IP du journal après un an. Prestations (prestations.conservation) :
+   demandes classées sans suite et SMS effacés après un an, adresses IP du journal après un
+   an ; contrats et collectes gardés pour les relevés et la facturation. Reste à les écrire
+   dans la politique de confidentialité.
+8. **Prestations** : l'équipe de terrain (rôle `prestations:terrain`) voit adresses et
+   téléphones des structures, jamais les prix ni les relevés ; les comptes du linge ne portent
+   aucune donnée de santé (rappel sur chaque champ d'observation). Le linge souillé des
+   structures relève de leur protocole d'hygiène : à décrire dans chaque contrat avec la
+   blanchisserie partenaire (tri, sacs, température de lavage).
 6. **Limites partagées** : les limites de débit vivent dans chaque processus ; à passer dans
    PostgreSQL ou Redis si l'on fait tourner plusieurs copies d'un service.
 7. **Rotation des clés** : procédure écrite pour changer la clé de signature des jetons

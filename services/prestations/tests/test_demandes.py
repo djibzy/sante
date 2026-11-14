@@ -136,7 +136,8 @@ async def test_l_equipe_suit_les_demandes(app: FastAPI, client: AsyncClient) -> 
 
 async def test_signer_une_demande_cree_son_contrat(client: AsyncClient) -> None:
     await demander(client)
-    demande = (await client.get("/api/v1/admin/demandes", headers=GESTION)).json()["elements"][0]
+    demande = (await client.get("/api/v1/admin/demandes/DE-101", headers=GESTION)).json()
+    assert demande["contact"] == "Awa Traoré, surveillante générale"
     signe = await contrat(client, demande_id=demande["id"], structure=demande["structure"])
     assert signe["reference"] == "CT-101"
     assert signe["demande_reference"] == "DE-101"

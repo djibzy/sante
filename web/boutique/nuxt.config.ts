@@ -38,6 +38,8 @@ export default defineNuxtConfig({
       // Où et quand retirer une commande : pied de page, choix du retrait, suivi d'une commande prête.
       adresse: '', // ex. « Hamdallaye ACI 2000, rue 440, porte 12, Bamako »
       horaires: '', // ex. « Du lundi au samedi, de 9 h à 18 h »
+      // Site des services aux structures (entretien du linge), produit Prestations de Yasal Santé.
+      sitePrestations: 'http://localhost:3001',
       // « true » une fois les textes juridiques validés par un juriste : retire le bandeau « projet ».
       textesJuridiquesValides: '',
     },

@@ -1,10 +1,11 @@
 import { randomBytes } from 'node:crypto'
 
 /**
- * Politique de sécurité du contenu (CSP) des pages. Seuls s'exécutent les scripts du site et ses
- * scripts en ligne, marqués d'un nonce tiré à chaque réponse : un texte injecté dans une page
- * (nom de produit, avis…) ne pourrait pas lancer de script. Les appels ne vont qu'à l'API de la
- * boutique et au service Comptes ; aucune page ne peut être affichée dans le cadre d'un autre site.
+ * Politique de sécurité du contenu (CSP) des pages de chaque interface. Seuls s'exécutent les
+ * scripts du site et ses scripts en ligne, marqués d'un nonce tiré à chaque réponse : un texte
+ * injecté dans une page (nom de produit, avis…) ne pourrait pas lancer de script. Les appels ne
+ * vont qu'aux services déclarés dans la configuration publique (clés « api… » : l'API du produit
+ * et le service Comptes) ; aucune page ne peut être affichée dans le cadre d'un autre site.
  */
 const origine = (adresse: string) => {
   try {
@@ -24,8 +25,12 @@ export default defineNitroPlugin((nitro) => {
     html.body = marquer(html.body)
     html.bodyAppend = marquer(html.bodyAppend)
 
-    const { apiBoutique, apiComptes } = useRuntimeConfig(event).public
-    const services = [apiBoutique, apiComptes].map(a => origine(String(a))).filter(Boolean).join(' ')
+    const publique = useRuntimeConfig(event).public as Record<string, unknown>
+    const services = Object.keys(publique)
+      .filter(cle => /^api[A-Z]/.test(cle))
+      .map(cle => origine(String(publique[cle])))
+      .filter(Boolean)
+      .join(' ')
     const chiffre = services.split(' ').every(o => !o || o.startsWith('https:'))
     setResponseHeader(event, 'Content-Security-Policy', [
       "default-src 'self'",

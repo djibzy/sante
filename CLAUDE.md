@@ -13,7 +13,8 @@ campagnes, puis orientation médicale) sur un socle commun. Références :
 - `services/boutique/` : catalogue, puis commandes et atelier (port 8002)
 - `services/prestations/` : services aux structures avec des partenaires, d'abord l'entretien du
   linge (demandes, contrats, tournée, collectes comptées, relevés ; port 8003)
-- `web/` : interfaces Nuxt ; `web/charte/` est la couche commune, `web/boutique/` l'application
+- `web/` : interfaces Nuxt ; `web/charte/` est la couche commune (styles, session, client des
+  API, CSP), `web/boutique/` l'application Bibou, `web/prestations/` celle des prestations
 - `infra/` : Docker Compose, Caddy ; `docs/` : décisions d'architecture, marque (`docs/marque.md`)
 
 La boutique s'appelle **Bibou**, « par Yasal Santé » (marque mère). Couleurs de Bibou dans

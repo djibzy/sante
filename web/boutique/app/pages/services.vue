@@ -1,6 +1,8 @@
 <script setup lang="ts">
-useSeoMeta({ title: 'Nos autres services', description: 'Kits de soins, matériel médical, campagnes de sensibilisation, devis pour les structures de santé.' })
+useSeoMeta({ title: 'Nos autres services', description: 'Entretien du linge, kits de soins, matériel médical, campagnes de sensibilisation, devis pour les structures de santé.' })
+const config = useRuntimeConfig()
 const SERVICES = [
+  { id: 'entretien', titre: 'Entretien du linge', texte: 'Tenues, draps, alèses, serviettes : collectés dans votre structure, lavés par une blanchisserie partenaire, rendus au jour promis et comptés pièce par pièce.', lien: `${config.public.sitePrestations}/entretien-du-linge`, action: 'Découvrir le service', picto: 'entretien' },
   { id: 'couleurs', titre: 'Votre structure à vos couleurs', texte: 'Déposez votre logo : votre palette, la peinture RAL la plus proche pour vos murs, et votre équipe habillée à vos couleurs, logo brodé. Un seul interlocuteur, du logo à la blouse.', lien: '/a-vos-couleurs', action: 'Essayer avec votre logo', picto: 'blouses-medicales' },
   { id: 'kits', titre: 'Kits de soins', texte: "Kits d'hygiène, de premiers secours et du relais communautaire, composés article par article et assemblés à l'atelier.", lien: '/rayons/kits', action: 'Voir les kits', picto: 'kits' },
   { id: 'materiel', titre: 'Matériel médical', texte: 'Thermomètres et tensiomètres. Les articles du domaine pharmaceutique sont délivrés par notre pharmacien partenaire.', lien: '/rayons/materiel-medical', action: 'Voir le matériel', picto: 'materiel-medical' },
