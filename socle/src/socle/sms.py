@@ -12,6 +12,22 @@ from socle.settings import ParametresSms
 
 journal = logging.getLogger("socle.sms")
 
+# Les SMS restent dans l'alphabet GSM (160 caractères par message) : les lettres qui n'y sont pas
+# (ê, ô, î, ç…) sont remplacées, sans quoi chaque SMS coûterait deux à trois fois plus.
+_HORS_GSM = str.maketrans(
+    {
+        "ê": "e", "ë": "e", "î": "i", "ï": "i", "ô": "o", "û": "u", "ü": "u", "â": "a",
+        "ç": "c", "È": "E", "Ê": "E", "À": "A", "Â": "A", "Î": "I", "Ô": "O", "Û": "U",
+        "œ": "oe", "Œ": "OE", "’": "'", "«": '"', "»": '"', " ": " ", " ": " ",
+        "–": "-", "—": "-", "…": "...",
+    }
+)  # fmt: skip
+
+
+def gsm(texte: str) -> str:
+    """Texte d'un SMS ramené à l'alphabet GSM (é, è, à, ù restent : ils en font partie)."""
+    return texte.translate(_HORS_GSM)
+
 
 class Expediteur(Protocol):
     async def envoyer(self, destinataire: str, message: str) -> str | None:

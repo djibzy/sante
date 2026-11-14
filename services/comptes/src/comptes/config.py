@@ -3,7 +3,9 @@ from pydantic_settings import SettingsConfigDict
 from socle.settings import ParametresService, ParametresSms
 
 # Rôles de l'équipe : mot de passe plus long, choisi à la réinitialisation ou au changement.
-ROLES_EQUIPE = frozenset({"admin", "boutique:admin", "boutique:atelier"})
+ROLES_EQUIPE = frozenset(
+    {"admin", "boutique:admin", "boutique:atelier", "prestations:admin", "prestations:terrain"}
+)
 LONGUEUR_EQUIPE = 12
 
 

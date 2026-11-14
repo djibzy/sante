@@ -24,6 +24,17 @@ async def test_attribuer_puis_retirer_un_role(client: AsyncClient) -> None:
     ]
 
 
+async def test_roles_des_prestations(client: AsyncClient) -> None:
+    await inscrire(client, telephone="76 12 34 57", nom="Moussa Konaté")
+    assert await changer_role("76 12 34 57", "prestations:terrain", database_url=URL) == [
+        "prestations:terrain"
+    ]
+    assert await changer_role("76 12 34 57", "prestations:admin", database_url=URL) == [
+        "prestations:terrain",
+        "prestations:admin",
+    ]
+
+
 async def test_role_inconnu_ou_compte_absent(client: AsyncClient) -> None:
     with pytest.raises(ValueError, match="Rôle inconnu"):
         await changer_role("76 12 34 56", "boutique:admn", database_url=URL)

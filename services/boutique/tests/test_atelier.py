@@ -6,7 +6,8 @@ from fpdf import FPDF
 from httpx import AsyncClient
 from pypdf import PdfReader
 
-from boutique.atelier.etiquettes import RESSOURCES, _couper
+from boutique.atelier.etiquettes import _couper
+from socle import polices
 
 from .aides import commander, fiche, ligne
 from .conftest import jeton
@@ -267,7 +268,7 @@ async def test_etiquettes_de_fabrication(client: AsyncClient) -> None:
 
 def test_texte_sans_espace_reste_dans_l_etiquette() -> None:
     pdf = FPDF()
-    pdf.add_font("Liberation", "B", RESSOURCES / "polices" / "LiberationSans-Bold.ttf")
+    pdf.add_font("Liberation", "B", polices.GRASSE)
     pdf.set_font("Liberation", "B", 11)
     texte = "Awa-Traoré-Infirmière-Cheffe-du-Service-de-Maternité-du-CSRéf-de-la-Commune-IV"
     lignes = _couper(pdf, texte, 80, 99)

@@ -3,7 +3,7 @@ name = "sante"
 version = "0.1.0"
 description = "Écosystème de santé Mali / AES : socle commun et produits"
 requires-python = ">=3.12"
-dependencies = ["socle", "comptes", "boutique"]
+dependencies = ["socle", "comptes", "boutique", "prestations"]
 
 [tool.uv]
 package = false
@@ -15,6 +15,7 @@ members = ["socle", "services/*"]
 socle = { workspace = true }
 comptes = { workspace = true }
 boutique = { workspace = true }
+prestations = { workspace = true }
 
 [dependency-groups]
 dev = [
@@ -39,7 +40,7 @@ ignore = ["B008"]  # Depends() dans les signatures FastAPI
 "**/migrations/versions/*.py" = ["E501"]
 
 [tool.ruff.lint.isort]
-known-first-party = ["socle", "comptes", "boutique"]
+known-first-party = ["socle", "comptes", "boutique", "prestations"]
 
 [tool.mypy]
 python_version = "3.12"

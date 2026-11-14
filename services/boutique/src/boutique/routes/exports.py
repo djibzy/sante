@@ -1,11 +1,8 @@
 """Exports pour la comptabilité, au format CSV qu'Excel ouvre tel quel (UTF-8 avec BOM,
 point-virgule, dates jj/mm/aaaa, montants entiers en FCFA) : factures, encaissements,
-commandes. Une cellule qui commencerait par = + - @ est neutralisée (injection de formules).
+commandes (voir socle.tableurs : cellules neutralisées contre l'injection de formules).
 Chaque export est tracé dans le journal d'audit : il contient des données personnelles."""
 
-import csv
-import io
-from collections.abc import Iterable, Sequence
 from datetime import UTC, date, datetime, time, timedelta
 from typing import Literal
 
@@ -21,38 +18,16 @@ from boutique.models import Commande, Facture, JournalAudit, Paiement, Rembourse
 from socle.audit import journaliser
 from socle.db import session_db
 from socle.security import Principal, exiger_role
+from socle.tableurs import en_csv
 
 routeur = APIRouter(prefix="/api/v1/admin/exports", tags=["tableau de bord"])
 equipe = exiger_role(ROLE_ADMIN_BOUTIQUE)
 Nature = Literal["factures", "encaissements", "commandes"]
-DANGEREUX = ("=", "+", "-", "@", "\t", "\r")
 LIBELLES_MOYENS = {**MOYENS, Moyen.MOBILE_MONEY: "paiement mobile"}
 # Devis pas encore acceptés, devis refusés, commandes annulées : le client ne doit rien.
 RIEN_A_PAYER = frozenset(
     {Statut.DEVIS_DEMANDE, Statut.DEVIS_ENVOYE, Statut.DEVIS_REFUSE, Statut.ANNULEE}
 )
-
-
-def cellule(valeur: object) -> str | int:
-    if valeur is None:
-        return ""
-    if isinstance(valeur, int):
-        return valeur
-    if isinstance(valeur, datetime):
-        return f"{valeur:%d/%m/%Y}"
-    if isinstance(valeur, date):
-        return f"{valeur:%d/%m/%Y}"
-    texte = str(valeur)
-    return f"'{texte}" if texte.startswith(DANGEREUX) else texte
-
-
-def en_csv(entetes: Sequence[str], lignes: Iterable[Sequence[object]]) -> str:
-    tampon = io.StringIO()
-    ecrivain = csv.writer(tampon, delimiter=";", lineterminator="\r\n")
-    ecrivain.writerow(entetes)
-    for ligne in lignes:
-        ecrivain.writerow([cellule(v) for v in ligne])
-    return "﻿" + tampon.getvalue()
 
 
 def _bornes(du: date, au: date) -> tuple[datetime, datetime]:

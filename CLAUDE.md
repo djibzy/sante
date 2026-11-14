@@ -11,6 +11,8 @@ campagnes, puis orientation médicale) sur un socle commun. Références :
 - `socle/` : paquet Python partagé (base, UUID v7, jetons, journaux, audit, fabrique d'application)
 - `services/comptes/` : compte unique, connexion par téléphone, organisations (port 8001)
 - `services/boutique/` : catalogue, puis commandes et atelier (port 8002)
+- `services/prestations/` : services aux structures avec des partenaires, d'abord l'entretien du
+  linge (demandes, contrats, tournée, collectes comptées, relevés ; port 8003)
 - `web/` : interfaces Nuxt ; `web/charte/` est la couche commune, `web/boutique/` l'application
 - `infra/` : Docker Compose, Caddy ; `docs/` : décisions d'architecture, marque (`docs/marque.md`)
 
@@ -22,15 +24,16 @@ La boutique s'appelle **Bibou**, « par Yasal Santé » (marque mère). Couleurs
 ```bash
 uv sync                                   # installe tout l'espace de travail
 uv run ruff check . && uv run ruff format --check .
-uv run mypy socle/src services/comptes/src services/boutique/src
+uv run mypy socle/src services/comptes/src services/boutique/src services/prestations/src
 uv run pytest services/comptes            # un service à la fois
 uv run pytest services/boutique
+uv run pytest services/prestations
 cd services/<service> && uv run alembic revision --autogenerate -m "..."   # puis relire
 ```
 
-Les tests utilisent une vraie base PostgreSQL 16 (`comptes_test`, `boutique_test` sur localhost,
-utilisateur `postgres`) ; les URL se changent avec `COMPTES_TEST_DATABASE_URL` et
-`BOUTIQUE_TEST_DATABASE_URL`.
+Les tests utilisent une vraie base PostgreSQL 16 (`comptes_test`, `boutique_test`,
+`prestations_test` sur localhost, utilisateur `postgres`) ; les URL se changent avec
+`COMPTES_TEST_DATABASE_URL`, `BOUTIQUE_TEST_DATABASE_URL` et `PRESTATIONS_TEST_DATABASE_URL`.
 
 ## Règles
 

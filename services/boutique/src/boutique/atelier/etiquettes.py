@@ -10,7 +10,8 @@ from datetime import date
 
 from fpdf import FPDF
 
-from boutique.commandes.pdf import BLEU, DOUX, ENCRE, RESSOURCES
+from boutique.commandes.pdf import BLEU, DOUX, ENCRE
+from socle import polices
 
 COLONNES, RANGEES = 2, 4
 MARGE, ECART = 10.0, 4.0
@@ -149,8 +150,8 @@ def _etiquette(pdf: FPDF, x: float, y: float, e: Etiquette) -> None:
 
 def etiquettes_pdf(etiquettes: list[Etiquette]) -> bytes:
     pdf = FPDF(format="A4", unit="mm")
-    pdf.add_font("Liberation", "", RESSOURCES / "polices" / "LiberationSans-Regular.ttf")
-    pdf.add_font("Liberation", "B", RESSOURCES / "polices" / "LiberationSans-Bold.ttf")
+    pdf.add_font("Liberation", "", polices.REGULIERE)
+    pdf.add_font("Liberation", "B", polices.GRASSE)
     pdf.set_auto_page_break(False)
     pdf.set_creator("Bibou")
     pdf.set_title("Étiquettes de fabrication")

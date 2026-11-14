@@ -1,26 +1,14 @@
 """Textes des SMS envoyés aux clients, courts et sans aucune donnée de santé.
 
-Les SMS restent dans l'alphabet GSM (160 caractères par message) : les lettres qui n'y sont
-pas (ê, ô, î, ç…) sont remplacées, sans quoi chaque SMS coûterait deux à trois fois plus.
+Les SMS restent dans l'alphabet GSM (voir socle.sms.gsm), sans quoi chaque SMS coûterait deux
+à trois fois plus.
 """
 
 from boutique.commandes import acompte
 from boutique.commandes.cycle import ModeLivraison, Statut
 from boutique.models import Commande
+from socle.sms import gsm
 from socle.telephones import afficher_telephone
-
-_HORS_GSM = str.maketrans(
-    {
-        "ê": "e", "ë": "e", "î": "i", "ï": "i", "ô": "o", "û": "u", "ü": "u", "â": "a",
-        "ç": "c", "È": "E", "Ê": "E", "À": "A", "Â": "A", "Î": "I", "Ô": "O", "Û": "U",
-        "œ": "oe", "Œ": "OE", "’": "'", "«": '"', "»": '"', " ": " ", " ": " ",
-        "–": "-", "—": "-", "…": "...",
-    }
-)  # fmt: skip
-
-
-def gsm(texte: str) -> str:
-    return texte.translate(_HORS_GSM)
 
 
 def _fcfa(montant: int) -> str:

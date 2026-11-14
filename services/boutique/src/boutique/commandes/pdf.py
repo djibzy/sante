@@ -1,7 +1,7 @@
 """Devis et factures en PDF, au format A4, aux couleurs de Bibou.
 
 fpdf2 est en Python pur : rien à installer sur le serveur. La police Liberation Sans (licence
-OFL, fournie dans ressources/polices) couvre tous les caractères du français.
+OFL, fournie par le socle) couvre tous les caractères du français.
 """
 
 from dataclasses import dataclass
@@ -15,6 +15,7 @@ from boutique.commandes.cycle import Moyen
 from boutique.commandes.lettres import francs_cfa
 from boutique.config import ParametresBoutique
 from boutique.models import Commande
+from socle import polices
 from socle.telephones import afficher_telephone
 
 RESSOURCES = Path(__file__).resolve().parents[1] / "ressources"
@@ -51,8 +52,8 @@ class DocumentBibou(FPDF):
 
     def __init__(self) -> None:
         super().__init__(format="A4", unit="mm")
-        self.add_font("Liberation", "", RESSOURCES / "polices" / "LiberationSans-Regular.ttf")
-        self.add_font("Liberation", "B", RESSOURCES / "polices" / "LiberationSans-Bold.ttf")
+        self.add_font("Liberation", "", polices.REGULIERE)
+        self.add_font("Liberation", "B", polices.GRASSE)
         self.set_margins(18, 16, 18)
         self.set_auto_page_break(True, margin=24)
         self.set_creator("Bibou")
