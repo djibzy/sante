@@ -134,7 +134,7 @@ defineExpose({ charger })
     </header>
     <p v-if="!fil && !erreur" class="aide">Chargement du fil…</p>
     <ol v-if="fil" class="entrees">
-      <li v-for="(entree, i) in fil.entrees" :key="entree.id ?? `${entree.type}-${entree.quand}-${i}`" :class="['entree', entree.type, { mien: entree.auteur === moi, interne: entree.interne }]">
+      <li v-for="(entree, i) in fil.entrees" :key="entree.id ?? `${entree.type}-${entree.quand}-${i}`" :class="['entree', `entree-${entree.type}`, { mien: entree.auteur === moi, interne: entree.interne }]">
         <template v-if="entree.type === 'etape' || entree.type === 'paiement' || entree.type === 'remboursement'">
           <p class="jalon">
             <strong>{{ entree.libelle }}</strong>
@@ -225,7 +225,7 @@ defineExpose({ charger })
 .entree { display: grid; }
 .jalon { margin: 0; font-size: 0.92rem; color: var(--texte-doux); display: flex; flex-wrap: wrap; gap: 2px 8px; align-items: baseline; padding-left: 18px; position: relative; }
 .jalon::before { content: ''; position: absolute; left: 2px; top: 0.5em; width: 8px; height: 8px; border-radius: 50%; background: var(--primaire); }
-.paiement .jalon::before, .remboursement .jalon::before { background: var(--succes); }
+.entree-paiement .jalon::before, .entree-remboursement .jalon::before { background: var(--succes); }
 .jalon strong { color: var(--texte); }
 .interne .jalon strong { color: var(--texte-doux); }
 .note { margin: 2px 0 0 18px; font-size: 0.92rem; }
