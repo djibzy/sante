@@ -109,3 +109,16 @@ def collecte_rendue(nom: str, collecte: Collecte) -> str:
         f"{nom} : bon {collecte.reference}, {rendues} sur {_pieces(enlevees)} {accord}. "
         f"Manque {_detail(manque)} : nous les recherchons et revenons vers vous."
     )
+
+
+def manque_pour_l_equipe(collecte: Collecte) -> str:
+    manque = [
+        (ligne, ligne.quantite_enlevee - (ligne.quantite_rendue or 0))
+        for ligne in collecte.lignes
+        if (ligne.quantite_rendue or 0) < ligne.quantite_enlevee
+    ]
+    partenaire = f" Partenaire : {collecte.partenaire.nom[:40]}." if collecte.partenaire else ""
+    return (
+        f"Linge manquant au retour, bon {collecte.reference} "
+        f"({collecte.contrat.structure[:40]}) : {_detail(manque)}.{partenaire}"
+    )

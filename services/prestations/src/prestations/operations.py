@@ -266,17 +266,10 @@ async def rendre(
     collecte.rendue_par = principal.id
     collecte.recu_par = donnees.recu_par.strip()
     collecte.observations_retour = donnees.observations.strip()
-    _journaliser(
-        session,
-        "collecte.rendue",
-        collecte,
-        principal,
-        adresse_ip,
-        manquantes=sum(
-            max(0, ligne.quantite_enlevee - (ligne.quantite_rendue or 0))
-            for ligne in collecte.lignes
-        ),
+    manquantes = sum(
+        max(0, ligne.quantite_enlevee - (ligne.quantite_rendue or 0)) for ligne in collecte.lignes
     )
+    _journaliser(session, "collecte.rendue", collecte, principal, adresse_ip, manquantes=manquantes)
     if collecte.contrat.sms_actifs:
         notifications.deposer(
             session,
@@ -285,6 +278,16 @@ async def rendre(
             collecte.contrat.telephone,
             notifications.collecte_rendue(parametres.nom_service, collecte),
         )
+    # Une pièce manque : la gestion le sait tout de suite, pour la chercher chez le partenaire.
+    if manquantes:
+        for numero in parametres.telephones_equipe:
+            notifications.deposer(
+                session,
+                "collecte",
+                collecte.id,
+                numero,
+                notifications.manque_pour_l_equipe(collecte),
+            )
     await session.commit()
     return await recharger(session, collecte)
 

@@ -30,6 +30,9 @@ const fiche = reactive({
   sms_actifs: true, debut_le: aujourdHui(), fin_le: '' as string, notes: '',
 })
 const tarifs = ref<Record<string, number | null>>({})
+// Pièces par semaine pour l'estimation du mois : celles annoncées dans la demande.
+const volumes = ref<Record<string, number | null>>({})
+const partenaireChoisi = computed(() => partenaires.value.find(p => p.id === fiche.partenaire_id))
 
 function remplir(c: Contrat) {
   Object.assign(fiche, {
@@ -58,6 +61,7 @@ async function charger() {
           structure: demande.value.structure, type_structure: demande.value.type_structure,
           contact: demande.value.contact, telephone: demande.value.telephone, adresse: demande.value.quartier,
         })
+        volumes.value = { ...demande.value.volumes }
       }
       return
     }
@@ -174,6 +178,11 @@ watch([verifie, reference], charger)
             <p class="aide">Prix par pièce rendue. Un article sans prix est signalé « à fixer » sur le relevé.</p>
             <GrilleArticles v-model="tarifs" :articles="offre.articles" mode="prix" identifiant="tarif" :avec-precision="false" />
           </template>
+          <EstimationContrat
+            v-model="volumes" class="estimation-contrat" :articles="offre.articles" :formule="fiche.formule" :tarifs="tarifs"
+            :forfait="fiche.forfait_mensuel" :pieces-incluses="fiche.pieces_incluses"
+            :prix-supplement="fiche.prix_piece_supplementaire" :partenaire="partenaireChoisi"
+          />
         </fieldset>
 
         <fieldset>
@@ -225,6 +234,7 @@ watch([verifie, reference], charger)
 .jour, .formules label, .case { display: inline-flex; align-items: center; gap: 6px; font-weight: 600; min-height: 36px; }
 .jour input, .formules input, .case input { width: 20px; height: 20px; }
 .case { margin-bottom: 10px; }
+.estimation-contrat { margin-top: 14px; }
 .annexe { padding: 20px; margin-top: 16px; }
 .annexe h2 { margin: 0 0 10px; font-size: 1.15rem; }
 .annexe .boutons { margin-bottom: 18px; }

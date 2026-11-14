@@ -24,6 +24,7 @@ from .conftest import jeton
 async def test_un_tour_complet_compte_et_confirme_par_sms(
     app: FastAPI, client: AsyncClient
 ) -> None:
+    app.state.parametres.telephones_equipe = ["+22370000099"]
     pressing = await partenaire(client)
     signe = await contrat(client, partenaire_id=pressing["id"])
     enlevee = await enlever(client, signe["id"], blouse=12, drap=20, taie=1)
@@ -59,6 +60,11 @@ async def test_un_tour_complet_compte_et_confirme_par_sms(
             "+22376000001",
             "Yasal Santé : bon BC-1001, 32 sur 33 pièces rendues. Manque 1 drap : nous les "
             "recherchons et revenons vers vous.",
+        ),
+        (
+            "+22370000099",  # la gestion, pour chercher la pièce chez le partenaire
+            "Linge manquant au retour, bon BC-1001 (Clinique Pasteur) : 1 drap. Partenaire : "
+            "Pressing du Fleuve.",
         ),
     ]
     assert await journal(app) == [

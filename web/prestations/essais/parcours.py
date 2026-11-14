@@ -125,6 +125,10 @@ def main() -> int:
         gestion.get_by_label("Partenaire par défaut").select_option(label="Pressing de démonstration")
         for article, prix in (("blouse", "500"), ("drap", "700"), ("taie", "250")):
             gestion.locator(f"#tarif-{article}").fill(prix)
+        # Estimation du mois avec les volumes de la demande : 520 draps, 260 taies, 130 blouses.
+        estimation = gestion.locator(".estimation")
+        expect(estimation).to_contain_text("494 000 FCFA")
+        expect(estimation).to_contain_text("208 000 FCFA (42 %)")
         controle.verifier(gestion, "nouveau contrat")
         gestion.get_by_role("button", name="Signer le contrat").click()
         gestion.wait_for_url("**/equipe/contrats/CT-*")
