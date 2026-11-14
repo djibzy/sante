@@ -12,6 +12,11 @@ const commande = ref<CommandeGestion | null>(null)
 const erreur = ref('')
 const envoi = ref(false)
 const base = `/api/v1/admin/commandes/${reference}`
+// Le fil se relit quand la commande change (étape franchie, paiement, remboursement).
+const fil = ref<{ charger: () => Promise<void> } | null>(null)
+watch(commande, (nouvelle, ancienne) => {
+  if (nouvelle && ancienne) void fil.value?.charger()
+})
 
 const MOYENS: Record<Paiement['moyen'], string> = {
   especes: 'Espèces', orange_money: 'Orange Money', moov_money: 'Moov Money', mobile_money: 'Paiement mobile', virement: 'Virement', cheque: 'Chèque',
@@ -370,6 +375,9 @@ watch(verifie, async () => {
                 </button>
               </template>
             </div>
+
+            <!-- Messages avec le client, propositions, étapes (notes internes comprises), paiements. -->
+            <FilCommande ref="fil" class="carte bloc" :base="base" equipe />
           </div>
 
           <aside class="lateral">
@@ -472,10 +480,6 @@ watch(verifie, async () => {
               </form>
             </div>
 
-            <div class="carte bloc">
-              <h2>Historique</h2>
-              <HistoriqueCommande :evenements="commande.historique_complet" />
-            </div>
           </aside>
         </div>
       </template>

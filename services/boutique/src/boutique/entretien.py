@@ -2,6 +2,9 @@
 être gardé est effacé ou anonymisé, chaque nuit, par le processus d'envoi.
 
 - SMS : effacés 3 ans après leur création.
+- Messages du fil d'une commande : effacés 3 ans après la fin de l'affaire (commande remise,
+  annulée, devis refusé), images comprises. Les propositions acceptées, qui font foi, restent
+  avec la commande jusqu'à son anonymisation.
 - Commandes sans suite (annulées, devis refusés ou restés sans réponse, jamais confirmées) :
   anonymisées 3 ans après leur dernière modification ; commandes facturées : 10 ans après la
   facture (obligation comptable OHADA). Montants, articles et facture restent, pour les
@@ -14,12 +17,15 @@
 
 from dataclasses import asdict, dataclass
 from datetime import UTC, datetime, timedelta
+from pathlib import Path
 from uuid import UUID
 
-from sqlalchemy import CursorResult, and_, delete, exists, or_, select, update
+from sqlalchemy import ColumnElement, CursorResult, and_, delete, exists, or_, select, update
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 from boutique.commandes.cycle import Statut
+from boutique.messagerie import images
+from boutique.messagerie.etats import EtatProposition
 from boutique.models import (
     Avis,
     Commande,
@@ -27,6 +33,7 @@ from boutique.models import (
     Facture,
     JournalAudit,
     LigneCommande,
+    Message,
     Notification,
     TransactionPaiement,
 )
@@ -42,6 +49,8 @@ SANS_SUITE = (
     Statut.EN_ATTENTE,
     Statut.ACOMPTE_ATTENDU,
 )
+# L'affaire est finie : plus rien ne se passera sur cette commande.
+CLOSES = (Statut.LIVREE, Statut.ANNULEE, Statut.DEVIS_REFUSE)
 ANS = timedelta(days=365)
 
 
@@ -49,6 +58,7 @@ ANS = timedelta(days=365)
 class Bilan:
     sms: int = 0
     commandes: int = 0
+    messages: int = 0
     avis: int = 0
     tentatives: int = 0
     adresses_ip: int = 0
@@ -58,10 +68,40 @@ def _nombre(resultat: object) -> int:
     return resultat.rowcount if isinstance(resultat, CursorResult) else 0
 
 
-async def anonymiser(session: AsyncSession, commandes: list[UUID]) -> None:
-    """Retire des commandes tout ce qui désigne la personne ; montants et articles restent."""
+async def effacer_messages(
+    session: AsyncSession, commandes: list[UUID], *, garder_les_accords: bool
+) -> tuple[int, list[str]]:
+    """Efface les messages de ces commandes. Renvoie leur nombre et les images à supprimer du
+    disque une fois la transaction validée (voir supprimer_images)."""
     if not commandes:
-        return
+        return 0, []
+    condition: ColumnElement[bool] = Message.commande_id.in_(commandes)
+    if garder_les_accords:
+        condition = and_(
+            condition, or_(Message.etat.is_(None), Message.etat != EtatProposition.ACCEPTEE)
+        )
+    fichiers = [
+        nom
+        for nom in await session.scalars(
+            select(Message.image).where(condition, Message.image.is_not(None))
+        )
+        if nom
+    ]
+    efface = await session.execute(delete(Message).where(condition))
+    return _nombre(efface), fichiers
+
+
+def supprimer_images(dossier_medias: Path | None, fichiers: list[str]) -> None:
+    if dossier_medias is not None:
+        for nom in fichiers:
+            images.supprimer(dossier_medias, nom)
+
+
+async def anonymiser(session: AsyncSession, commandes: list[UUID]) -> list[str]:
+    """Retire des commandes tout ce qui désigne la personne ; montants et articles restent.
+    Renvoie les images de leurs messages, à supprimer du disque après validation."""
+    if not commandes:
+        return []
     await session.execute(
         update(Commande)
         .where(Commande.id.in_(commandes))
@@ -84,9 +124,13 @@ async def anonymiser(session: AsyncSession, commandes: list[UUID]) -> None:
         .where(EvenementCommande.commande_id.in_(commandes))
         .values(note="")
     )
+    _, fichiers = await effacer_messages(session, commandes, garder_les_accords=False)
+    return fichiers
 
 
-async def _anonymiser_commandes(session: AsyncSession, maintenant: datetime) -> int:
+async def _anonymiser_commandes(
+    session: AsyncSession, maintenant: datetime
+) -> tuple[int, list[str]]:
     facturee = exists().where(Facture.commande_id == Commande.id)
     facture_ancienne = exists().where(
         Facture.commande_id == Commande.id, Facture.emise_le < maintenant - 10 * ANS
@@ -106,22 +150,41 @@ async def _anonymiser_commandes(session: AsyncSession, maintenant: datetime) -> 
             )
         )
     )
-    await anonymiser(session, cibles)
-    return len(cibles)
+    return len(cibles), await anonymiser(session, cibles)
+
+
+async def _effacer_vieux_messages(
+    session: AsyncSession, maintenant: datetime
+) -> tuple[int, list[str]]:
+    closes = list(
+        await session.scalars(
+            select(Commande.id).where(
+                Commande.statut.in_(CLOSES),
+                Commande.statut_le < maintenant - 3 * ANS,
+                exists().where(Message.commande_id == Commande.id),
+            )
+        )
+    )
+    return await effacer_messages(session, closes, garder_les_accords=True)
 
 
 async def entretenir(
-    sessions: async_sessionmaker[AsyncSession], maintenant: datetime | None = None
+    sessions: async_sessionmaker[AsyncSession],
+    maintenant: datetime | None = None,
+    dossier_medias: Path | None = None,
 ) -> Bilan:
     maintenant = maintenant or datetime.now(UTC)
     bilan = Bilan()
+    fichiers: list[str] = []
     async with sessions() as session:
         bilan.sms = _nombre(
             await session.execute(
                 delete(Notification).where(Notification.cree_le < maintenant - 3 * ANS)
             )
         )
-        bilan.commandes = await _anonymiser_commandes(session, maintenant)
+        bilan.commandes, fichiers = await _anonymiser_commandes(session, maintenant)
+        bilan.messages, vieux = await _effacer_vieux_messages(session, maintenant)
+        fichiers += vieux
         bilan.avis = _nombre(
             await session.execute(
                 delete(Avis).where(
@@ -155,4 +218,5 @@ async def entretenir(
                 details=asdict(bilan),
             )
         await session.commit()
+    supprimer_images(dossier_medias, fichiers)
     return bilan

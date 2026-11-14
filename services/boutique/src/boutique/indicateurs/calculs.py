@@ -25,6 +25,8 @@ from boutique.indicateurs.schemas import (
     VenteProduit,
     Ventes,
 )
+from boutique.messagerie import operations as fil
+from boutique.messagerie.etats import Auteur
 from boutique.models import (
     Avis,
     Commande,
@@ -352,6 +354,9 @@ async def _alertes(session: AsyncSession, aujourd_hui: date) -> Alertes:
             select(func.count(), func.coalesce(func.sum(du), 0)).select_from(Commande).where(du > 0)
         )
     ).one()
+    messages_a_lire = await session.scalar(
+        select(func.count()).select_from(Commande).where(fil.a_lire_sql(Auteur.EQUIPE))
+    )
     return Alertes(
         a_traiter=int(a_traiter or 0),
         acomptes_attendus=int(acomptes or 0),
@@ -361,6 +366,7 @@ async def _alertes(session: AsyncSession, aujourd_hui: date) -> Alertes:
         paiements_a_verifier=int(a_verifier or 0),
         a_rembourser=int(a_rendre),
         montant_a_rembourser=int(montant_a_rendre),
+        messages_a_lire=int(messages_a_lire or 0),
     )
 
 

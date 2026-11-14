@@ -126,6 +126,7 @@ boutique depuis 3 puis 7 jours (`BOUTIQUE_RELANCES_RETRAIT_JOURS`).
 - [x] Avis clients vérifiés : réservés aux clients livrés, relus par l'équipe avant publication, note moyenne sur les fiches et les cartes
 - [x] Mode hors ligne : application et catalogue enregistrés sur le téléphone, pages déjà vues, commande préparée sans réseau et envoyée à son retour
 - [x] Mot de passe oublié (code par SMS) et « Mon compte » (changement du mot de passe)
+- [x] Messagerie de Bibou : un fil sécurisé par commande ou devis (messages, images privées, propositions à accepter), voir D26
 - [x] Tableau de bord de l'équipe : ventes, encaissements, délais, devis, avis, meilleures ventes, alertes du jour
 - [x] Durées de conservation appliquées chaque nuit (anonymisation, effacement), alertes SMS à l'équipe
 - [x] Droits des personnes : téléchargement de ses données et suppression du compte

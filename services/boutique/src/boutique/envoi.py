@@ -12,6 +12,7 @@ import asyncio
 import logging
 import time
 from datetime import UTC, datetime, timedelta
+from pathlib import Path
 
 import httpx
 from sqlalchemy import select
@@ -103,7 +104,9 @@ async def boucle(parametres: ParametresBoutique, pause: float = 5.0) -> None:
             if time.monotonic() >= prochain_entretien:
                 prochain_entretien = time.monotonic() + ENTRETIEN_SECONDES
                 try:
-                    bilan = await entretenir(sessions)
+                    bilan = await entretenir(
+                        sessions, dossier_medias=Path(parametres.dossier_medias)
+                    )
                     journal.info("Durées de conservation appliquées", extra=vars(bilan))
                 except Exception:  # noqa: BLE001 - base indisponible : demain
                     journal.exception("Entretien des données interrompu")

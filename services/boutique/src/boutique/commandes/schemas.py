@@ -201,6 +201,7 @@ class CommandeResume(BaseModel):
     du_au_client: int = Field(0, description="À rendre au client")
     nombre_articles: int
     date_promise: date | None
+    messages_a_lire: int = Field(0, description="Messages de l'autre partie pas encore lus")
 
 
 class PageCommandes(BaseModel):

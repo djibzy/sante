@@ -60,6 +60,7 @@ useSeoMeta({ title: 'Politique de confidentialité', description: 'Les données 
       <li>Commandes facturées : 10 ans après la facture (obligation comptable), puis anonymisées.</li>
       <li>Commandes sans suite (annulées, devis refusés) : anonymisées 3 ans après la dernière modification.</li>
       <li>SMS envoyés : effacés après 3 ans.</li>
+      <li>Messages et images échangés avec la boutique sur une commande ou un devis : effacés 3 ans après la fin du dossier (sauf les propositions acceptées, gardées avec la commande). N'y écrivez aucune information de santé.</li>
       <li>Avis refusés : effacés 30 jours après la décision.</li>
       <li>Codes reçus par SMS : effacés le lendemain ; sessions de connexion fermées : après 30 jours.</li>
       <li>Adresses IP du journal de sécurité : effacées après un an.</li>

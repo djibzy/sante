@@ -106,10 +106,13 @@ def vue_gestion(commande: Commande) -> CommandeGestion:
     )
 
 
-def vue_resume(commande: Commande, zone_nom: str | None, nombre_articles: int) -> CommandeResume:
+def vue_resume(
+    commande: Commande, zone_nom: str | None, nombre_articles: int, messages_a_lire: int = 0
+) -> CommandeResume:
     return CommandeResume(
         **_champs_communs(commande),
         zone_nom=zone_nom,
         du_au_client=remboursements.du_au_client(commande),
         nombre_articles=nombre_articles,
+        messages_a_lire=messages_a_lire,
     )

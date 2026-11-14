@@ -180,8 +180,6 @@ onMounted(charger)
             Télécharger la facture {{ commande.facture }}
           </button>
           <PaiementMobile :commande="commande" :base="base" :requete="requete" :cle="cle" @paye="recharger" />
-          <h2>Étapes</h2>
-          <HistoriqueCommande :evenements="commande.historique" />
           <template v-if="commande.peut_annuler">
             <button v-if="!confirmerAnnulation" type="button" class="bouton bouton-discret" @click="confirmerAnnulation = true">
               {{ commande.est_devis ? 'Annuler la demande' : 'Annuler la commande' }}
@@ -200,6 +198,8 @@ onMounted(charger)
           </template>
         </aside>
       </div>
+      <!-- Étapes, paiements et messages avec la boutique, au même endroit. -->
+      <FilCommande class="carte bloc fil-suivi" :base="base" :requete="requete" />
       <AvisCommande v-if="commande.statut === 'livree'" class="carte" :base="base" :requete="requete" />
     </template>
   </section>
@@ -217,5 +217,6 @@ onMounted(charger)
 .promesse { font-weight: 650; }
 .livreur { padding: 10px 12px; border-radius: 10px; background: var(--primaire-clair); display: grid; gap: 2px; }
 .colonnes { display: grid; gap: 20px; }
+.fil-suivi { margin-top: 20px; }
 @media (min-width: 900px) { .colonnes { grid-template-columns: minmax(0, 1fr) 360px; align-items: start; } }
 </style>

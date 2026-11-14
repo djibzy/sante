@@ -25,6 +25,7 @@ from sqlalchemy import (
     Uuid,
     false,
     func,
+    text,
     true,
 )
 from sqlalchemy.dialects.postgresql import ARRAY, JSONB
@@ -32,6 +33,7 @@ from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
 
 from boutique.atelier.etats import EtatOrdre, MotifStock
 from boutique.commandes.cycle import ModeLivraison, Moyen, Statut, valeurs_sql
+from boutique.messagerie.etats import Auteur, EtatProposition
 from boutique.metiers import GENRES, MANCHES, UNIVERS
 from socle.audit import JournalAuditMixin
 from socle.db import CONVENTION_NOMMAGE, HorodatageMixin, IdMixin
@@ -623,6 +625,61 @@ class TenueProposee(IdMixin, HorodatageMixin, Base):
     pieces: Mapped[list[dict[str, str | None]]] = mapped_column(JSONB, nullable=False)
     position: Mapped[int] = mapped_column(nullable=False, default=0, server_default="0")
     est_active: Mapped[bool] = mapped_column(nullable=False, default=True, server_default=true())
+
+
+class Message(IdMixin, Base):
+    """Message du fil d'une commande ou d'un devis, entre le client et l'équipe.
+
+    Rien ne se modifie ni ne s'efface : un message se retire seulement s'il contient ce qui
+    n'a rien à faire ici (une information de santé, par exemple) ; son texte et son image
+    disparaissent alors, le retrait reste, daté, signé et motivé.
+
+    Une proposition (état renseigné) est un message de l'équipe que le client accepte ou refuse
+    en un clic : le texte accepté fait foi (texte à broder, couleur de remplacement, date…).
+    """
+
+    __tablename__ = "messages"
+    __table_args__ = (
+        CheckConstraint(f"auteur IN ({valeurs_sql(Auteur)})", name="auteur_valide"),
+        CheckConstraint(
+            f"etat IS NULL OR etat IN ({valeurs_sql(EtatProposition)})", name="etat_valide"
+        ),
+        CheckConstraint(
+            f"etat IS NULL OR auteur = '{Auteur.EQUIPE}'", name="proposition_de_l_equipe"
+        ),
+        Index("ix_messages_fil", "commande_id", "cree_le"),
+        # Messages de clients que l'équipe n'a pas encore lus : file de la gestion, alertes.
+        Index(
+            "ix_messages_a_lire",
+            "commande_id",
+            postgresql_where=text("auteur = 'client' AND lu_le IS NULL AND retire_le IS NULL"),
+        ),
+    )
+
+    commande_id: Mapped[UUID] = mapped_column(
+        ForeignKey("commandes.id", ondelete="CASCADE"), nullable=False
+    )
+    auteur: Mapped[str] = mapped_column(String(10), nullable=False)
+    # Compte de l'auteur : membre de l'équipe, ou client connecté (vide avec le lien de suivi).
+    auteur_id: Mapped[UUID | None] = mapped_column(Uuid)
+    nom_auteur: Mapped[str] = mapped_column(
+        String(120), nullable=False, default="", server_default=""
+    )  # membre de l'équipe, montré à l'équipe seulement
+    texte: Mapped[str] = mapped_column(Text, nullable=False)
+    # Image jointe (logo, modèle de broderie) : nom du fichier, gardé hors du dossier public.
+    image: Mapped[str | None] = mapped_column(String(60))
+    etat: Mapped[str | None] = mapped_column(String(12))  # proposition seulement
+    repondue_le: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    lu_le: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))  # par l'autre partie
+    notifie: Mapped[bool] = mapped_column(nullable=False, default=False, server_default=false())
+    retire_le: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    retire_par: Mapped[UUID | None] = mapped_column(Uuid)
+    motif_retrait: Mapped[str] = mapped_column(
+        String(200), nullable=False, default="", server_default=""
+    )
+    cree_le: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, default=_maintenant
+    )
 
 
 class JournalAudit(JournalAuditMixin, Base):

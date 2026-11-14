@@ -106,6 +106,7 @@ const alertes = computed(() => {
   const relire = donnees.value?.clients.avis_a_relire ?? 0
   if (!a) return []
   return [
+    { titre: 'Messages à lire', nombre: a.messages_a_lire, lien: '/gestion?onglet=messages' },
     { titre: 'À confirmer', nombre: a.a_traiter, lien: '/gestion?onglet=a-traiter' },
     { titre: 'Acomptes attendus', nombre: a.acomptes_attendus, lien: '/gestion?onglet=acomptes' },
     { titre: 'En retard', nombre: a.en_retard, lien: '/gestion?onglet=en-cours' },

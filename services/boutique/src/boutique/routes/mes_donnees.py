@@ -1,11 +1,13 @@
-"""Droits des personnes, côté boutique : télécharger ses commandes et ses avis, et faire
-oublier son compte quand on le supprime (le service Comptes anonymise le compte lui-même).
+"""Droits des personnes, côté boutique : télécharger ses commandes, leurs messages et ses avis,
+et faire oublier son compte quand on le supprime (le service Comptes anonymise le compte
+lui-même).
 
 Seules les commandes passées avec le compte sont concernées : une commande passée sans
 compte se retrouve avec son lien de suivi.
 """
 
 from datetime import UTC, datetime
+from pathlib import Path
 from typing import Any
 
 from fastapi import APIRouter, Depends, HTTPException, Request, status
@@ -17,8 +19,9 @@ from boutique.avis.service import recompter
 from boutique.commandes import acces
 from boutique.commandes.cycle import Statut
 from boutique.commandes.vues import vue_client
-from boutique.entretien import anonymiser
-from boutique.models import Avis, Commande, Facture, JournalAudit, Produit
+from boutique.entretien import anonymiser, effacer_messages, supprimer_images
+from boutique.messagerie.etats import Auteur
+from boutique.models import Avis, Commande, Facture, JournalAudit, Message, Produit
 from socle.audit import journaliser
 from socle.db import session_db
 from socle.limites import LimiteDebit
@@ -59,7 +62,7 @@ async def _commandes(session: AsyncSession, client_id: object) -> list[tuple[Any
     return [(i, n, s, bool(f)) for i, n, s, f in await session.execute(requete)]
 
 
-@routeur.get("", summary="Mes commandes et mes avis, pour les télécharger")
+@routeur.get("", summary="Mes commandes, leurs messages et mes avis, pour les télécharger")
 async def mes_donnees(
     principal: Principal = Depends(principal_requis),
     session: AsyncSession = Depends(session_db),
@@ -70,10 +73,28 @@ async def mes_donnees(
         .join(Produit, Produit.id == Avis.produit_id)
         .where(Avis.commande_id.in_([c.id for c in commandes]))
     )
+    references = {c.id: c.reference for c in commandes}
+    messages = await session.scalars(
+        select(Message)
+        .where(Message.commande_id.in_(references), Message.retire_le.is_(None))
+        .order_by(Message.cree_le)
+    )
     return {
         "service": "boutique",
         "exporte_le": datetime.now(UTC).isoformat(),
         "commandes": [vue_client(c).model_dump(mode="json") for c in commandes],
+        "messages": [
+            {
+                "commande": references[m.commande_id],
+                "ecrit_le": m.cree_le.isoformat(),
+                "auteur": "vous" if m.auteur == Auteur.CLIENT else "la boutique",
+                "texte": m.texte,
+                "image_jointe": m.image is not None,
+                "proposition": m.etat,
+                "repondue_le": m.repondue_le.isoformat() if m.repondue_le else None,
+            }
+            for m in messages
+        ],
         "avis": [
             {
                 "produit": nom,
@@ -124,11 +145,15 @@ async def oublier(
     effaces = await session.execute(delete(Avis).where(Avis.commande_id.in_(toutes)))
     for produit_id in produits:
         await recompter(session, produit_id)
-    await anonymiser(session, [i for i in toutes if i not in facturees])
+    fichiers = await anonymiser(session, [i for i in toutes if i not in facturees])
     if facturees:
         await session.execute(
             update(Commande).where(Commande.id.in_(facturees)).values(client_id=None)
         )
+        # Commandes facturées, gardées pour les comptes : leurs messages partent aussi, sauf
+        # les propositions acceptées, qui font partie de la commande.
+        _, autres = await effacer_messages(session, facturees, garder_les_accords=True)
+        fichiers += autres
     bilan = BilanOubli(
         commandes_anonymisees=len(toutes) - len(facturees),
         commandes_detachees=len(facturees),
@@ -145,4 +170,5 @@ async def oublier(
         adresse_ip=request.client.host if request.client else None,
     )
     await session.commit()
+    supprimer_images(Path(request.app.state.parametres.dossier_medias), fichiers)
     return bilan

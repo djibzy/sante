@@ -75,6 +75,7 @@ class Alertes(BaseModel):
     paiements_a_verifier: int
     a_rembourser: int = Field(0, description="Commandes où de l'argent reste à rendre")
     montant_a_rembourser: int = Field(0, description="Total à rendre aux clients, FCFA")
+    messages_a_lire: int = Field(0, description="Commandes où un client a écrit, pas encore lu")
 
 
 class Point(BaseModel):

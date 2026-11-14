@@ -151,3 +151,34 @@ def pour_l_equipe(commande: Commande, zone: str | None) -> str:
             "A confirmer dans Gestion."
         )
     return gsm(texte)
+
+
+def _affaire(commande: Commande, article: bool = True) -> str:
+    """« la commande BB-1001 », « le devis BB-1002 » ; sans article : « commande BB-1001 »."""
+    devis = commande.statut in (Statut.DEVIS_DEMANDE, Statut.DEVIS_ENVOYE, Statut.DEVIS_REFUSE)
+    nom = f"{'devis' if devis else 'commande'} {commande.reference}"
+    return f"{'le' if devis else 'la'} {nom}" if article else nom
+
+
+def nouveau_message(commande: Commande) -> str:
+    """Jamais le texte du message : il se lit dans le fil, derrière le lien de suivi."""
+    return gsm(
+        f"Bibou : un message vous attend pour {_affaire(commande)}. Lisez-le et répondez "
+        "depuis votre lien de suivi."
+    )
+
+
+def proposition(commande: Commande) -> str:
+    return gsm(
+        f"Bibou : une proposition attend votre accord pour {_affaire(commande)}. Acceptez-la "
+        "ou refusez-la depuis votre lien de suivi."
+    )
+
+
+def message_pour_l_equipe(commande: Commande) -> str:
+    return gsm(f"Bibou : message d'un client sur {_affaire(commande)}. À lire dans Gestion.")
+
+
+def reponse_pour_l_equipe(commande: Commande, acceptee: bool) -> str:
+    verdict = "acceptée" if acceptee else "refusée"
+    return gsm(f"Bibou : proposition {verdict} par le client, {_affaire(commande, False)}.")

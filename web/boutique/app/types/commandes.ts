@@ -131,6 +131,7 @@ export interface CommandeResume {
   total: number
   montant_paye: number
   du_au_client: number
+  messages_a_lire: number // messages de l'autre partie pas encore lus
   nombre_articles: number
   date_promise: string | null
 }
@@ -203,4 +204,33 @@ export interface ArretLivraison {
   date_promise: string | null
   livreur_id: string | null
   livreur_nom: string | null
+}
+
+/** Une ligne du fil d'une commande : message, proposition, étape, paiement ou remboursement. */
+export interface EntreeFil {
+  type: 'message' | 'proposition' | 'etape' | 'paiement' | 'remboursement'
+  quand: string
+  id: string | null
+  auteur: 'client' | 'equipe' | null
+  nom_auteur: string // membre de l'équipe ; vide côté client
+  texte: string
+  image: boolean
+  etat: 'en_attente' | 'acceptee' | 'refusee' | 'annulee' | null
+  libelle_etat: string
+  repondue_le: string | null
+  lu_le: string | null
+  retire: boolean
+  motif_retrait: string
+  libelle: string
+  note: string
+  interne: boolean
+  montant: number | null
+}
+
+export interface Fil {
+  reference: string
+  ouvert: boolean
+  entrees: EntreeFil[]
+  a_lire: number
+  propositions_en_attente: number
 }

@@ -22,8 +22,8 @@ class PhotoRefusee(ValueError):
     """Le fichier n'est pas une photo exploitable."""
 
 
-def enregistrer(contenu: bytes, dossier: Path) -> str:
-    """Enregistre la photo et renvoie son adresse publique (/medias/produits/….webp)."""
+def convertir(contenu: bytes) -> bytes:
+    """La photo vérifiée, redressée, réduite et réencodée en WebP, sans aucune métadonnée."""
     try:
         with Image.open(BytesIO(contenu)) as controle:
             if controle.format not in FORMATS:
@@ -40,10 +40,18 @@ def enregistrer(contenu: bytes, dossier: Path) -> str:
             else:
                 image = redressee.convert("RGB")
             image.thumbnail((COTE_MAX, COTE_MAX), Image.Resampling.LANCZOS)
-            cible = dossier / SOUS_DOSSIER
-            cible.mkdir(parents=True, exist_ok=True)
-            nom = f"{uuid7()}.webp"
-            image.save(cible / nom, "WEBP", quality=82, method=4)
+            sortie = BytesIO()
+            image.save(sortie, "WEBP", quality=82, method=4)
     except (UnidentifiedImageError, OSError, Image.DecompressionBombError) as exc:
         raise PhotoRefusee("Ce fichier n'est pas une photo lisible") from exc
+    return sortie.getvalue()
+
+
+def enregistrer(contenu: bytes, dossier: Path) -> str:
+    """Enregistre la photo et renvoie son adresse publique (/medias/produits/….webp)."""
+    webp = convertir(contenu)
+    cible = dossier / SOUS_DOSSIER
+    cible.mkdir(parents=True, exist_ok=True)
+    nom = f"{uuid7()}.webp"
+    (cible / nom).write_bytes(webp)
     return f"/medias/{SOUS_DOSSIER}/{nom}"

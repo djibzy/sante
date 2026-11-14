@@ -3,7 +3,8 @@ import type { PageCommandes, Statut } from '~/types/commandes'
 import { classeStatut } from '~/types/commandes'
 
 useSeoMeta({ title: 'Commandes', robots: 'noindex' })
-const ONGLETS: { cle: string; titre: string; statuts: Statut[]; aRembourser?: boolean }[] = [
+const ONGLETS: { cle: string; titre: string; statuts: Statut[]; aRembourser?: boolean; messagesALire?: boolean }[] = [
+  { cle: 'messages', titre: 'Messages à lire', statuts: [], messagesALire: true },
   { cle: 'a-traiter', titre: 'À traiter', statuts: ['en_attente', 'devis_demande'] },
   { cle: 'acomptes', titre: 'Acompte attendu', statuts: ['acompte_attendu'] },
   { cle: 'en-cours', titre: 'En cours', statuts: ['confirmee', 'en_preparation', 'prete', 'en_livraison'] },
@@ -28,6 +29,7 @@ async function charger() {
     resultat.value = await appeler<PageCommandes>('/api/v1/admin/commandes', {
       query: {
         statut: onglet.value.statuts, a_rembourser: onglet.value.aRembourser || undefined,
+        messages_a_lire: onglet.value.messagesALire || undefined,
         q: recherche.value || undefined, page: page.value, par_page: 30,
       },
     })
@@ -68,6 +70,9 @@ watch([verifie, () => route.query], charger, { deep: true })
           <NuxtLink :to="`/gestion/commandes/${c.reference}`" class="carte ligne-file">
             <span class="ref">{{ c.reference }}</span>
             <span :class="classeStatut(c.statut)">{{ c.statut_libelle }}</span>
+            <span v-if="c.messages_a_lire" class="pastille-message">
+              {{ c.messages_a_lire }} message{{ c.messages_a_lire > 1 ? 's' : '' }} à lire
+            </span>
             <span class="client">{{ c.etablissement ?? c.nom_client }}<small>{{ formaterTelephone(c.telephone) }}</small></span>
             <span class="quand">{{ formaterDateHeure(c.cree_le) }}<small v-if="c.date_promise">Promise le {{ formaterDate(c.date_promise) }}</small></span>
             <span class="montant">{{ formaterFcfa(c.total) }}<small>{{ c.du_au_client ? `À rendre : ${formaterFcfa(c.du_au_client)}` : c.montant_paye >= c.total ? 'Payée' : c.mode_livraison === 'livraison' ? c.zone_nom : 'Retrait' }}</small></span>
@@ -100,6 +105,7 @@ watch([verifie, () => route.query], charger, { deep: true })
 .ligne-file:hover { border-color: var(--primaire); }
 .ligne-file small { display: block; color: var(--texte-doux); font-size: 0.85rem; font-weight: 400; }
 .ref { font-weight: 800; }
+.pastille-message { background: var(--primaire); color: #fff; border-radius: 999px; padding: 2px 10px; font-size: 0.85rem; font-weight: 700; justify-self: start; }
 .client { grid-column: 1 / -1; }
 .quand { grid-column: 1 / 3; font-size: 0.92rem; }
 .montant { font-weight: 700; text-align: right; }

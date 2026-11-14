@@ -44,6 +44,8 @@ from boutique.commandes.tarifs import (
 )
 from boutique.commandes.vues import vue_gestion, vue_resume
 from boutique.config import ROLE_ADMIN_BOUTIQUE, ParametresBoutique
+from boutique.messagerie import operations as fil
+from boutique.messagerie.etats import Auteur
 from boutique.models import (
     CodePromo,
     Commande,
@@ -83,6 +85,7 @@ async def lister(
     statut: list[Statut] | None = Query(None, description="Un ou plusieurs statuts"),
     q: str | None = Query(None, max_length=100, description="Référence, nom, téléphone"),
     a_rembourser: bool = Query(False, description="Seulement les commandes où rendre de l'argent"),
+    messages_a_lire: bool = Query(False, description="Seulement celles où un client a écrit"),
     page: int = Query(1, ge=1),
     par_page: int = Query(30, ge=1, le=100),
     _: Principal = Depends(equipe),
@@ -93,6 +96,8 @@ async def lister(
         filtres.append(Commande.statut.in_(statut))
     if a_rembourser:
         filtres.append(remboursements.montant_du_sql() > 0)
+    if messages_a_lire:
+        filtres.append(fil.a_lire_sql(Auteur.EQUIPE))
     if q and q.strip():
         texte = q.strip()
         chiffres = "".join(c for c in texte if c.isdigit())
@@ -113,8 +118,10 @@ async def lister(
         .offset((page - 1) * par_page)
         .limit(par_page)
     )
+    lignes = list(await session.execute(requete))
+    a_lire = await fil.a_lire(session, [c.id for c, _, _ in lignes], Auteur.EQUIPE)
     return PageCommandes(
-        elements=[vue_resume(c, zone, n) for c, zone, n in await session.execute(requete)],
+        elements=[vue_resume(c, zone, n, a_lire.get(c.id, 0)) for c, zone, n in lignes],
         total=total or 0,
         page=page,
         par_page=par_page,

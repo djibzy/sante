@@ -28,6 +28,8 @@ from boutique.commandes.schemas import (
 from boutique.commandes.tarifs import aujourd_hui, frais_de_livraison, jours_de_transport, tarifer
 from boutique.commandes.vues import devis_expire, vue_client, vue_resume
 from boutique.config import ROLE_PRO, ParametresBoutique
+from boutique.messagerie import operations as fil
+from boutique.messagerie.etats import Auteur
 from boutique.models import Commande, JournalAudit, ZoneLivraison
 from boutique.promotions import service as promotions
 from socle.audit import journaliser
@@ -342,7 +344,9 @@ async def mes_commandes(
         .order_by(Commande.cree_le.desc())
         .limit(100)
     )
-    return [vue_resume(c, zone, nombre) for c, zone, nombre in await session.execute(requete)]
+    lignes = list(await session.execute(requete))
+    a_lire = await fil.a_lire(session, [c.id for c, _, _ in lignes], Auteur.CLIENT)
+    return [vue_resume(c, zone, nombre, a_lire.get(c.id, 0)) for c, zone, nombre in lignes]
 
 
 @routeur.get("/mes-commandes/{reference}", summary="Une de mes commandes")

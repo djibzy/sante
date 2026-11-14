@@ -55,6 +55,9 @@ onMounted(charger)
           <NuxtLink :to="`/suivi/${c.reference}`" class="carte element">
             <span class="ref">{{ c.est_devis ? 'Devis' : 'Commande' }} {{ c.reference }}</span>
             <span :class="classeStatut(c.statut)">{{ c.statut_libelle }}</span>
+            <strong v-if="c.messages_a_lire" class="message-a-lire">
+              {{ c.messages_a_lire }} message{{ c.messages_a_lire > 1 ? 's' : '' }} de la boutique
+            </strong>
             <span class="aide">{{ formaterDate(c.cree_le) }}, {{ c.nombre_articles }} article{{ c.nombre_articles > 1 ? 's' : '' }}</span>
             <strong>{{ formaterFcfa(c.total) }}</strong>
           </NuxtLink>
