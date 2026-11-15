@@ -129,6 +129,7 @@ boutique depuis 3 puis 7 jours (`BOUTIQUE_RELANCES_RETRAIT_JOURS`).
 - [x] Messagerie de Bibou : un fil sécurisé par commande ou devis (messages, images privées, propositions à accepter), voir D26
 - [x] Préparation du pilote : préproduction, alerte de panne par SMS, vérification des types du front en CI (docs/exploitation.md, D27)
 - [x] Messagerie de Prestations : un fil par contrat, lien de suivi secret par SMS (D28)
+- [ ] Campagnes (D29) : dossier rédigé (docs/campagnes.md), construction par phases après l'analyse de l'import
 - [x] Tableau de bord de l'équipe : ventes, encaissements, délais, devis, avis, meilleures ventes, alertes du jour
 - [x] Durées de conservation appliquées chaque nuit (anonymisation, effacement), alertes SMS à l'équipe
 - [x] Droits des personnes : téléchargement de ses données et suppression du compte
