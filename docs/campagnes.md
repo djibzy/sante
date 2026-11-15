@@ -106,10 +106,41 @@ services de l'État (direction régionale de la santé, ministère).
 | 3 | Rapports de terrain hors ligne, suivi-évaluation complet, rapports PDF, messagerie, médiathèque | troisième lot |
 | 4 | Dons en ligne, données ouvertes agrégées, réseau de structures | après avis juridique |
 
-## À décider avec le fondateur
+## Décisions prises (15 novembre 2026, par délégation du fondateur ; réversibles)
 
-- Qui est l'organisateur au départ : Yasal Santé seule, ou toute structure qui s'inscrit ?
-- Qui vérifie les structures et relit les campagnes (nom, rôle) ?
-- Quel référent santé valide les messages (un professionnel de Yasal Santé, ou celui de la structure) ?
-- Les langues des supports (français, bambara, autres).
+1. **Organisateur : Yasal Santé seule pour le test de décembre 2026.** Le modèle de données est
+   dès le départ multi-structures, mais l'inscription reste fermée (structures ajoutées par
+   l'équipe, sur invitation). L'ouverture à d'autres structures vient après le test, une fois la
+   vérification rodée.
+2. **Vérification et relecture : l'équipe de la plateforme** (rôle `campagnes:admin`). Elle vérifie
+   le récépissé d'une structure avant qu'elle ne publie, et relit chaque campagne avant sa
+   publication. Pour le test, c'est le fondateur.
+3. **Référent santé : un professionnel de santé nommé par la structure**, enregistré dans la
+   campagne (nom, fonction, date de validation de chaque message). Un message de santé sans
+   validation datée ne peut pas être publié. **À désigner par le fondateur** : c'est une personne
+   réelle et responsable, je ne peux pas la choisir.
+4. **Langues : français et bambara** pour les supports, une langue par support, l'interface en
+   français. D'autres langues (soninké, peul, songhaï, tamasheq…) s'ajoutent support par support.
+
+## Modèle économique (hypothèses à tester, aucun chiffre validé)
+
+Principe : les structures qui font de la sensibilisation ont peu d'argent ; le produit ne doit pas
+les taxer au départ. Il vit de ce qui l'entoure et de ceux qui ont intérêt à soutenir.
+
+| Source | Principe | Quand | Réserve |
+|---|---|---|---|
+| **Services de l'écosystème** | Chaque campagne a besoin de supports (Studio), de bénévoles formés (Formation), de tenues et de kits (Bibou). La plateforme les propose au bon moment du parcours | dès le test | C'est le débouché le plus naturel : les trois produits existent déjà ou sont prévus |
+| **Forfaits pour partenaires et entreprises** | Visibilité et compte rendu d'impact pour les entreprises qui soutiennent (responsabilité sociétale) : mention, rapport dédié, événement | après le test | Ne pas vendre l'indépendance de la campagne : le message de santé n'est jamais influencé par le soutien |
+| **Abonnement des structures** | Gratuit pour les petites associations ; payant pour les grandes (ONG, institutions) qui ont besoin de plusieurs campagnes, d'équipes, de rapports et d'exports | phase 2 ou 3 | À tester : le seuil gratuit/payant se fixe avec de vrais usages |
+| **Subventions et programmes** | Financement de la plateforme comme outil d'intérêt général (déjà dans le plan financier) | en continu | Dépend des bailleurs et de leurs calendriers |
+| **Commission sur les dons** | Part prélevée sur des dons collectés en ligne | phase 4 seulement | Exige de manier l'argent : avis juridique et agrément de paiement d'abord ; écartée tant que la plateforme ne touche pas à l'argent |
+
+À mesurer pendant le test de décembre pour fixer les prix : le temps gagné par la structure, le
+nombre de bénévoles réellement mobilisés, les soutiens obtenus, ce qu'elle serait prête à payer et
+pour quoi. Les prix et les seuils se décident avec ces chiffres, pas avant.
+
+## Reste à préciser avec le fondateur
+
+- Le sujet et les dates de la campagne de décembre 2026 (l'outil se règle sur elle).
+- Le nom du référent santé.
 - Le contenu de l'import : ce qui est repris tel quel, ce qui est reconstruit.
